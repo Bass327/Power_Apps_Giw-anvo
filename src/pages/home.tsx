@@ -32,9 +32,9 @@ const modules = [
     accentColor: "#3b82f6",
   },
   {
-    path:        "/expression-besoin",
-    label:       "Expression de Besoin",
-    description: "Soumettez vos demandes via le formulaire officiel",
+    path:        "/achats",
+    label:       "Achats",
+    description: "Demandes d'achat et expression de besoin",
     Icon:        FileText,
     count:       2,
     accentColor: "#8b5cf6",

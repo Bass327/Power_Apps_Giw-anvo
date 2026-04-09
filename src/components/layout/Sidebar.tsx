@@ -10,7 +10,7 @@ import logoGiwAnvo from "@/assets/logo africa.png"
 const modules = [
   { path: "/budget",       label: "Budget",               Icon: BarChart3,    count: 3  },
   { path: "/rh",           label: "Ressources Humaines",  Icon: Users,        count: 7  },
-  { path: "/expression-besoin", label: "Expression de Besoin", Icon: FileText, count: 2  },
+  { path: "/achats",            label: "Achats",               Icon: FileText, count: 2  },
   { path: "/comptabilite", label: "Comptabilité",         Icon: BookOpen,     count: 5  },
   { path: "/tresorerie",   label: "Trésorerie",           Icon: Wallet,       count: 6  },
   { path: "/suivi",        label: "Suivi & Contrôle",     Icon: LineChart,    count: 4  },

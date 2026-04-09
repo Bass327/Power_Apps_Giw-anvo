@@ -16,7 +16,7 @@ const RHRecrutementPage      = lazy(() => import("@/pages/RH/recrutement"))
 const RHSanctionsPage        = lazy(() => import("@/pages/RH/sanctions"))
 const RHEvaluationsPage      = lazy(() => import("@/pages/RH/evaluations"))
 const RHCourrierPage         = lazy(() => import("@/pages/RH/courrier"))
-const ExpressionBesoinPage   = lazy(() => import("@/pages/ExpressionBesoin"))
+const AchatsPage             = lazy(() => import("@/pages/Achats"))
 const ComptabilitePage       = lazy(() => import("@/pages/Comptabilite"))
 const TresoreriePage         = lazy(() => import("@/pages/Tresorerie"))
 const SuiviControlePage      = lazy(() => import("@/pages/SuiviControle"))
@@ -69,7 +69,7 @@ export const router = createBrowserRouter(
         { path: "rh/sanctions",    element: withSuspense(<RHSanctionsPage />) },
         { path: "rh/evaluations",  element: withSuspense(<RHEvaluationsPage />) },
         { path: "rh/courrier",     element: withSuspense(<RHCourrierPage />) },
-        { path: "expression-besoin", element: withSuspense(<ExpressionBesoinPage />) },
+        { path: "achats",            element: withSuspense(<AchatsPage />) },
         { path: "comptabilite", element: withSuspense(<ComptabilitePage />) },
         { path: "tresorerie",   element: withSuspense(<TresoreriePage />) },
         { path: "suivi",        element: withSuspense(<SuiviControlePage />) },

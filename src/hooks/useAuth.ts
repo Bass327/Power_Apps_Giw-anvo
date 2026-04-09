@@ -35,10 +35,25 @@ export const useAuth = () => {
       })
       return response.accessToken
     } catch {
-      // Token expiré → redirection vers Microsoft pour renouveler
       await instance.acquireTokenRedirect(loginRequest)
-      // acquireTokenRedirect navigue la page — cette ligne ne sera pas atteinte
       throw new Error("Redirection en cours pour renouveler le token")
+    }
+  }
+
+  /**
+   * Retourne un token pour l'API REST SharePoint.
+   * Audience : https://{tenant}.sharepoint.com (différente de graph.microsoft.com)
+   * Nécessaire pour les appels directs à /_api/... (ex: upload de pièces jointes).
+   */
+  const getSharePointToken = async (): Promise<string> => {
+    const spResource = `https://${import.meta.env.VITE_SHAREPOINT_HOSTNAME as string}`
+    const spRequest  = { scopes: [`${spResource}/.default`], account }
+    try {
+      const response = await instance.acquireTokenSilent(spRequest)
+      return response.accessToken
+    } catch {
+      await instance.acquireTokenRedirect(spRequest)
+      throw new Error("Redirection en cours pour renouveler le token SharePoint")
     }
   }
 
@@ -48,5 +63,6 @@ export const useAuth = () => {
     login,
     logout,
     getToken,
+    getSharePointToken,
   }
 }

@@ -169,6 +169,71 @@ export async function logAllLists(token: string): Promise<void> {
   }
 }
 
+export interface SPAttachment {
+  FileName:          string
+  ServerRelativeUrl: string
+}
+
+/**
+ * Récupère les pièces jointes d'un élément de liste SharePoint via l'API REST.
+ * Retourne un tableau vide en cas d'erreur ou si aucune pièce jointe.
+ */
+export async function getListItemAttachments(
+  spToken: string,
+  itemId:  string,
+): Promise<SPAttachment[]> {
+  const siteUrl = `https://${SP_HOSTNAME}${SP_SITE_PATH}`
+  try {
+    const response = await fetch(
+      `${siteUrl}/_api/web/lists/getByTitle('Demandes_Achats')/items(${itemId})/AttachmentFiles`,
+      {
+        headers: {
+          Authorization: `Bearer ${spToken}`,
+          Accept:        "application/json;odata=nometadata",
+        },
+      },
+    )
+    if (!response.ok) return []
+    const data = await response.json() as { value: SPAttachment[] }
+    return data.value ?? []
+  } catch {
+    return []
+  }
+}
+
+/**
+ * Attache un fichier à un élément de liste SharePoint via l'API REST SharePoint.
+ * Graph API v1.0 ne supporte pas l'upload de pièces jointes sur les listes —
+ * on utilise donc l'endpoint REST natif SharePoint.
+ */
+export async function attachFileToListItem(
+  token:    string,
+  itemId:   string,
+  file:     File,
+): Promise<void> {
+  const siteUrl    = `https://${SP_HOSTNAME}${SP_SITE_PATH}`
+  const encodedName = encodeURIComponent(file.name)
+  const arrayBuffer = await file.arrayBuffer()
+
+  const response = await fetch(
+    `${siteUrl}/_api/web/lists/getByTitle('Demandes_Achats')/items(${itemId})/AttachmentFiles/add(FileName='${encodedName}')`,
+    {
+      method:  "POST",
+      headers: {
+        Authorization:  `Bearer ${token}`,
+        "Content-Type": "application/octet-stream",
+        Accept:         "application/json;odata=nometadata",
+      },
+      body: arrayBuffer,
+    },
+  )
+
+  if (!response.ok) {
+    const details = await response.text()
+    throw new Error(`Erreur upload "${file.name}" (${response.status}): ${details}`)
+  }
+}
+
 /** Met à jour un élément d'une liste SharePoint */
 export async function updateListItem(
   token:    string,

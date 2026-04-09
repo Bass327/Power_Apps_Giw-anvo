@@ -6,6 +6,7 @@ import {
   createDemandeAchat,
   updateStatutDemande,
 } from "@/services/sharepoint/demandesAchatsService"
+import { getListItemAttachments, type SPAttachment } from "@/lib/graphClient"
 import type {
   CreateDemandeAchatPayload,
   UpdateStatutPayload,
@@ -13,6 +14,21 @@ import type {
 import type { UserRole } from "@/types/user"
 
 const QUERY_KEY = ["demandes-achats"]
+
+/* ── Pièces jointes d'une demande ── */
+export function useDemandeAttachments(demandeId: string | undefined) {
+  const { getSharePointToken } = useAuth()
+
+  return useQuery<SPAttachment[]>({
+    queryKey:  ["demande-attachments", demandeId],
+    enabled:   !!demandeId,
+    staleTime: 5 * 60 * 1000,
+    queryFn:   async () => {
+      const spToken = await getSharePointToken()
+      return getListItemAttachments(spToken, demandeId!)
+    },
+  })
+}
 
 /* ── Liste toutes les demandes ── */
 export function useDemandesAchats() {
@@ -32,19 +48,22 @@ export function useDemandesAchats() {
 
 /* ── Créer une demande (brouillon ou soumise) ── */
 export function useCreateDemandeAchat() {
-  const { getToken }   = useAuth()
-  const queryClient    = useQueryClient()
+  const { getToken, getSharePointToken } = useAuth()
+  const queryClient                      = useQueryClient()
 
   return useMutation({
     mutationFn: async ({
       payload,
       soumettre,
+      fichiers,
     }: {
       payload:   CreateDemandeAchatPayload
       soumettre: boolean
+      fichiers?: File[]
     }) => {
-      const token = await getToken()
-      return createDemandeAchat(token, payload, soumettre ? "SOUMIS" : "BROUILLON")
+      const token   = await getToken()
+      const spToken = fichiers && fichiers.length > 0 ? await getSharePointToken() : undefined
+      return createDemandeAchat(token, payload, soumettre ? "SOUMIS" : "BROUILLON", fichiers, spToken)
     },
 
     onSuccess: (_, { soumettre }) => {

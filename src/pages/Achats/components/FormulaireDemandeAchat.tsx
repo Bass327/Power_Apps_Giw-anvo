@@ -338,6 +338,7 @@ export function FormulaireDemandeAchat({ open, onClose }: Props) {
           categorieDep:    form.categorieDep    as CategorieDepense,
         },
         soumettre,
+        fichiers: fichiers.length > 0 ? fichiers : undefined,
       },
       { onSuccess: () => resetEtFermer() },
     )
@@ -403,6 +404,7 @@ export function FormulaireDemandeAchat({ open, onClose }: Props) {
             : undefined,
         },
         soumettre: true,
+        fichiers: postDepenseFile ? [postDepenseFile] : undefined,
       },
       { onSuccess: () => resetEtFermer() },
     )
@@ -435,6 +437,7 @@ export function FormulaireDemandeAchat({ open, onClose }: Props) {
           dateIncident:    form.dateIncident,
         },
         soumettre: true,
+        fichiers: fichiersUrgence.length > 0 ? fichiersUrgence : undefined,
       },
       { onSuccess: () => resetEtFermer() },
     )

@@ -3,6 +3,7 @@ import {
   X, CheckCircle, XCircle, AlertCircle,
   Building2, Calendar, User, FileText, Banknote,
   Loader2, ArrowRight, CreditCard, BadgeCheck,
+  Paperclip, Download,
 } from "lucide-react"
 import {
   Dialog,
@@ -10,7 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { useUpdateStatutDemande } from "@/hooks/useDemandesAchats"
+import { useUpdateStatutDemande, useDemandeAttachments } from "@/hooks/useDemandesAchats"
 import { useCurrentUser } from "@/hooks/useCurrentUser"
 import type { DemandeAchat, StatutDemande } from "@/types/DemandeAchat"
 import { STATUT_CONFIG, CIRCUIT_VALIDATION, TYPE_CONFIG, ETAPES_CIRCUIT } from "@/types/DemandeAchat"
@@ -31,8 +32,9 @@ export function DetailDemandeAchat({ demande, open, onClose }: Props) {
   const [commentaire, setCommentaire] = useState("")
   const [actionEnCours, setAction]    = useState<"valider" | "rejeter" | null>(null)
 
-  const { user: currentUser }  = useCurrentUser()
-  const { mutate, isPending }  = useUpdateStatutDemande()
+  const { user: currentUser }                    = useCurrentUser()
+  const { mutate, isPending }                    = useUpdateStatutDemande()
+  const { data: attachments = [], isLoading: loadingAttachments } = useDemandeAttachments(demande?.id)
 
   if (!demande) return null
 
@@ -231,6 +233,49 @@ export function DetailDemandeAchat({ demande, open, onClose }: Props) {
               {demande.justification}
             </p>
           </Section>
+
+          {/* ── Pièces jointes ── */}
+          <Section title="Pièces jointes">
+            {loadingAttachments ? (
+              <div className="flex items-center gap-2 py-2">
+                <Loader2 className="w-4 h-4 animate-spin" style={{ color: "var(--text-muted)" }} />
+                <span className="text-sm" style={{ color: "var(--text-muted)" }}>Chargement…</span>
+              </div>
+            ) : attachments.length === 0 ? (
+              <p className="text-sm" style={{ color: "var(--text-muted)" }}>Aucune pièce jointe</p>
+            ) : (
+              <div className="space-y-2">
+                {attachments.map((att) => {
+                  const downloadUrl = `https://${import.meta.env.VITE_SHAREPOINT_HOSTNAME as string}${att.ServerRelativeUrl}`
+                  return (
+                    <a
+                      key={att.FileName}
+                      href={downloadUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-between gap-3 px-3 py-2 rounded-lg transition-colors"
+                      style={{
+                        background: "var(--bg-elevated)",
+                        border:     "1px solid var(--bg-border)",
+                        textDecoration: "none",
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--green-vivid)" }}
+                      onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--bg-border)" }}
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <Paperclip className="w-4 h-4 flex-shrink-0" style={{ color: "#60a5fa" }} />
+                        <span className="text-sm truncate font-display" style={{ color: "var(--text-primary)" }}>
+                          {att.FileName}
+                        </span>
+                      </div>
+                      <Download className="w-4 h-4 flex-shrink-0" style={{ color: "var(--text-muted)" }} />
+                    </a>
+                  )
+                })}
+              </div>
+            )}
+          </Section>
+
 
           {/* ── Circuit de validation ── */}
           {statut !== "BROUILLON" && (

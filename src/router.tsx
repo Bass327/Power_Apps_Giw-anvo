@@ -9,6 +9,13 @@ import { ProtectedRoute } from "@/components/shared/ProtectedRoute"
 // Chargement différé des pages modules (bundle-dynamic-imports)
 const BudgetPage             = lazy(() => import("@/pages/Budget"))
 const RHPage                 = lazy(() => import("@/pages/RH"))
+const RHMissionsPage         = lazy(() => import("@/pages/RH/missions"))
+const RHCongesPage           = lazy(() => import("@/pages/RH/conges"))
+const RHAbsencesPage         = lazy(() => import("@/pages/RH/absences"))
+const RHRecrutementPage      = lazy(() => import("@/pages/RH/recrutement"))
+const RHSanctionsPage        = lazy(() => import("@/pages/RH/sanctions"))
+const RHEvaluationsPage      = lazy(() => import("@/pages/RH/evaluations"))
+const RHCourrierPage         = lazy(() => import("@/pages/RH/courrier"))
 const ExpressionBesoinPage   = lazy(() => import("@/pages/ExpressionBesoin"))
 const ComptabilitePage       = lazy(() => import("@/pages/Comptabilite"))
 const TresoreriePage         = lazy(() => import("@/pages/Tresorerie"))
@@ -55,6 +62,13 @@ export const router = createBrowserRouter(
         { index: true,          element: <HomePage /> },
         { path: "budget",       element: withSuspense(<BudgetPage />) },
         { path: "rh",           element: withSuspense(<RHPage />) },
+        { path: "rh/missions",  element: withSuspense(<RHMissionsPage />) },
+        { path: "rh/conges",    element: withSuspense(<RHCongesPage />) },
+        { path: "rh/absences",      element: withSuspense(<RHAbsencesPage />) },
+        { path: "rh/recrutement",  element: withSuspense(<RHRecrutementPage />) },
+        { path: "rh/sanctions",    element: withSuspense(<RHSanctionsPage />) },
+        { path: "rh/evaluations",  element: withSuspense(<RHEvaluationsPage />) },
+        { path: "rh/courrier",     element: withSuspense(<RHCourrierPage />) },
         { path: "expression-besoin", element: withSuspense(<ExpressionBesoinPage />) },
         { path: "comptabilite", element: withSuspense(<ComptabilitePage />) },
         { path: "tresorerie",   element: withSuspense(<TresoreriePage />) },

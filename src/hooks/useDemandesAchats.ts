@@ -87,8 +87,6 @@ export function useUpdateStatutDemande() {
       void queryClient.invalidateQueries({ queryKey: QUERY_KEY })
 
       const messages: Partial<Record<string, string>> = {
-        VALIDE_CHEF: "Demande validée par le Chef de département",
-        VALIDE_RAF:  "Demande validée par le RAF",
         APPROUVE:    "Demande approuvée par la Directrice",
         EN_PAIEMENT: "Demande prise en charge pour paiement",
         SOLDE:       "Paiement soldé avec succès",

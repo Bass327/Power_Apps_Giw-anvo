@@ -1,8 +1,8 @@
 import { useState, useMemo, useEffect } from "react"
 import {
-  Search, FileText,
+  Plus, Search, FileText,
   ClipboardCheck, LayoutList, Loader2, AlertCircle,
-  Wallet, CheckCircle2, ArrowLeft, ExternalLink,
+  Wallet, CheckCircle2, ArrowLeft,
 } from "lucide-react"
 import { useNavigate } from "react-router-dom"
 import { useDemandesAchats } from "@/hooks/useDemandesAchats"
@@ -11,10 +11,8 @@ import type { DemandeAchat, StatutDemande } from "@/types/DemandeAchat"
 import { STATUT_CONFIG } from "@/types/DemandeAchat"
 import type { UserRole } from "@/types/user"
 import { formatFCFA, formatDateFr } from "@/lib/utils"
+import { FormulaireDemandeAchat } from "../Achats/components/FormulaireDemandeAchat"
 import { DetailDemandeAchat } from "../Achats/components/DetailDemandeAchat"
-
-/* ── URL du formulaire officiel Microsoft Forms GIW'ANVO ── */
-const FORMS_URL = "https://forms.office.com/r/kLGit4ZbRX"
 
 /* ── Types d'onglets possibles selon le rôle ── */
 type Onglet =
@@ -42,15 +40,13 @@ function getOnglets(role: UserRole | undefined): OngletConfig[] {
 
     case "Chef Dept.":
       return [
-        { id: "mes-demandes",    label: "Mes demandes",      icon: <FileText className="w-4 h-4" /> },
-        { id: "a-valider",       label: "À valider par moi", icon: <ClipboardCheck className="w-4 h-4" /> },
-        { id: "mon-departement", label: "Mon département",   icon: <LayoutList className="w-4 h-4" /> },
+        { id: "mes-demandes",    label: "Mes demandes",    icon: <FileText className="w-4 h-4" /> },
+        { id: "mon-departement", label: "Mon département", icon: <LayoutList className="w-4 h-4" /> },
       ]
 
     case "RAF":
       return [
         { id: "mes-demandes", label: "Mes demandes",        icon: <FileText className="w-4 h-4" /> },
-        { id: "a-valider",    label: "À valider",           icon: <ClipboardCheck className="w-4 h-4" /> },
         { id: "toutes",       label: "Toutes les demandes", icon: <LayoutList className="w-4 h-4" /> },
       ]
 
@@ -86,20 +82,11 @@ function filtrerParOnglet(
     case "mes-demandes":
       return demandes.filter((d) => d.demandeur === user.email)
 
-    case "a-valider":
-      // Chef Dept. valide les demandes SOUMIS
-      if (user.role === "Chef Dept.") {
-        return demandes.filter((d) => d.statut === "SOUMIS")
-      }
-      // RAF valide les demandes déjà validées par le Chef
-      if (user.role === "RAF") {
-        return demandes.filter((d) => d.statut === "VALIDE_CHEF")
-      }
-      return []
-
     case "a-approuver":
-      // Directrice approuve les demandes validées par le RAF
-      return demandes.filter((d) => d.statut === "VALIDE_RAF")
+      // La DG peut approuver toute demande non encore finalisée
+      return demandes.filter(
+        (d) => !["APPROUVE", "EN_PAIEMENT", "SOLDE", "REJETE"].includes(d.statut),
+      )
 
     case "mon-departement":
       // Chef Dept. voit toutes les demandes de son département
@@ -123,19 +110,15 @@ function filtrerParOnglet(
 const ROLES_PEUVENT_SOUMETTRE: UserRole[] = ["Employé", "RAF", "Chef Dept."]
 
 export default function ExpressionBesoinPage() {
-  const [onglet, setOnglet]           = useState<Onglet>("mes-demandes")
-  const [recherche, setRecherche]     = useState("")
-  const [filtreStatut, setFiltreStatut] = useState<StatutDemande | "TOUS">("TOUS")
-  const [demandeSelectee, setDemande] = useState<DemandeAchat | null>(null)
+  const [onglet, setOnglet]              = useState<Onglet>("mes-demandes")
+  const [recherche, setRecherche]        = useState("")
+  const [filtreStatut, setFiltreStatut]  = useState<StatutDemande | "TOUS">("TOUS")
+  const [formulaireOuvert, setFormulaire] = useState(false)
+  const [demandeSelectee, setDemande]    = useState<DemandeAchat | null>(null)
 
   const navigate              = useNavigate()
   const { user: currentUser } = useCurrentUser()
   const { data: demandes = [], isLoading, isError } = useDemandesAchats()
-
-  /* Ouvre le formulaire officiel dans un nouvel onglet */
-  const handleNouvelleDemande = () => {
-    window.open(FORMS_URL, "_blank", "noopener,noreferrer")
-  }
 
   /* Onglets selon le rôle */
   const onglets = useMemo(
@@ -172,18 +155,16 @@ export default function ExpressionBesoinPage() {
     return liste
   }, [demandes, onglet, currentUser, filtreStatut, recherche])
 
-  /* ── Badge sur l'onglet "À valider" / "À approuver" ── */
+  /* ── Badge sur l'onglet "À approuver" / "En paiement" ── */
   const nbATraiter = useMemo(() => {
     if (!currentUser) return 0
-    if (currentUser.role === "Chef Dept.") {
-      return demandes.filter((d) => d.statut === "SOUMIS").length
-    }
-    if (currentUser.role === "RAF") {
-      return demandes.filter((d) => d.statut === "VALIDE_CHEF").length
-    }
+    // Directrice : toutes les demandes non encore finalisées
     if (currentUser.role === "Directrice") {
-      return demandes.filter((d) => d.statut === "VALIDE_RAF").length
+      return demandes.filter(
+        (d) => !["APPROUVE", "EN_PAIEMENT", "SOLDE", "REJETE"].includes(d.statut),
+      ).length
     }
+    // Comptable : demandes approuvées en attente de traitement
     if (currentUser.role === "Comptable") {
       return demandes.filter((d) => d.statut === "APPROUVE").length
     }
@@ -219,7 +200,7 @@ export default function ExpressionBesoinPage() {
         return date.getMonth() === mois && date.getFullYear() === annee
       }
       return [
-        { label: "En attente",        value: demandes.filter((d) => d.statut === "VALIDE_RAF").length },
+        { label: "En attente",        value: demandes.filter((d) => d.statut === "SOUMIS").length },
         { label: "Approuvées / mois", value: demandes.filter((d) => d.statut === "APPROUVE" && duMois(d)).length },
         { label: "Rejetées / mois",   value: demandes.filter((d) => d.statut === "REJETE" && duMois(d)).length },
         {
@@ -309,54 +290,21 @@ export default function ExpressionBesoinPage() {
 
           {/* Bouton visible uniquement pour les rôles autorisés (pas Comptable, pas Directrice) */}
           {peutSoumettre && (
-            <div className="flex flex-col items-end gap-1">
-              <button
-                onClick={handleNouvelleDemande}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-display font-semibold transition-all"
-                style={{
-                  background: "linear-gradient(135deg, var(--gold-warm), var(--gold-bright))",
-                  color:      "var(--text-inverse)",
-                  boxShadow:  "0 0 16px var(--gold-glow)",
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.filter = "brightness(1.1)" }}
-                onMouseLeave={(e) => { e.currentTarget.style.filter = "brightness(1)" }}
-              >
-                <ExternalLink size={16} />
-                + Nouvelle demande
-              </button>
-              {/* Note informative sous le bouton */}
-              <p className="text-[11px] italic" style={{ color: "var(--text-muted)" }}>
-                ↗ Vous serez redirigé vers le formulaire officiel GIW'ANVO
-              </p>
-            </div>
+            <button
+              onClick={() => setFormulaire(true)}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-display font-semibold transition-all"
+              style={{
+                background: "linear-gradient(135deg, var(--gold-warm), var(--gold-bright))",
+                color:      "var(--text-inverse)",
+                boxShadow:  "0 0 16px var(--gold-glow)",
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.filter = "brightness(1.1)" }}
+              onMouseLeave={(e) => { e.currentTarget.style.filter = "brightness(1)" }}
+            >
+              <Plus className="w-4 h-4" />
+              + Nouvelle demande
+            </button>
           )}
-        </div>
-
-        {/* ── Bannière informative ── */}
-        <div
-          className="mt-4 flex items-center justify-between gap-4 px-4 py-3 rounded-lg"
-          style={{
-            background:   "rgba(45, 158, 95, 0.08)",
-            borderLeft:   "3px solid var(--green-vivid)",
-            borderRadius: "8px",
-          }}
-        >
-          <p className="text-sm leading-relaxed" style={{ color: "var(--text-secondary)" }}>
-            <span className="font-display font-semibold" style={{ color: "var(--text-primary)" }}>
-              📋 Les demandes sont soumises via le formulaire officiel GIW'ANVO.
-            </span>
-            {" "}Les données sont ensuite synchronisées automatiquement via Power Automate.
-          </p>
-          <button
-            onClick={handleNouvelleDemande}
-            className="flex items-center gap-1.5 text-sm font-display font-semibold flex-shrink-0 transition-colors"
-            style={{ color: "var(--gold-warm)" }}
-            onMouseEnter={(e) => { e.currentTarget.style.color = "var(--gold-bright)" }}
-            onMouseLeave={(e) => { e.currentTarget.style.color = "var(--gold-warm)" }}
-          >
-            Ouvrir le formulaire
-            <ExternalLink className="w-3.5 h-3.5" />
-          </button>
         </div>
 
         {/* ── Statistiques rapides ── */}
@@ -507,15 +455,15 @@ export default function ExpressionBesoinPage() {
             </p>
             {onglet === "mes-demandes" && peutSoumettre && (
               <button
-                onClick={handleNouvelleDemande}
+                onClick={() => setFormulaire(true)}
                 className="flex items-center gap-2 text-sm font-display font-semibold px-4 py-2 rounded-lg transition-all"
                 style={{
                   background: "linear-gradient(135deg, var(--gold-warm), var(--gold-bright))",
                   color:      "var(--text-inverse)",
                 }}
               >
-                <ExternalLink size={14} />
-                Soumettre ma première demande
+                <Plus size={14} />
+                Créer ma première demande
               </button>
             )}
           </div>
@@ -634,7 +582,12 @@ export default function ExpressionBesoinPage() {
         )}
       </div>
 
-      {/* ── Modale détail ── */}
+      {/* ── Modales ── */}
+      <FormulaireDemandeAchat
+        open={formulaireOuvert}
+        onClose={() => setFormulaire(false)}
+      />
+
       <DetailDemandeAchat
         demande={demandeSelectee}
         open={demandeSelectee !== null}

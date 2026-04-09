@@ -7,12 +7,12 @@ export type TypeAchat = "ORDINAIRE" | "RESTREINT"
 export type StatutDemande =
   | "BROUILLON"
   | "SOUMIS"
-  | "VALIDE_CHEF"   // Validé par le Chef de département (N1)
-  | "VALIDE_RAF"    // Validé par le RAF (N2)
+  | "VALIDE_CHEF"   // Héritage — plus créé par le nouveau circuit
+  | "VALIDE_RAF"    // Héritage — plus créé par le nouveau circuit
   | "APPROUVE"      // Approuvé par la Directrice (finale)
   | "EN_PAIEMENT"   // Pris en charge par le Comptable
   | "SOLDE"         // Paiement effectué
-  | "REJETE"        // Rejeté par un validateur
+  | "REJETE"        // Rejeté
 
 /* ── Types de demande — formulaire Microsoft Forms style ── */
 
@@ -274,8 +274,8 @@ export const TYPE_CONFIG: Record<TypeAchat, { label: string; seuil: string }> = 
 
 /* Circuit de validation selon le type — libellés des étapes */
 export const CIRCUIT_VALIDATION: Record<TypeAchat, string[]> = {
-  ORDINAIRE: ["Demandeur", "Chef Dept.", "RAF", "Directrice", "Comptable"],
-  RESTREINT: ["Demandeur", "Chef Dept.", "RAF", "Directrice", "Comptable"],
+  ORDINAIRE: ["Demandeur", "Directrice", "Comptable"],
+  RESTREINT: ["Demandeur", "Directrice", "Comptable"],
 }
 
 /** Ordre des statuts pour afficher la progression dans le circuit */

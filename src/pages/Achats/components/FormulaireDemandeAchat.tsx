@@ -1,8 +1,9 @@
 import { useState, useRef, useMemo } from "react"
+import { useNavigate } from "react-router-dom"
 import {
   X, ChevronRight, ChevronLeft, Check,
   Loader2, Upload, FileText as FileIcon, Trash2,
-  ArrowRight, AlertTriangle,
+  ArrowRight, AlertTriangle, Briefcase,
 } from "lucide-react"
 import {
   Dialog,
@@ -177,6 +178,7 @@ export function FormulaireDemandeAchat({ open, onClose }: Props) {
   const urgenceFileRef                         = useRef<HTMLInputElement>(null)
 
   const { data: currentUser } = useCurrentUser()
+  const navigate               = useNavigate()
   const { mutate, isPending } = useCreateDemandeAchat()
 
   /* ── Montants calculés ── */
@@ -485,37 +487,62 @@ export function FormulaireDemandeAchat({ open, onClose }: Props) {
           Type de demande
         </p>
         <div className="grid grid-cols-2 gap-3">
-          {(Object.entries(LABEL_TYPE_DEMANDE) as [TypeDemande, string][]).map(([key, label]) => {
-            const actif = form.typeDemande === key
-            return (
-              <button
-                key={key}
-                type="button"
-                onClick={() => { setForm((prev) => ({ ...prev, typeDemande: key })); setErrors({}) }}
-                className="flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all"
-                style={{
-                  background: actif ? "rgba(240,165,0,0.08)" : "var(--bg-elevated)",
-                  border:     `2px solid ${actif ? "var(--gold-warm)" : "var(--bg-border)"}`,
-                }}
-              >
-                <div
-                  className="w-4 h-4 rounded-full flex-shrink-0 flex items-center justify-center"
+          {(Object.entries(LABEL_TYPE_DEMANDE) as [TypeDemande, string][])
+            /* Les missions sont désormais gérées dans le module RH */
+            .filter(([key]) => key !== "DEPART_MISSION")
+            .map(([key, label]) => {
+              const actif = form.typeDemande === key
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => { setForm((prev) => ({ ...prev, typeDemande: key })); setErrors({}) }}
+                  className="flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all"
                   style={{
+                    background: actif ? "rgba(240,165,0,0.08)" : "var(--bg-elevated)",
                     border:     `2px solid ${actif ? "var(--gold-warm)" : "var(--bg-border)"}`,
-                    background: actif ? "var(--gold-warm)" : "transparent",
                   }}
                 >
-                  {actif && <div className="w-1.5 h-1.5 rounded-full" style={{ background: "var(--text-inverse)" }} />}
-                </div>
-                <span
-                  className="text-sm font-display font-medium"
-                  style={{ color: actif ? "var(--gold-warm)" : "var(--text-secondary)" }}
-                >
-                  {label}
-                </span>
-              </button>
-            )
-          })}
+                  <div
+                    className="w-4 h-4 rounded-full flex-shrink-0 flex items-center justify-center"
+                    style={{
+                      border:     `2px solid ${actif ? "var(--gold-warm)" : "var(--bg-border)"}`,
+                      background: actif ? "var(--gold-warm)" : "transparent",
+                    }}
+                  >
+                    {actif && <div className="w-1.5 h-1.5 rounded-full" style={{ background: "var(--text-inverse)" }} />}
+                  </div>
+                  <span
+                    className="text-sm font-display font-medium"
+                    style={{ color: actif ? "var(--gold-warm)" : "var(--text-secondary)" }}
+                  >
+                    {label}
+                  </span>
+                </button>
+              )
+            })}
+
+          {/* Card de redirection — Départ de mission → module RH */}
+          <button
+            type="button"
+            onClick={() => { onClose(); navigate("/rh/missions") }}
+            className="flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all col-span-2"
+            style={{
+              background: "rgba(240,165,0,0.04)",
+              border:     "1px dashed rgba(240,165,0,0.35)",
+            }}
+          >
+            <Briefcase size={16} style={{ color: "#f0a500", flexShrink: 0 }} />
+            <div style={{ flex: 1 }}>
+              <span className="text-sm font-display font-medium" style={{ color: "#f0a500" }}>
+                Départ de mission
+              </span>
+              <span className="text-xs font-body block" style={{ color: "var(--text-muted)", marginTop: 1 }}>
+                Géré dans Ressources Humaines → Gestion des missions
+              </span>
+            </div>
+            <ArrowRight size={14} style={{ color: "#f0a500", flexShrink: 0 }} />
+          </button>
         </div>
       </div>
     )

@@ -11,6 +11,7 @@ import { useUpdateStatutDemande } from "@/hooks/useDemandesAchats"
 import type { DemandeAchat } from "@/types/DemandeAchat"
 import { STATUT_CONFIG } from "@/types/DemandeAchat"
 import { formatFCFA, formatDateFr } from "@/lib/utils"
+import { MISSIONS_MOCK, CONGES_MOCK, ABSENCES_MOCK } from "@/data/mockRH"
 
 /* ── Données statiques hissées hors du composant ── */
 const modules = [
@@ -183,6 +184,28 @@ const ModuleCard = memo(function ModuleCard({
   )
 })
 
+/* ── Types pour la file d'approbation unifiée ── */
+type ModuleTag = "ACHAT" | "MISSION" | "CONGE" | "ABSENCE"
+
+interface ItemFile {
+  id:          string
+  titre:       string
+  demandeur:   string
+  dateDemande: string
+  module:      ModuleTag
+  path:        string
+  achatData?:  DemandeAchat   // Uniquement pour les achats (SharePoint)
+}
+
+const MODULE_CFG: Record<ModuleTag, { label: string; color: string; bg: string; border: string }> = {
+  ACHAT:   { label: "Achat",   color: "#8b5cf6", bg: "rgba(139,92,246,0.10)", border: "rgba(139,92,246,0.25)" },
+  MISSION: { label: "Mission", color: "#3b82f6", bg: "rgba(59,130,246,0.10)", border: "rgba(59,130,246,0.25)" },
+  CONGE:   { label: "Congé",   color: "#f59e0b", bg: "rgba(245,158,11,0.10)", border: "rgba(245,158,11,0.25)" },
+  ABSENCE: { label: "Absence", color: "#ef4444", bg: "rgba(239,68,68,0.10)",  border: "rgba(239,68,68,0.25)" },
+}
+
+const STATUTS_FINAUX_ACHAT = ["APPROUVE", "EN_PAIEMENT", "SOLDE", "REJETE"] as const
+
 /* ════════════════════════════════════════════════
    DirectriceDashboard — vue dédiée à la Directrice
    ════════════════════════════════════════════════ */
@@ -200,16 +223,54 @@ function DirectriceDashboard({ prenom }: { prenom: string }) {
     return date.getMonth() === mois && date.getFullYear() === annee
   }
 
-  // KPIs direction
-  const enAttente       = demandes.filter((d) => d.statut === "VALIDE_RAF")
+  // KPIs achats (SharePoint)
+  const achatsEnAttente = demandes.filter((d) => !STATUTS_FINAUX_ACHAT.includes(d.statut as typeof STATUTS_FINAUX_ACHAT[number]))
   const approuvesMois   = demandes.filter((d) => d.statut === "APPROUVE" && duMois(d))
   const rejetesMois     = demandes.filter((d) => d.statut === "REJETE"   && duMois(d))
   const montantMois     = approuvesMois.reduce((sum, d) => sum + d.montant, 0)
 
-  // File d'approbation triée par date (plus ancienne en premier)
-  const fileApprobation = [...enAttente].sort(
-    (a, b) => new Date(a.dateDemande).getTime() - new Date(b.dateDemande).getTime(),
-  )
+  // File d'approbation unifiée — achats + RH (missions, congés, absences)
+  const fileApprobation: ItemFile[] = [
+    ...achatsEnAttente.map((d) => ({
+      id:          d.id,
+      titre:       d.titre,
+      demandeur:   d.demandeur,
+      dateDemande: d.dateDemande,
+      module:      "ACHAT" as ModuleTag,
+      path:        "/expression-besoin",
+      achatData:   d,
+    })),
+    ...MISSIONS_MOCK
+      .filter((m) => m.statut === "SOUMIS")
+      .map((m) => ({
+        id:          m.id,
+        titre:       m.intitule,
+        demandeur:   m.demandeur,
+        dateDemande: m.dateDemande,
+        module:      "MISSION" as ModuleTag,
+        path:        "/rh/missions",
+      })),
+    ...CONGES_MOCK
+      .filter((c) => c.statut === "SOUMIS")
+      .map((c) => ({
+        id:          c.id,
+        titre:       `Demande de congé — ${c.typeConge}`,
+        demandeur:   c.demandeur,
+        dateDemande: c.dateDemande,
+        module:      "CONGE" as ModuleTag,
+        path:        "/rh/conges",
+      })),
+    ...ABSENCES_MOCK
+      .filter((a) => a.statut === "EN_ATTENTE")
+      .map((a) => ({
+        id:          a.id,
+        titre:       `Absence signalée — ${a.typeAbsence}`,
+        demandeur:   a.employe,
+        dateDemande: a.dateSignalement,
+        module:      "ABSENCE" as ModuleTag,
+        path:        "/rh/absences",
+      })),
+  ].sort((a, b) => new Date(a.dateDemande).getTime() - new Date(b.dateDemande).getTime())
 
   // Délai d'attente en jours
   function joursAttente(dateDemande: string): number {
@@ -230,7 +291,7 @@ function DirectriceDashboard({ prenom }: { prenom: string }) {
   const kpis = [
     {
       label:  "En attente d'approbation",
-      value:  enAttente.length,
+      value:  fileApprobation.length,
       color:  "#ef4444",
       bg:     "rgba(239,68,68,0.08)",
       border: "rgba(239,68,68,0.20)",
@@ -351,20 +412,21 @@ function DirectriceDashboard({ prenom }: { prenom: string }) {
             className="rounded-xl overflow-hidden"
             style={{ border: "1px solid var(--bg-border)" }}
           >
-            {fileApprobation.map((demande, i) => {
-              const jours   = joursAttente(demande.dateDemande)
-              const urgente = jours > 3
-              const cfg     = STATUT_CONFIG[demande.statut]
-              const enRejet = rejetEnCours === demande.id
+            {fileApprobation.map((item, i) => {
+              const jours    = joursAttente(item.dateDemande)
+              const urgente  = jours > 3
+              const modCfg   = MODULE_CFG[item.module]
+              const enRejet  = rejetEnCours === item.id
+              const isAchat  = item.module === "ACHAT"
 
               return (
-                <div key={demande.id}>
+                <div key={item.id}>
                   <div
                     className="px-5 py-4 flex items-center gap-4"
                     style={{
                       background:   i % 2 === 0 ? "var(--bg-surface)" : "var(--bg-elevated)",
                       borderBottom: enRejet ? "none" : "1px solid var(--bg-border)",
-                      borderLeft:   urgente ? "3px solid #ef4444" : "3px solid transparent",
+                      borderLeft:   urgente ? "3px solid #ef4444" : `3px solid ${modCfg.color}40`,
                     }}
                   >
                     {/* Icône urgence */}
@@ -377,9 +439,16 @@ function DirectriceDashboard({ prenom }: { prenom: string }) {
 
                     {/* Infos demande */}
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-0.5">
+                      <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+                        {/* Badge module */}
+                        <span
+                          className="flex-shrink-0 text-xs font-display font-semibold px-2 py-0.5 rounded-full"
+                          style={{ background: modCfg.bg, color: modCfg.color, border: `1px solid ${modCfg.border}` }}
+                        >
+                          {modCfg.label}
+                        </span>
                         <p className="text-sm font-display font-semibold truncate" style={{ color: "var(--text-primary)" }}>
-                          {demande.titre}
+                          {item.titre}
                         </p>
                         {urgente && (
                           <span
@@ -390,64 +459,89 @@ function DirectriceDashboard({ prenom }: { prenom: string }) {
                           </span>
                         )}
                       </div>
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-3 flex-wrap">
                         <p className="text-xs" style={{ color: "var(--text-muted)" }}>
-                          {demande.demandeur.split("@")[0]} · {formatDateFr(demande.dateDemande)}
+                          {item.demandeur.split("@")[0]} · {formatDateFr(item.dateDemande)}
                         </p>
-                        <span
-                          className="text-xs font-display font-semibold"
-                          style={{ color: "var(--gold-warm)" }}
-                        >
-                          {formatFCFA(demande.montant)}
-                        </span>
-                        <span
-                          className="text-xs font-display font-medium px-2 py-0.5 rounded-full"
-                          style={{ background: cfg.bg, color: cfg.color, border: `1px solid ${cfg.border}` }}
-                        >
-                          {cfg.label}
-                        </span>
+                        {/* Montant uniquement pour les achats */}
+                        {isAchat && item.achatData && (
+                          <span className="text-xs font-display font-semibold" style={{ color: "var(--gold-warm)" }}>
+                            {formatFCFA(item.achatData.montant)}
+                          </span>
+                        )}
+                        {isAchat && item.achatData && (
+                          <span
+                            className="text-xs font-display font-medium px-2 py-0.5 rounded-full"
+                            style={{
+                              background: STATUT_CONFIG[item.achatData.statut]?.bg,
+                              color:      STATUT_CONFIG[item.achatData.statut]?.color,
+                              border:     `1px solid ${STATUT_CONFIG[item.achatData.statut]?.border}`,
+                            }}
+                          >
+                            {STATUT_CONFIG[item.achatData.statut]?.label}
+                          </span>
+                        )}
                       </div>
                     </div>
 
-                    {/* Actions inline */}
+                    {/* Actions */}
                     <div className="flex items-center gap-2 flex-shrink-0">
-                      <button
-                        onClick={() => {
-                          setRejetEnCours(enRejet ? null : demande.id)
-                          setCommentaire("")
-                        }}
-                        disabled={isPending}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-display font-medium transition-all disabled:opacity-50"
-                        style={{
-                          background: "rgba(239,68,68,0.08)",
-                          color:      "#ef4444",
-                          border:     "1px solid rgba(239,68,68,0.25)",
-                        }}
-                      >
-                        <XCircle className="w-3.5 h-3.5" />
-                        Rejeter
-                      </button>
-                      <button
-                        onClick={() => handleApprouver(demande)}
-                        disabled={isPending}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-display font-semibold transition-all disabled:opacity-50"
-                        style={{
-                          background: "linear-gradient(135deg, var(--gold-warm), var(--gold-bright))",
-                          color:      "var(--text-inverse)",
-                          boxShadow:  "0 0 10px var(--gold-glow)",
-                        }}
-                      >
-                        {isPending
-                          ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                          : <CheckCircle className="w-3.5 h-3.5" />
-                        }
-                        Approuver
-                      </button>
+                      {isAchat && item.achatData ? (
+                        /* Achats : approbation inline (SharePoint) */
+                        <>
+                          <button
+                            onClick={() => {
+                              setRejetEnCours(enRejet ? null : item.id)
+                              setCommentaire("")
+                            }}
+                            disabled={isPending}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-display font-medium transition-all disabled:opacity-50"
+                            style={{
+                              background: "rgba(239,68,68,0.08)",
+                              color:      "#ef4444",
+                              border:     "1px solid rgba(239,68,68,0.25)",
+                            }}
+                          >
+                            <XCircle className="w-3.5 h-3.5" />
+                            Rejeter
+                          </button>
+                          <button
+                            onClick={() => handleApprouver(item.achatData!)}
+                            disabled={isPending}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-display font-semibold transition-all disabled:opacity-50"
+                            style={{
+                              background: "linear-gradient(135deg, var(--gold-warm), var(--gold-bright))",
+                              color:      "var(--text-inverse)",
+                              boxShadow:  "0 0 10px var(--gold-glow)",
+                            }}
+                          >
+                            {isPending
+                              ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              : <CheckCircle className="w-3.5 h-3.5" />
+                            }
+                            Approuver
+                          </button>
+                        </>
+                      ) : (
+                        /* RH : lien vers le module */
+                        <Link
+                          to={item.path}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-display font-semibold transition-all"
+                          style={{
+                            background: "linear-gradient(135deg, var(--gold-warm), var(--gold-bright))",
+                            color:      "var(--text-inverse)",
+                            boxShadow:  "0 0 10px var(--gold-glow)",
+                          }}
+                        >
+                          Voir
+                          <ArrowRight className="w-3 h-3" />
+                        </Link>
+                      )}
                     </div>
                   </div>
 
-                  {/* Zone de rejet inline */}
-                  {enRejet && (
+                  {/* Zone de rejet inline — achats uniquement */}
+                  {enRejet && isAchat && item.achatData && (
                     <div
                       className="px-5 py-3 flex items-center gap-3"
                       style={{
@@ -473,7 +567,7 @@ function DirectriceDashboard({ prenom }: { prenom: string }) {
                         }}
                       />
                       <button
-                        onClick={() => handleRejeter(demande)}
+                        onClick={() => handleRejeter(item.achatData!)}
                         disabled={isPending || !commentaireRejet.trim()}
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-display font-medium transition-all disabled:opacity-40"
                         style={{

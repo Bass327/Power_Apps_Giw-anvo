@@ -42,19 +42,16 @@ export function DetailDemandeAchat({ demande, open, onClose }: Props) {
   const role    = currentUser?.role
 
   /* ── Déterminer quelle action l'utilisateur peut faire ── */
-  const peutValiderChef      = role === "Chef Dept." && statut === "SOUMIS"
-  const peutValiderRAF       = role === "RAF"         && statut === "VALIDE_CHEF"
-  const peutApprouverDir     = role === "Directrice"  && statut === "VALIDE_RAF"
-  const peutMarquerPaiement  = role === "Comptable"   && statut === "APPROUVE"
-  const peutSolderPaiement   = role === "Comptable"   && statut === "EN_PAIEMENT"
+  // La DG peut approuver toute demande qui n'est pas encore finalisée (APPROUVE, SOLDE, EN_PAIEMENT, REJETE)
+  const STATUTS_FINAUX: StatutDemande[] = ["APPROUVE", "EN_PAIEMENT", "SOLDE", "REJETE"]
+  const peutApprouverDir    = role === "Directrice" && !STATUTS_FINAUX.includes(statut)
+  const peutMarquerPaiement = role === "Comptable"  && statut === "APPROUVE"
+  const peutSolderPaiement  = role === "Comptable"  && statut === "EN_PAIEMENT"
 
-  const peutAgir = peutValiderChef || peutValiderRAF || peutApprouverDir
-    || peutMarquerPaiement || peutSolderPaiement
+  const peutAgir = peutApprouverDir || peutMarquerPaiement || peutSolderPaiement
 
   /* ── Libellé de l'action selon le rôle ── */
   function labelAction(): string {
-    if (peutValiderChef)     return "Validation Chef de département"
-    if (peutValiderRAF)      return "Validation RAF"
     if (peutApprouverDir)    return "Approbation Directrice Générale"
     if (peutMarquerPaiement) return "Traitement du paiement"
     if (peutSolderPaiement)  return "Confirmation de paiement soldé"
@@ -69,10 +66,6 @@ export function DetailDemandeAchat({ demande, open, onClose }: Props) {
 
     if (rejeter) {
       nouveauStatut = "REJETE"
-    } else if (peutValiderChef) {
-      nouveauStatut = "VALIDE_CHEF"
-    } else if (peutValiderRAF) {
-      nouveauStatut = "VALIDE_RAF"
     } else if (peutApprouverDir) {
       nouveauStatut = "APPROUVE"
     } else if (peutMarquerPaiement) {
@@ -285,23 +278,7 @@ export function DetailDemandeAchat({ demande, open, onClose }: Props) {
                 })}
               </div>
 
-              {/* Commentaires des valideurs */}
-              {demande.commentaireChef && (
-                <CommentaireValideur
-                  role="Chef Dept."
-                  commentaire={demande.commentaireChef}
-                  date={demande.dateValidationChef}
-                  rejete={statut === "REJETE"}
-                />
-              )}
-              {demande.commentaireRAF && (
-                <CommentaireValideur
-                  role="RAF"
-                  commentaire={demande.commentaireRAF}
-                  date={demande.dateValidationRAF}
-                  rejete={statut === "REJETE"}
-                />
-              )}
+              {/* Commentaire de la Directrice */}
               {demande.commentaireDirectrice && (
                 <CommentaireValideur
                   role="Directrice Générale"
@@ -419,7 +396,7 @@ export function DetailDemandeAchat({ demande, open, onClose }: Props) {
                     ? <Loader2 className="w-4 h-4 animate-spin" />
                     : <CheckCircle className="w-4 h-4" />
                   }
-                  {peutApprouverDir ? "Approuver" : "Valider"}
+                  Approuver
                 </button>
               </div>
             </div>

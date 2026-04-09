@@ -84,20 +84,9 @@ function filtrerParOnglet(
     case "mes-demandes":
       return demandes.filter((d) => d.demandeur === user.email)
 
-    case "a-valider":
-      // Chef Dept. valide les demandes SOUMIS
-      if (user.role === "Chef Dept.") {
-        return demandes.filter((d) => d.statut === "SOUMIS")
-      }
-      // RAF valide les demandes déjà validées par le Chef
-      if (user.role === "RAF") {
-        return demandes.filter((d) => d.statut === "VALIDE_CHEF")
-      }
-      return []
-
     case "a-approuver":
-      // Directrice approuve les demandes validées par le RAF
-      return demandes.filter((d) => d.statut === "VALIDE_RAF")
+      // Directrice approuve directement les demandes soumises
+      return demandes.filter((d) => d.statut === "SOUMIS")
 
     case "mon-departement":
       // Chef Dept. voit toutes les demandes (filtrage département à implémenter côté SP)
@@ -169,14 +158,8 @@ export default function AchatsPage() {
   /* ── Badge sur l'onglet "À valider" / "À approuver" ── */
   const nbATraiter = useMemo(() => {
     if (!currentUser) return 0
-    if (currentUser.role === "Chef Dept.") {
-      return demandes.filter((d) => d.statut === "SOUMIS").length
-    }
-    if (currentUser.role === "RAF") {
-      return demandes.filter((d) => d.statut === "VALIDE_CHEF").length
-    }
     if (currentUser.role === "Directrice") {
-      return demandes.filter((d) => d.statut === "VALIDE_RAF").length
+      return demandes.filter((d) => d.statut === "SOUMIS").length
     }
     if (currentUser.role === "Comptable") {
       return demandes.filter((d) => d.statut === "APPROUVE").length
@@ -213,7 +196,7 @@ export default function AchatsPage() {
         return date.getMonth() === mois && date.getFullYear() === annee
       }
       return [
-        { label: "En attente",       value: demandes.filter((d) => d.statut === "VALIDE_RAF").length },
+        { label: "En attente",       value: demandes.filter((d) => d.statut === "SOUMIS").length },
         { label: "Approuvées / mois", value: demandes.filter((d) => d.statut === "APPROUVE" && duMois(d)).length },
         { label: "Rejetées / mois",  value: demandes.filter((d) => d.statut === "REJETE" && duMois(d)).length },
         {

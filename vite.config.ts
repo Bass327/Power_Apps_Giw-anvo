@@ -18,6 +18,35 @@ export default defineConfig({
     // Sans ça, les petits fichiers sont encodés en data: URL,
     // ce qui peut être bloqué par le CSP de Power Apps.
     assetsInlineLimit: 0,
+    chunkSizeWarningLimit: 800,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // Librairies React core — rarement modifiées, bien cachées
+          "vendor-react": ["react", "react-dom", "react-router-dom"],
+          // Authentification Microsoft — gros SDK isolé
+          "vendor-msal": ["@azure/msal-browser", "@azure/msal-react"],
+          // Composants UI Radix — séparés du code métier
+          "vendor-radix": [
+            "@radix-ui/react-checkbox",
+            "@radix-ui/react-dialog",
+            "@radix-ui/react-dropdown-menu",
+            "@radix-ui/react-label",
+            "@radix-ui/react-popover",
+            "@radix-ui/react-progress",
+            "@radix-ui/react-select",
+            "@radix-ui/react-separator",
+            "@radix-ui/react-slot",
+            "@radix-ui/react-tabs",
+            "@radix-ui/react-tooltip",
+          ],
+          // Graphiques — gros chunk isolé, chargé seulement si besoin
+          "vendor-charts": ["recharts"],
+          // TanStack Query — state management requêtes
+          "vendor-query": ["@tanstack/react-query", "@tanstack/react-table"],
+        },
+      },
+    },
   },
   resolve: {
     alias: {

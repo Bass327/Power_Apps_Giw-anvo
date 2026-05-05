@@ -3,16 +3,20 @@
  * Crée teams/giwanvo-teams-app.zip prêt à uploader dans Teams Admin Center.
  * Usage : node package-teams-app.js
  */
-const fs   = require("fs")
-const path = require("path")
-const { execSync } = require("child_process")
+import { existsSync, unlinkSync } from "fs"
+import { join } from "path"
+import { execSync } from "child_process"
+import { fileURLToPath } from "url"
+import { dirname } from "path"
 
-const TEAMS_DIR = path.join(__dirname, "teams")
-const OUT_FILE  = path.join(TEAMS_DIR, "giwanvo-teams-app.zip")
+const __dirname = dirname(fileURLToPath(import.meta.url))
+
+const TEAMS_DIR = join(__dirname, "teams")
+const OUT_FILE  = join(TEAMS_DIR, "giwanvo-teams-app.zip")
 
 // Vérifier que les icônes sont présentes
 const required = ["manifest.json", "color.png", "outline.png"]
-const missing  = required.filter(f => !fs.existsSync(path.join(TEAMS_DIR, f)))
+const missing  = required.filter(f => !existsSync(join(TEAMS_DIR, f)))
 
 if (missing.length > 0) {
   console.error("❌ Fichiers manquants dans teams/ :", missing.join(", "))
@@ -21,17 +25,14 @@ if (missing.length > 0) {
 }
 
 // Supprimer le ZIP précédent si existant
-if (fs.existsSync(OUT_FILE)) fs.unlinkSync(OUT_FILE)
+if (existsSync(OUT_FILE)) unlinkSync(OUT_FILE)
 
 // Créer le ZIP avec PowerShell (disponible sur Windows)
-const files = required.map(f => path.join(TEAMS_DIR, f))
-const fileList = files.map(f => `"${f}"`).join(", ")
+const files    = required.map(f => `"${join(TEAMS_DIR, f)}"`).join(", ")
+const psScript = `Compress-Archive -Path ${files} -DestinationPath "${OUT_FILE}" -Force`
 
-const ps = `
-Compress-Archive -Path ${fileList} -DestinationPath "${OUT_FILE}" -Force
-`
 try {
-  execSync(`powershell -Command "${ps.trim()}"`, { stdio: "inherit" })
+  execSync(`powershell -Command "${psScript}"`, { stdio: "inherit" })
   console.log("✅ Package créé :", OUT_FILE)
   console.log("")
   console.log("Prochaine étape :")

@@ -6,9 +6,9 @@
   "packageName": "com.giw-anvo.gestion-interne",
   "developer": {
     "name": "GIW'ANVO Energy",
-    "websiteUrl": "https://giw-anvo-app.azurestaticapps.net",
-    "privacyUrl": "https://giw-anvo-app.azurestaticapps.net",
-    "termsOfUseUrl": "https://giw-anvo-app.azurestaticapps.net"
+    "websiteUrl": "https://power-apps-giw-anvo.vercel.app",
+    "privacyUrl": "https://power-apps-giw-anvo.vercel.app",
+    "termsOfUseUrl": "https://power-apps-giw-anvo.vercel.app"
   },
   "icons": {
     "color": "color.png",
@@ -27,8 +27,8 @@
     {
       "entityId": "giwanvo-accueil",
       "name": "Accueil",
-      "contentUrl": "https://giw-anvo-app.azurestaticapps.net",
-      "websiteUrl": "https://giw-anvo-app.azurestaticapps.net",
+      "contentUrl": "https://power-apps-giw-anvo.vercel.app",
+      "websiteUrl": "https://power-apps-giw-anvo.vercel.app",
       "scopes": ["personal"]
     }
   ],
@@ -37,6 +37,6 @@
     "messageTeamMembers"
   ],
   "validDomains": [
-    "giw-anvo-app.azurestaticapps.net"
+    "power-apps-giw-anvo.vercel.app"
   ]
 }

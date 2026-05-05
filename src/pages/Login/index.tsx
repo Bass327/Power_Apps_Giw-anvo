@@ -29,15 +29,15 @@ export default function LoginPage() {
       // MSAL met à jour accounts → isAuthenticated devient true → Navigate s'affiche
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : String(error)
-      // Popup bloquée par le navigateur
-      if (msg.includes("popup_window_error") || msg.includes("blocked")) {
-        setPopupError("La fenêtre popup a été bloquée. Autorisez les popups pour ce site et réessayez.")
-      } else if (msg.includes("user_cancelled")) {
-        // L'utilisateur a fermé la popup — pas une erreur à afficher
+      if (msg.includes("user_cancelled")) {
+        // L'utilisateur a annulé — pas une erreur à afficher
         setPopupError(null)
+      } else if (msg.includes("Redirection en cours")) {
+        // Redirection MSAL en cours — comportement normal, pas une erreur
+        return
       } else {
         setPopupError("Une erreur s'est produite lors de la connexion. Veuillez réessayer.")
-        console.error("[Auth] Erreur loginPopup :", error)
+        console.error("[Auth] Erreur login :", error)
       }
       setIsLoading(false)
     }

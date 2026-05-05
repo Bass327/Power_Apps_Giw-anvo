@@ -14,6 +14,8 @@ export const msalConfig: Configuration = {
     storeAuthStateInCookie: false,
   },
   system: {
+    // Autorise la redirection depuis un iframe — nécessaire pour Teams
+    allowRedirectInIframe: true,
     loggerOptions: {
       loggerCallback: (level, message, containsPii) => {
         if (containsPii) return

@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react"
 import { useMsal } from "@azure/msal-react"
 import { InteractionStatus } from "@azure/msal-browser"
 import { Navigate } from "react-router-dom"
@@ -7,13 +8,28 @@ interface ProtectedRouteProps {
   children: React.ReactNode
 }
 
+const MSAL_TIMEOUT_MS = 6000
+
 /**
  * Protège une route — redirige vers /login si MSAL n'a pas de session active.
- * Fonctionne en localhost ET en Power Apps (même flux MSAL).
+ * Un timeout de 6 s force la redirection si MSAL reste bloqué (ex: Teams iframe).
  */
 export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
   const { inProgress } = useMsal()
   const { isAuthenticated } = useAuth()
+  const [timedOut, setTimedOut] = useState(false)
+
+  // Si MSAL reste bloqué trop longtemps, on force /login
+  useEffect(() => {
+    if (inProgress === InteractionStatus.None) { setTimedOut(false); return }
+    const id = setTimeout(() => setTimedOut(true), MSAL_TIMEOUT_MS)
+    return () => clearTimeout(id)
+  }, [inProgress])
+
+  // MSAL bloqué → on laisse passer pour rediriger vers /login
+  if (timedOut) {
+    return <Navigate to="/login" replace />
+  }
 
   // MSAL en cours d'initialisation ou d'interaction (ex: renouvellement de token silencieux)
   if (inProgress !== InteractionStatus.None) {

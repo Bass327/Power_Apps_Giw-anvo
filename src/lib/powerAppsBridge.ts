@@ -15,7 +15,8 @@ import { getContext as sdkGetContext } from "@microsoft/power-apps/app"
 
 /**
  * Retourne true si l'app tourne dans le player Power Apps.
- * Couvre : apps.powerapps.com, *.powerplatformusercontent.com, tout iframe.
+ * On vérifie uniquement le hostname Power Apps — pas l'iframe,
+ * car Teams charge aussi l'app dans un iframe et ne doit pas bypasser MSAL.
  */
 export const isPowerAppsEnv = (): boolean => {
   if (typeof window === "undefined") return false
@@ -23,8 +24,7 @@ export const isPowerAppsEnv = (): boolean => {
   return (
     hostname === "apps.powerapps.com"                  ||
     hostname.endsWith(".powerplatformusercontent.com") ||
-    hostname.endsWith(".powerapps.com")                ||
-    window !== window.parent
+    hostname.endsWith(".powerapps.com")
   )
 }
 

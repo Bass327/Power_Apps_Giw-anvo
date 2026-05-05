@@ -2,10 +2,6 @@ import { useMsal } from "@azure/msal-react"
 import { loginRequest } from "@/lib/msalConfig"
 import { isPowerAppsEnv, tryGetTokenFromBridge } from "@/lib/powerAppsBridge"
 
-const isInIframe = (): boolean => {
-  try { return window.parent !== window } catch { return true }
-}
-
 const MSAL_STUB = { instance: null as never, accounts: [] as never[] }
 
 export const useAuth = () => {
@@ -19,24 +15,15 @@ export const useAuth = () => {
 
   const login = async (): Promise<void> => {
     if (isPowerAppsEnv()) return
-    if (isInIframe()) {
-      await msal.instance.loginPopup({ ...loginRequest, redirectUri })
-    } else {
-      await msal.instance.loginRedirect({ ...loginRequest, redirectUri })
-    }
+    // Toujours utiliser loginRedirect — les popups sont bloqués dans Teams et certains navigateurs
+    await msal.instance.loginRedirect({ ...loginRequest, redirectUri })
   }
 
   const logout = (): void => {
     if (isPowerAppsEnv()) return
-    if (isInIframe()) {
-      msal.instance.logoutPopup({ account }).catch((e: unknown) => {
-        console.error("[Auth] Erreur déconnexion popup :", e)
-      })
-    } else {
-      msal.instance.logoutRedirect({ account }).catch((e: unknown) => {
-        console.error("[Auth] Erreur déconnexion redirect :", e)
-      })
-    }
+    msal.instance.logoutRedirect({ account }).catch((e: unknown) => {
+      console.error("[Auth] Erreur déconnexion redirect :", e)
+    })
   }
 
   /**
@@ -61,10 +48,7 @@ export const useAuth = () => {
       const r = await msal.instance.acquireTokenSilent({ ...loginRequest, account: msalAccount })
       return r.accessToken
     } catch {
-      if (isInIframe()) {
-        const r = await msal.instance.acquireTokenPopup({ ...loginRequest, account: msalAccount })
-        return r.accessToken
-      }
+      // Redirect pour le renouvellement de token — compatible Teams et navigateurs strict
       await msal.instance.acquireTokenRedirect({ ...loginRequest, account: msalAccount })
       throw new Error("Redirection en cours pour renouveler le token")
     }
@@ -104,10 +88,6 @@ export const useAuth = () => {
       const r = await msal.instance.acquireTokenSilent(spRequest)
       return r.accessToken
     } catch {
-      if (isInIframe()) {
-        const r = await msal.instance.acquireTokenPopup(spRequest)
-        return r.accessToken
-      }
       await msal.instance.acquireTokenRedirect(spRequest)
       throw new Error("Redirection en cours")
     }

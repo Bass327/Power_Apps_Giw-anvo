@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <title>Connexion GIW'ANVO…</title>
+  <style>
+    body { background: #080f0b; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+    p { color: #7a9e87; font-family: sans-serif; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <p>Connexion en cours…</p>
+  <script>
+    (async function () {
+      try {
+        const p       = new URLSearchParams(window.location.search)
+        const clientId = p.get('c')
+        const tenantId = p.get('t')
+        const scopes   = p.get('s') || 'User.Read Sites.Read.All Sites.ReadWrite.All'
+
+        // ── PKCE : génération code_verifier + code_challenge ──────────────────
+        function base64url(buffer) {
+          return btoa(String.fromCharCode(...new Uint8Array(buffer)))
+            .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '')
+        }
+        const verifierBytes = new Uint8Array(43)
+        crypto.getRandomValues(verifierBytes)
+        const codeVerifier  = base64url(verifierBytes)
+        const hashBuffer    = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(codeVerifier))
+        const codeChallenge = base64url(hashBuffer)
+        const state         = base64url(crypto.getRandomValues(new Uint8Array(16)))
+
+        // Stockage pour auth-end.html (même fenêtre → même sessionStorage)
+        sessionStorage.setItem('pkce_verifier',   codeVerifier)
+        sessionStorage.setItem('pkce_state',      state)
+        sessionStorage.setItem('pkce_client_id',  clientId)
+        sessionStorage.setItem('pkce_tenant_id',  tenantId)
+
+        const redirectUri = window.location.origin + '/auth-end.html'
+
+        window.location.href =
+          'https://login.microsoftonline.com/' + tenantId +
+          '/oauth2/v2.0/authorize?' +
+          'client_id='             + encodeURIComponent(clientId) +
+          '&response_type=code' +
+          '&redirect_uri='         + encodeURIComponent(redirectUri) +
+          '&scope='                + encodeURIComponent(scopes) +
+          '&code_challenge='       + codeChallenge +
+          '&code_challenge_method=S256' +
+          '&state='                + state +
+          '&response_mode=query'
+      } catch (err) {
+        document.querySelector('p').textContent = 'Erreur : ' + err.message
+      }
+    })()
+  </script>
+</body>
+</html>

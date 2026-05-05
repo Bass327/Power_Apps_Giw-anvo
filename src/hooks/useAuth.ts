@@ -1,6 +1,7 @@
 import { useMsal } from "@azure/msal-react"
 import { loginRequest } from "@/lib/msalConfig"
 import { isPowerAppsEnv, tryGetTokenFromBridge } from "@/lib/powerAppsBridge"
+import { detectTeams, teamsLogin, getStoredTeamsToken, clearTeamsToken } from "@/lib/teamsAuth"
 
 const MSAL_STUB = { instance: null as never, accounts: [] as never[] }
 
@@ -9,18 +10,31 @@ export const useAuth = () => {
   const msal    = isPowerAppsEnv() ? MSAL_STUB : useMsal()
   const account = msal.accounts[0]
 
-  const isAuthenticated = isPowerAppsEnv() || !!account
+  // Token Teams (stocké en sessionStorage après connexion via Teams SDK)
+  const teamsToken     = getStoredTeamsToken()
+  const isAuthenticated = isPowerAppsEnv() || !!account || !!teamsToken
 
   const redirectUri = window.location.origin + "/"
 
   const login = async (): Promise<void> => {
     if (isPowerAppsEnv()) return
+
+    // Détection Teams : si oui → flux Teams SDK (PKCE sans popup bloqué)
+    const inTeams = await detectTeams()
+    if (inTeams) {
+      const clientId = import.meta.env.VITE_CLIENT_ID as string
+      const tenantId = import.meta.env.VITE_TENANT_ID as string
+      await teamsLogin(clientId, tenantId)
+      // Redirection vers le dashboard après stockage du token
+      window.location.replace("/")
+      return
+    }
+
+    // Hors Teams → MSAL popup avec fallback redirect
     try {
-      // loginPopup : ouvre une vraie fenêtre — seul mode fiable dans Teams Desktop (Electron)
       await msal.instance.loginPopup({ ...loginRequest, redirectUri })
     } catch (popupErr: unknown) {
       const msg = popupErr instanceof Error ? popupErr.message : String(popupErr)
-      // Popup bloqué (Teams Web iframe, navigateur strict) → fallback redirect
       if (msg.includes("popup_window_error") || msg.includes("empty_window_error")) {
         await msal.instance.loginRedirect({ ...loginRequest, redirectUri })
       } else {
@@ -31,17 +45,20 @@ export const useAuth = () => {
 
   const logout = (): void => {
     if (isPowerAppsEnv()) return
-    msal.instance.logoutRedirect({ account }).catch((e: unknown) => {
-      console.error("[Auth] Erreur déconnexion redirect :", e)
-    })
+    clearTeamsToken()
+    if (account) {
+      msal.instance.logoutRedirect({ account }).catch((e: unknown) => {
+        console.error("[Auth] Erreur déconnexion redirect :", e)
+      })
+    } else {
+      // Session Teams uniquement — recharger la page de login
+      window.location.replace("/login")
+    }
   }
 
   /**
    * Récupère un token Microsoft Graph.
-   * En Power Apps : via window.powerAppsBridge (nécessite connection reference).
-   * En dev/navigateur : via MSAL silent → popup → redirect.
-   * Lève une exception si le token est indisponible.
-   * Utiliser tryGetToken() pour une version sans exception.
+   * Priorité : token Teams (stocké) → MSAL silent → MSAL popup → redirect.
    */
   const getToken = async (): Promise<string> => {
     if (isPowerAppsEnv()) {
@@ -49,6 +66,11 @@ export const useAuth = () => {
       if (!t) throw new Error("Token Graph indisponible (connexion Power Apps non configurée)")
       return t
     }
+
+    // Token issu du flux Teams SDK
+    const stored = getStoredTeamsToken()
+    if (stored) return stored
+
     const msalAccount = account ?? msal.instance.getAllAccounts()[0]
     if (!msalAccount) {
       await login()
@@ -58,7 +80,6 @@ export const useAuth = () => {
       const r = await msal.instance.acquireTokenSilent({ ...loginRequest, account: msalAccount })
       return r.accessToken
     } catch {
-      // Popup pour le renouvellement — évite la page blanche Teams (redirect en iframe)
       try {
         const r = await msal.instance.acquireTokenPopup({ ...loginRequest, account: msalAccount })
         return r.accessToken
@@ -76,7 +97,6 @@ export const useAuth = () => {
   /**
    * Variante sans exception de getToken().
    * Retourne null si le token est indisponible pour n'importe quelle raison.
-   * Permet un dégradé gracieux : l'app reste fonctionnelle sans données Graph.
    */
   const tryGetToken = async (): Promise<string | null> => {
     try {
@@ -89,8 +109,6 @@ export const useAuth = () => {
 
   /**
    * Récupère un token SharePoint REST API (audience distincte de Graph).
-   * Utilisé pour les pièces jointes via l'API REST native SharePoint.
-   * Lève une exception si indisponible — utiliser tryGetSharePointToken() sinon.
    */
   const getSharePointToken = async (): Promise<string> => {
     const spHostname = import.meta.env.VITE_SHAREPOINT_HOSTNAME as string
@@ -99,6 +117,11 @@ export const useAuth = () => {
       if (!t) throw new Error("Token SharePoint indisponible")
       return t
     }
+
+    // En Teams, le token Graph couvre aussi les appels SharePoint via Graph API
+    const stored = getStoredTeamsToken()
+    if (stored) return stored
+
     const spResource  = `https://${spHostname}`
     const msalAccount = account ?? msal.instance.getAllAccounts()[0]
     if (!msalAccount) { await login(); throw new Error("Reconnexion requise") }

@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <title>Connexion GIW'ANVO…</title>
+  <style>
+    body { background: #080f0b; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+    p { color: #7a9e87; font-family: sans-serif; font-size: 14px; }
+  </style>
+  <script src="https://unpkg.com/@microsoft/teams-js@2.52.0/dist/MicrosoftTeams.min.js"></script>
+</head>
+<body>
+  <p>Finalisation de la connexion…</p>
+  <script>
+    (async function () {
+      await microsoftTeams.app.initialize()
+
+      const params = new URLSearchParams(window.location.search)
+      const code   = params.get('code')
+      const state  = params.get('state')
+      const error  = params.get('error')
+
+      if (error) {
+        microsoftTeams.authentication.notifyFailure(error + ': ' + (params.get('error_description') || ''))
+        return
+      }
+
+      // Vérification anti-CSRF
+      const savedState = sessionStorage.getItem('pkce_state')
+      if (state !== savedState) {
+        microsoftTeams.authentication.notifyFailure('state_mismatch')
+        return
+      }
+
+      const codeVerifier = sessionStorage.getItem('pkce_verifier')
+      const clientId     = sessionStorage.getItem('pkce_client_id')
+      const tenantId     = sessionStorage.getItem('pkce_tenant_id')
+      const redirectUri  = window.location.origin + '/auth-end.html'
+
+      try {
+        // Échange code → access token (PKCE — pas de secret requis)
+        const resp = await fetch(
+          'https://login.microsoftonline.com/' + tenantId + '/oauth2/v2.0/token',
+          {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({
+              client_id:     clientId,
+              code:          code,
+              redirect_uri:  redirectUri,
+              grant_type:    'authorization_code',
+              code_verifier: codeVerifier,
+            }),
+          }
+        )
+        const data = await resp.json()
+        if (data.access_token) {
+          // Renvoi du token + date d'expiration à l'app principale
+          const payload = JSON.stringify({
+            accessToken: data.access_token,
+            expiresIn:   data.expires_in ?? 3600,
+          })
+          microsoftTeams.authentication.notifySuccess(payload)
+        } else {
+          microsoftTeams.authentication.notifyFailure(data.error || 'no_access_token')
+        }
+      } catch (err) {
+        microsoftTeams.authentication.notifyFailure('fetch_failed: ' + err.message)
+      }
+    })()
+  </script>
+</body>
+</html>

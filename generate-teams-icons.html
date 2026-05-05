@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>GIW'ANVO Teams Icons Generator</title>
+</head>
+<body>
+<h2 id="title">GIW'ANVO — Teams Icons Generator</h2>
+<p id="sub">Clique sur chaque bouton pour télécharger l'icône, puis place les 2 fichiers dans le dossier <code>teams/</code></p>
+
+<script>
+function makeIcon(size, isOutline) {
+  var canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  var ctx = canvas.getContext('2d');
+
+  if (isOutline) {
+    ctx.clearRect(0, 0, size, size);
+    ctx.beginPath();
+    ctx.arc(size/2, size/2, size/2 - 1, 0, Math.PI * 2);
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold ' + Math.round(size * 0.55) + 'px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('G', size/2, size/2 + 1);
+  } else {
+    // Fond vert très sombre
+    ctx.fillStyle = '#080f0b';
+    ctx.beginPath();
+    ctx.arc(size/2, size/2, size/2, 0, Math.PI * 2);
+    ctx.fill();
+    // Anneau or
+    ctx.beginPath();
+    ctx.arc(size/2, size/2, size/2 - 6, 0, Math.PI * 2);
+    ctx.strokeStyle = '#f0a500';
+    ctx.lineWidth = Math.max(3, size * 0.04);
+    ctx.stroke();
+    // GIW'
+    ctx.fillStyle = '#f0a500';
+    ctx.font = 'bold ' + Math.round(size * 0.28) + 'px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText("GIW'", size/2, size * 0.42);
+    // ANVO
+    ctx.fillStyle = '#e8f0eb';
+    ctx.font = 'bold ' + Math.round(size * 0.22) + 'px Arial';
+    ctx.fillText('ANVO', size/2, size * 0.65);
+  }
+  return canvas.toDataURL('image/png');
+}
+
+window.onload = function() {
+  var color192  = makeIcon(192, false);
+  var outline32 = makeIcon(32, true);
+
+  var a1 = document.createElement('a');
+  a1.href = color192;
+  a1.download = 'color.png';
+  a1.className = 'btn-gold';
+  a1.textContent = '1 — Telecharger color.png (192x192)';
+  document.body.appendChild(a1);
+
+  var img1 = new Image();
+  img1.src = color192;
+  img1.style.cssText = 'display:block;margin:12px 0;width:96px;height:96px;border:1px solid #1e3528;border-radius:8px';
+  document.body.appendChild(img1);
+
+  var a2 = document.createElement('a');
+  a2.href = outline32;
+  a2.download = 'outline.png';
+  a2.className = 'btn-green';
+  a2.textContent = '2 — Telecharger outline.png (32x32)';
+  document.body.appendChild(a2);
+
+  var img2 = new Image();
+  img2.src = outline32;
+  img2.style.cssText = 'display:block;margin:12px 0;width:32px;height:32px;border:1px solid #1e3528;background:#333;padding:4px;border-radius:4px';
+  document.body.appendChild(img2);
+
+  var note = document.createElement('p');
+  note.textContent = 'Place color.png et outline.png dans le dossier teams/ puis ferme cette page.';
+  note.style.cssText = 'color:#7a9e87;font-size:13px;margin-top:20px';
+  document.body.appendChild(note);
+};
+</script>
+
+<style>
+  body { background:#080f0b; color:#e8f0eb; font-family:Arial,sans-serif; padding:32px; }
+  #title { color:#f0a500; font-size:22px; margin:0 0 8px; }
+  #sub   { color:#7a9e87; font-size:14px; margin:0 0 24px; }
+  code   { background:#1e3528; padding:2px 6px; border-radius:4px; color:#3dbf72; }
+  .btn-gold  { display:inline-block; margin:8px 0; padding:10px 20px; background:linear-gradient(135deg,#f0a500,#ffc235); color:#080f0b; text-decoration:none; font-weight:700; border-radius:8px; font-size:14px; }
+  .btn-green { display:inline-block; margin:8px 0; padding:10px 20px; background:linear-gradient(135deg,#2d9e5f,#3dbf72); color:#080f0b; text-decoration:none; font-weight:700; border-radius:8px; font-size:14px; }
+</style>
+</body>
+</html>

@@ -56,21 +56,36 @@ export function useCreateDemandeAchat() {
       payload,
       soumettre,
       fichiers,
+      role,
     }: {
       payload:   CreateDemandeAchatPayload
       soumettre: boolean
       fichiers?: File[]
+      role?:     UserRole
     }) => {
+      // Pièce de caisse créée par le Comptable → approbation automatique sans circuit de validation
+      const statutAuto =
+        role === "Comptable" && payload.typeDemande === "PIECE_CAISSE"
+          ? "APPROUVE"
+          : soumettre
+          ? "SOUMIS"
+          : "BROUILLON"
+
       const token   = await getToken()
       const spToken = fichiers && fichiers.length > 0 ? await getSharePointToken() : undefined
-      return createDemandeAchat(token, payload, soumettre ? "SOUMIS" : "BROUILLON", fichiers, spToken)
+      return createDemandeAchat(token, payload, statutAuto, fichiers, spToken)
     },
 
-    onSuccess: (_, { soumettre }) => {
+    onSuccess: (_, { soumettre, role, payload }) => {
       // Invalide le cache pour forcer un rechargement de la liste
       void queryClient.invalidateQueries({ queryKey: QUERY_KEY })
+
+      // Message adapté au cas d'auto-approbation
+      const autoApprouve = role === "Comptable" && payload.typeDemande === "PIECE_CAISSE"
       toast.success(
-        soumettre
+        autoApprouve
+          ? "Pièce de caisse enregistrée et approuvée automatiquement"
+          : soumettre
           ? "Demande soumise pour validation"
           : "Brouillon enregistré",
       )

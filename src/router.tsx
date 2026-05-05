@@ -1,10 +1,39 @@
 import { lazy, Suspense } from "react"
-import { createBrowserRouter } from "react-router-dom"
+import { createBrowserRouter, useRouteError, isRouteErrorResponse } from "react-router-dom"
 import Layout from "@/pages/_layout"
 import HomePage from "@/pages/home"
 import NotFoundPage from "@/pages/not-found"
 import LoginPage from "@/pages/Login"
 import { ProtectedRoute } from "@/components/shared/ProtectedRoute"
+
+/**
+ * Gestion des erreurs de route :
+ * - Erreur de chargement de chunk (lazy import) → rechargement automatique
+ * - Vraie 404 → page NotFound classique
+ */
+function RouteErrorBoundary() {
+  const error = useRouteError()
+
+  // Chunk loading error : le fichier JS du module n'a pas pu être chargé
+  // (peut arriver après un rebuild Vite ou un problème réseau momentané)
+  if (
+    error instanceof Error &&
+    (error.message.includes("dynamically imported module") ||
+     error.message.includes("Failed to fetch") ||
+     error.message.includes("Loading chunk"))
+  ) {
+    window.location.reload()
+    return null
+  }
+
+  // Vraie erreur 404 React Router
+  if (isRouteErrorResponse(error) && error.status === 404) {
+    return <NotFoundPage />
+  }
+
+  // Toute autre erreur inattendue
+  return <NotFoundPage />
+}
 
 // Chargement différé des pages modules (bundle-dynamic-imports)
 const BudgetPage             = lazy(() => import("@/pages/Budget"))
@@ -20,6 +49,7 @@ const AchatsPage             = lazy(() => import("@/pages/Achats"))
 const ComptabilitePage       = lazy(() => import("@/pages/Comptabilite"))
 const TresoreriePage         = lazy(() => import("@/pages/Tresorerie"))
 const SuiviControlePage      = lazy(() => import("@/pages/SuiviControle"))
+const ReportingClientsERDPage = lazy(() => import("@/pages/SuiviControle/reporting-clients-erd"))
 
 // Fallback de chargement — JSX statique hissé hors de la configuration (rendering-hoist-jsx)
 const pageLoader = (
@@ -57,7 +87,7 @@ export const router = createBrowserRouter(
           <Layout />
         </ProtectedRoute>
       ),
-      errorElement: <NotFoundPage />,
+      errorElement: <RouteErrorBoundary />,
       children: [
         { index: true,          element: <HomePage /> },
         { path: "budget",       element: withSuspense(<BudgetPage />) },
@@ -72,7 +102,8 @@ export const router = createBrowserRouter(
         { path: "achats",            element: withSuspense(<AchatsPage />) },
         { path: "comptabilite", element: withSuspense(<ComptabilitePage />) },
         { path: "tresorerie",   element: withSuspense(<TresoreriePage />) },
-        { path: "suivi",        element: withSuspense(<SuiviControlePage />) },
+        { path: "suivi",            element: withSuspense(<SuiviControlePage />) },
+        { path: "suivi/reporting-erd", element: withSuspense(<ReportingClientsERDPage />) },
       ],
     },
   ],

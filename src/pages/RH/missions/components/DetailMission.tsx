@@ -80,7 +80,7 @@ export function DetailMission({ mission, role, onClose, onApprouver, onRejeter }
     <div
       style={{
         position: "fixed", inset: 0, zIndex: 1000,
-        background: "rgba(8,15,11,0.85)",
+        background: "var(--modal-overlay)",
         backdropFilter: "blur(8px)",
         display: "flex", alignItems: "center", justifyContent: "center",
         padding: 24,
@@ -338,28 +338,6 @@ export function DetailMission({ mission, role, onClose, onApprouver, onRejeter }
           )}
         </div>
 
-        {/* Footer */}
-        <div
-          style={{
-            padding: "14px 28px",
-            borderTop: "1px solid var(--bg-border)",
-            display: "flex", justifyContent: "flex-end",
-          }}
-        >
-          <button
-            onClick={onClose}
-            style={{
-              all: "unset", cursor: "pointer",
-              padding: "10px 24px", borderRadius: 8,
-              fontSize: 13, fontFamily: "var(--font-display)", fontWeight: 600,
-              color: "var(--text-secondary)",
-              background: "var(--bg-elevated)",
-              border: "1px solid var(--bg-border)",
-            }}
-          >
-            Fermer
-          </button>
-        </div>
       </div>
     </div>
   )

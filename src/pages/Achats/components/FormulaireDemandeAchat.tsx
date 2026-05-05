@@ -339,6 +339,7 @@ export function FormulaireDemandeAchat({ open, onClose }: Props) {
         },
         soumettre,
         fichiers: fichiers.length > 0 ? fichiers : undefined,
+        role:     currentUser?.role,
       },
       { onSuccess: () => resetEtFermer() },
     )
@@ -366,6 +367,7 @@ export function FormulaireDemandeAchat({ open, onClose }: Props) {
           modePaiementCaisse: form.modePaiementCaisse as ModePaiementCaisse,
         },
         soumettre: true,
+        role:      currentUser?.role,
       },
       { onSuccess: () => resetEtFermer() },
     )
@@ -1356,6 +1358,7 @@ export function FormulaireDemandeAchat({ open, onClose }: Props) {
 
       <DialogContent
         className="max-w-2xl max-h-[90vh] overflow-y-auto p-0"
+        showCloseButton={false}
         style={{ background: "var(--bg-surface)", border: "1px solid var(--bg-border)", borderRadius: "16px" }}
       >
         {/* En-tête */}

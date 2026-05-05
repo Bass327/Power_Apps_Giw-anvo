@@ -1,17 +1,12 @@
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { useNavigate } from "react-router-dom"
-import { UserX, ChevronLeft, Plus, Search, X } from "lucide-react"
-import { toast } from "sonner"
+import { UserX, ChevronLeft, Plus, Search, X, Loader2, AlertCircle } from "lucide-react"
 import { useCurrentUser } from "@/hooks/useCurrentUser"
-import { getModuleAccess } from "@/lib/permissions"
+import { getModuleAccess, hasPermission, getDataScope } from "@/lib/permissions"
 import { AccessDenied } from "@/components/shared/AccessDenied"
+import { useAbsences, useCreateAbsence, useUpdateStatutAbsence } from "@/hooks/useAbsences"
 import type { Absence, StatutAbsence, TypeAbsence } from "@/types/rh"
-import {
-  STATUT_ABSENCE_CONFIG,
-  LABEL_TYPE_ABSENCE,
-} from "@/types/rh"
-
-import { ABSENCES_MOCK } from "@/data/mockRH"
+import { STATUT_ABSENCE_CONFIG, LABEL_TYPE_ABSENCE } from "@/types/rh"
 
 /* ── Utilitaires ── */
 function formatDate(iso: string): string {
@@ -21,67 +16,111 @@ function formatDate(iso: string): string {
 
 type Onglet = "toutes" | "en-attente" | "justifiees" | "non-justifiees"
 
+const inputStyle: React.CSSProperties = {
+  width: "100%", padding: "10px 14px",
+  background: "var(--bg-elevated)",
+  border: "1px solid var(--bg-border)",
+  borderRadius: 8,
+  color: "var(--text-primary)",
+  fontSize: 14, fontFamily: "var(--font-body)",
+  outline: "none", boxSizing: "border-box",
+}
+
+const labelStyle: React.CSSProperties = {
+  display: "block", fontSize: 11,
+  color: "var(--text-secondary)", fontFamily: "var(--font-body)",
+  textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6,
+}
+
 /* ════════════════════════════════════════════════
    Page — Gestion des absences
    ════════════════════════════════════════════════ */
 
 export default function RHAbsencesPage() {
-  const { role, user }     = useCurrentUser()
-  const email              = user?.email
-  const navigate            = useNavigate()
-  const access              = role ? getModuleAccess(role, "rh") : "none"
+  const { role, user }  = useCurrentUser()
+  const email           = user?.email ?? ""
+  const navigate        = useNavigate()
+  const access          = role ? getModuleAccess(role, "rh") : "none"
 
-  const [absences, setAbsences]           = useState<Absence[]>(ABSENCES_MOCK)
-  const [onglet, setOnglet]               = useState<Onglet>("toutes")
-  const [recherche, setRecherche]         = useState("")
+  const [onglet, setOnglet]           = useState<Onglet>("toutes")
+  const [recherche, setRecherche]     = useState("")
   const [formulaireOuvert, setFormulaire] = useState(false)
+  const [absenceActif, setAbsenceActif]   = useState<Absence | null>(null)
+  const [commentaire, setCommentaire]     = useState("")
+
+  /* Formulaire */
+  const [typeAbsence, setTypeAbsence] = useState<TypeAbsence>("MALADIE")
+  const [dateAbsence, setDateAbsence] = useState("")
+  const [duree, setDuree]             = useState("1")
+  const [motif, setMotif]             = useState("")
+
+  /* Hooks SharePoint */
+  const { data: absences = [], isLoading, isError } = useAbsences()
+  const { mutate: signaler,  isPending: creation }   = useCreateAbsence()
+  const { mutate: mettreAJour, isPending: enCours }  = useUpdateStatutAbsence()
 
   if (access === "none") {
     return <AccessDenied message="Accès réservé aux RH et à la direction." />
   }
 
-  /* Filtrage */
-  const absencesFiltrees = absences.filter((a) => {
-    if (role === "Employé" && a.employe !== email) return false
+  const peutGerer = role ? hasPermission(role, "canValiderAbsence") : false
+  const peutCreer = role ? hasPermission(role, "canSubmitOwnRH")    : false
+  const scope     = role ? getDataScope(role)                        : "own"
 
-    if (onglet === "en-attente"      && a.statut !== "EN_ATTENTE")    return false
-    if (onglet === "justifiees"      && a.statut !== "JUSTIFIEE")     return false
-    if (onglet === "non-justifiees"  && a.statut !== "NON_JUSTIFIEE") return false
+  /* ── Filtrage ── */
+  const absencesFiltrees = useMemo(() => {
+    return absences.filter((a) => {
+      if (scope === "own" && a.employe !== email) return false
+      if (onglet === "en-attente"     && a.statut !== "EN_ATTENTE")    return false
+      if (onglet === "justifiees"     && a.statut !== "JUSTIFIEE")     return false
+      if (onglet === "non-justifiees" && a.statut !== "NON_JUSTIFIEE") return false
+      if (recherche) {
+        const q = recherche.toLowerCase()
+        return (
+          a.employe.toLowerCase().includes(q) ||
+          LABEL_TYPE_ABSENCE[a.typeAbsence].toLowerCase().includes(q) ||
+          a.motif.toLowerCase().includes(q)
+        )
+      }
+      return true
+    })
+  }, [absences, onglet, recherche, scope, email])
 
-    if (recherche) {
-      const q = recherche.toLowerCase()
-      return a.employe.toLowerCase().includes(q) || LABEL_TYPE_ABSENCE[a.typeAbsence].toLowerCase().includes(q)
-    }
-    return true
-  })
+  const nbEnAttente = useMemo(
+    () => absences.filter((a) => a.statut === "EN_ATTENTE").length,
+    [absences],
+  )
 
-  const nbEnAttente = absences.filter((a) => a.statut === "EN_ATTENTE").length
-
-  /* Mise à jour statut */
-  const handleStatut = (id: string, statut: StatutAbsence, justificatif?: string) => {
-    setAbsences((prev) =>
-      prev.map((a) => a.id === id ? { ...a, statut, justificatif } : a),
+  /* ── Signalement ── */
+  function handleCreer(e: React.FormEvent) {
+    e.preventDefault()
+    signaler(
+      {
+        typeAbsence,
+        dateAbsence,
+        duree:           parseInt(duree) || 1,
+        motif:           motif.trim(),
+        employe:         email,
+        statut:          "EN_ATTENTE",
+      },
+      {
+        onSuccess: () => {
+          setTypeAbsence("MALADIE")
+          setDateAbsence("")
+          setDuree("1")
+          setMotif("")
+          setFormulaire(false)
+        },
+      },
     )
-    toast.success(`Absence marquée comme "${STATUT_ABSENCE_CONFIG[statut].label}"`)
   }
 
-  /* Signalement d'une absence */
-  const handleCreer = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
-    const fd = new FormData(e.currentTarget)
-    const nouvelle: Absence = {
-      id:              `a${Date.now()}`,
-      typeAbsence:     fd.get("typeAbsence") as TypeAbsence,
-      dateAbsence:     fd.get("dateAbsence") as string,
-      duree:           parseInt(fd.get("duree") as string) || 1,
-      motif:           fd.get("motif") as string,
-      employe:         email ?? "employe@giwaanvo.com",
-      dateSignalement: new Date().toISOString().slice(0, 10),
-      statut:          "EN_ATTENTE",
-    }
-    setAbsences((prev) => [nouvelle, ...prev])
-    setFormulaire(false)
-    toast.success("Absence signalée")
+  /* ── Mise à jour statut ── */
+  function handleStatut(id: string, statut: StatutAbsence) {
+    mettreAJour(
+      { id, statut, commentaire: commentaire.trim() || undefined },
+      { onSuccess: () => { setAbsenceActif(null); setCommentaire("") } },
+    )
   }
 
   /* ── Rendu ── */
@@ -97,7 +136,6 @@ export default function RHAbsencesPage() {
           <ChevronLeft size={14} />
           Ressources Humaines
         </button>
-
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <div style={{ width: 40, height: 40, borderRadius: 10, background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.30)", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -112,7 +150,7 @@ export default function RHAbsencesPage() {
               </p>
             </div>
           </div>
-          {access !== "read" && (
+          {peutCreer && (
             <button
               onClick={() => setFormulaire(true)}
               style={{ all: "unset", cursor: "pointer", display: "flex", alignItems: "center", gap: 8, padding: "10px 20px", borderRadius: 10, fontSize: 13, fontFamily: "var(--font-display)", fontWeight: 700, color: "var(--text-inverse)", background: "linear-gradient(135deg, #ef4444, #dc2626)" }}
@@ -127,12 +165,12 @@ export default function RHAbsencesPage() {
       {/* Stats */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 12, marginBottom: 24 }}>
         {[
-          { label: "Total",           value: absences.length,                                              color: "var(--text-primary)" },
-          { label: "En attente",      value: absences.filter((a) => a.statut === "EN_ATTENTE").length,    color: "#f59e0b" },
-          { label: "Justifiées",      value: absences.filter((a) => a.statut === "JUSTIFIEE").length,     color: "#22c55e" },
-          { label: "Non justifiées",  value: absences.filter((a) => a.statut === "NON_JUSTIFIEE").length, color: "#ef4444" },
+          { label: "Total",          value: absences.length,                                               color: "var(--text-primary)" },
+          { label: "En attente",     value: absences.filter((a) => a.statut === "EN_ATTENTE").length,     color: "#f59e0b" },
+          { label: "Justifiées",     value: absences.filter((a) => a.statut === "JUSTIFIEE").length,      color: "#22c55e" },
+          { label: "Non justifiées", value: absences.filter((a) => a.statut === "NON_JUSTIFIEE").length,  color: "#ef4444" },
         ].map((s) => (
-          <div key={s.label} style={{ padding: "14px 18px", background: "rgba(13,26,16,0.7)", border: "1px solid var(--bg-border)", borderRadius: 12 }}>
+          <div key={s.label} style={{ padding: "14px 18px", background: "var(--glass-card-bg)", border: "1px solid var(--bg-border)", borderRadius: 12 }}>
             <p style={{ margin: "0 0 4px", fontSize: 11, color: "var(--text-secondary)", fontFamily: "var(--font-body)", textTransform: "uppercase", letterSpacing: "0.06em" }}>{s.label}</p>
             <p style={{ margin: 0, fontSize: 26, fontWeight: 800, color: s.color, fontFamily: "var(--font-display)", letterSpacing: "-0.02em", lineHeight: 1 }}>{s.value}</p>
           </div>
@@ -143,10 +181,10 @@ export default function RHAbsencesPage() {
       <div style={{ display: "flex", gap: 12, marginBottom: 20, flexWrap: "wrap", alignItems: "center" }}>
         <div style={{ display: "flex", gap: 4, background: "var(--bg-elevated)", border: "1px solid var(--bg-border)", borderRadius: 10, padding: 4 }}>
           {([
-            { id: "toutes",          label: "Toutes" },
-            { id: "en-attente",      label: "En attente" },
-            { id: "justifiees",      label: "Justifiées" },
-            { id: "non-justifiees",  label: "Non justifiées" },
+            { id: "toutes",         label: "Toutes" },
+            { id: "en-attente",     label: "En attente" },
+            { id: "justifiees",     label: "Justifiées" },
+            { id: "non-justifiees", label: "Non justifiées" },
           ] as { id: Onglet; label: string }[]).map((o) => (
             <button
               key={o.id}
@@ -162,9 +200,7 @@ export default function RHAbsencesPage() {
             >
               {o.label}
               {o.id === "en-attente" && nbEnAttente > 0 && (
-                <span style={{ fontSize: 10, color: "var(--text-inverse)", background: "linear-gradient(135deg,#f0a500,#ffc235)", padding: "1px 6px", borderRadius: 20, fontWeight: 700 }}>
-                  {nbEnAttente}
-                </span>
+                <span style={{ fontSize: 10, color: "var(--text-inverse)", background: "linear-gradient(135deg,#f0a500,#ffc235)", padding: "1px 6px", borderRadius: 20, fontWeight: 700 }}>{nbEnAttente}</span>
               )}
             </button>
           ))}
@@ -173,7 +209,7 @@ export default function RHAbsencesPage() {
           <Search size={14} style={{ color: "var(--text-muted)" }} />
           <input
             type="text"
-            placeholder="Rechercher..."
+            placeholder="Rechercher par employé, type…"
             value={recherche}
             onChange={(e) => setRecherche(e.target.value)}
             style={{ all: "unset", flex: 1, fontSize: 13, fontFamily: "var(--font-body)", color: "var(--text-primary)" }}
@@ -181,27 +217,37 @@ export default function RHAbsencesPage() {
         </div>
       </div>
 
+      {/* États chargement */}
+      {isLoading && (
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "64px 0", gap: 10 }}>
+          <Loader2 size={20} style={{ color: "var(--text-muted)", animation: "spin 1s linear infinite" }} />
+          <span style={{ fontSize: 14, color: "var(--text-muted)", fontFamily: "var(--font-body)" }}>Chargement des absences…</span>
+        </div>
+      )}
+      {isError && (
+        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: 16, background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.30)", borderRadius: 12 }}>
+          <AlertCircle size={18} style={{ color: "#ef4444", flexShrink: 0 }} />
+          <p style={{ margin: 0, fontSize: 13, color: "#ef4444", fontFamily: "var(--font-body)" }}>Impossible de charger les absences. Vérifiez votre connexion.</p>
+        </div>
+      )}
+
       {/* Liste */}
-      {absencesFiltrees.length === 0 ? (
-        <div style={{ padding: "60px 24px", textAlign: "center", background: "rgba(13,26,16,0.5)", border: "1px dashed var(--bg-border)", borderRadius: 14 }}>
+      {!isLoading && !isError && absencesFiltrees.length === 0 && (
+        <div style={{ padding: "60px 24px", textAlign: "center", background: "var(--bg-elevated)", border: "1px dashed var(--bg-border)", borderRadius: 14 }}>
           <UserX size={32} style={{ color: "var(--text-muted)", marginBottom: 12 }} />
           <p style={{ margin: 0, fontSize: 15, color: "var(--text-secondary)", fontFamily: "var(--font-body)" }}>Aucune absence trouvée</p>
         </div>
-      ) : (
+      )}
+
+      {!isLoading && !isError && absencesFiltrees.length > 0 && (
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {absencesFiltrees.map((absence) => {
-            const cfg = STATUT_ABSENCE_CONFIG[absence.statut]
-            const peutGerer = (role === "Directrice" || role === "RAF" || role === "Chef Dept.") && absence.statut === "EN_ATTENTE"
+            const cfg      = STATUT_ABSENCE_CONFIG[absence.statut]
+            const actionnable = peutGerer && absence.statut === "EN_ATTENTE"
             return (
               <div
                 key={absence.id}
-                style={{
-                  display: "flex", alignItems: "flex-start", gap: 16,
-                  padding: "16px 20px",
-                  background: "rgba(13,26,16,0.7)",
-                  border: "1px solid var(--bg-border)",
-                  borderRadius: 12,
-                }}
+                style={{ display: "flex", alignItems: "flex-start", gap: 16, padding: "16px 20px", background: "var(--glass-card-bg)", border: "1px solid var(--bg-border)", borderRadius: 12 }}
               >
                 <div style={{ width: 38, height: 38, borderRadius: 9, background: "rgba(239,68,68,0.10)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 2 }}>
                   <UserX size={17} style={{ color: "#ef4444" }} />
@@ -211,36 +257,25 @@ export default function RHAbsencesPage() {
                     <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: "var(--text-primary)", fontFamily: "var(--font-display)" }}>
                       {LABEL_TYPE_ABSENCE[absence.typeAbsence]}
                     </p>
-                    <span style={{ fontSize: 11, color: cfg.color, background: cfg.bg, border: `1px solid ${cfg.border}`, padding: "2px 9px", borderRadius: 20, fontFamily: "var(--font-body)" }}>
+                    <span style={{ fontSize: 11, color: cfg.color, background: cfg.bg, border: `1px solid ${cfg.border}`, padding: "2px 9px", borderRadius: 20, fontFamily: "var(--font-body)", fontWeight: 600 }}>
                       {cfg.label}
                     </span>
                   </div>
                   <p style={{ margin: "0 0 4px", fontSize: 12, color: "var(--text-secondary)", fontFamily: "var(--font-body)" }}>
-                    {absence.employe} · {formatDate(absence.dateAbsence)} · {absence.duree} jour{absence.duree > 1 ? "s" : ""}
+                    {absence.employe.split("@")[0]} · {formatDate(absence.dateAbsence)} · {absence.duree} jour{absence.duree > 1 ? "s" : ""}
                   </p>
                   {absence.motif && (
                     <p style={{ margin: 0, fontSize: 12, color: "var(--text-muted)", fontFamily: "var(--font-body)", fontStyle: "italic" }}>
                       {absence.motif}
                     </p>
                   )}
-                  {absence.justificatif && (
-                    <p style={{ margin: "4px 0 0", fontSize: 11, color: "#22c55e", fontFamily: "var(--font-body)" }}>
-                      ✓ {absence.justificatif}
-                    </p>
-                  )}
-                  {peutGerer && (
+                  {actionnable && (
                     <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
                       <button
-                        onClick={() => handleStatut(absence.id, "NON_JUSTIFIEE")}
-                        style={{ all: "unset", cursor: "pointer", padding: "5px 12px", borderRadius: 7, fontSize: 11, fontFamily: "var(--font-display)", fontWeight: 600, color: "#ef4444", background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.30)" }}
+                        onClick={() => { setAbsenceActif(absence); setCommentaire("") }}
+                        style={{ all: "unset", cursor: "pointer", padding: "5px 12px", borderRadius: 7, fontSize: 11, fontFamily: "var(--font-display)", fontWeight: 600, color: "var(--text-secondary)", background: "var(--bg-elevated)", border: "1px solid var(--bg-border)" }}
                       >
-                        Marquer non justifiée
-                      </button>
-                      <button
-                        onClick={() => handleStatut(absence.id, "JUSTIFIEE", "Justificatif accepté")}
-                        style={{ all: "unset", cursor: "pointer", padding: "5px 12px", borderRadius: 7, fontSize: 11, fontFamily: "var(--font-display)", fontWeight: 700, color: "var(--text-inverse)", background: "linear-gradient(135deg,#22c55e,#16a34a)" }}
-                      >
-                        Marquer justifiée
+                        Traiter
                       </button>
                     </div>
                   )}
@@ -251,49 +286,110 @@ export default function RHAbsencesPage() {
         </div>
       )}
 
-      {/* Formulaire de signalement */}
-      {formulaireOuvert && (
+      {/* ── Modal traitement absence ── */}
+      {absenceActif && (
         <div
-          style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(8,15,11,0.85)", backdropFilter: "blur(8px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}
-          onClick={(e) => { if (e.target === e.currentTarget) setFormulaire(false) }}
+          style={{ position: "fixed", inset: 0, zIndex: 1000, background: "var(--modal-overlay)", backdropFilter: "blur(8px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}
+          onClick={(e) => { if (e.target === e.currentTarget) { setAbsenceActif(null); setCommentaire("") } }}
         >
           <div style={{ width: "100%", maxWidth: 480, background: "var(--bg-surface)", border: "1px solid var(--bg-border)", borderRadius: 16 }}>
             <div style={{ padding: "22px 28px 18px", borderBottom: "1px solid var(--bg-border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <h2 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: "var(--text-primary)", fontFamily: "var(--font-display)" }}>
-                Signaler une absence
-              </h2>
-              <button onClick={() => setFormulaire(false)} style={{ all: "unset", cursor: "pointer", width: 30, height: 30, borderRadius: 8, background: "var(--bg-elevated)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <h2 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: "var(--text-primary)", fontFamily: "var(--font-display)" }}>Traiter l'absence</h2>
+              <button onClick={() => { setAbsenceActif(null); setCommentaire("") }} style={{ all: "unset", cursor: "pointer", width: 30, height: 30, borderRadius: 8, background: "var(--bg-elevated)", display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <X size={15} style={{ color: "var(--text-secondary)" }} />
               </button>
             </div>
-            <form onSubmit={handleCreer} style={{ padding: "20px 28px", display: "flex", flexDirection: "column", gap: 14 }}>
+            <div style={{ padding: "20px 28px", display: "flex", flexDirection: "column", gap: 16 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                {[
+                  { label: "Employé",  value: absenceActif.employe.split("@")[0] },
+                  { label: "Type",     value: LABEL_TYPE_ABSENCE[absenceActif.typeAbsence] },
+                  { label: "Date",     value: formatDate(absenceActif.dateAbsence) },
+                  { label: "Durée",    value: `${absenceActif.duree} jour(s)` },
+                ].map(({ label, value }) => (
+                  <div key={label} style={{ padding: "10px 14px", background: "var(--bg-elevated)", borderRadius: 8 }}>
+                    <p style={{ margin: "0 0 2px", fontSize: 10, color: "var(--text-muted)", fontFamily: "var(--font-body)", textTransform: "uppercase", letterSpacing: "0.06em" }}>{label}</p>
+                    <p style={{ margin: 0, fontSize: 14, color: "var(--text-primary)", fontFamily: "var(--font-display)", fontWeight: 600 }}>{value}</p>
+                  </div>
+                ))}
+              </div>
+              {absenceActif.motif && (
+                <div style={{ padding: "10px 14px", background: "var(--bg-elevated)", borderRadius: 8 }}>
+                  <p style={{ margin: "0 0 2px", fontSize: 10, color: "var(--text-muted)", fontFamily: "var(--font-body)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Motif</p>
+                  <p style={{ margin: 0, fontSize: 13, color: "var(--text-primary)", fontFamily: "var(--font-body)" }}>{absenceActif.motif}</p>
+                </div>
+              )}
               <div>
-                <label style={{ display: "block", fontSize: 11, color: "var(--text-secondary)", fontFamily: "var(--font-body)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Type d'absence *</label>
-                <select name="typeAbsence" required style={{ width: "100%", padding: "10px 14px", background: "var(--bg-elevated)", border: "1px solid var(--bg-border)", borderRadius: 8, color: "var(--text-primary)", fontSize: 14, fontFamily: "var(--font-body)", outline: "none", boxSizing: "border-box" }}>
-                  {Object.entries(LABEL_TYPE_ABSENCE).map(([k, v]) => (
+                <label style={labelStyle}>Commentaire (optionnel)</label>
+                <textarea rows={2} placeholder="Précisez si nécessaire…" value={commentaire} onChange={(e) => setCommentaire(e.target.value)} style={{ ...inputStyle, resize: "vertical" }} />
+              </div>
+              <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+                <button onClick={() => { setAbsenceActif(null); setCommentaire("") }} style={{ all: "unset", cursor: "pointer", padding: "10px 18px", borderRadius: 8, fontSize: 13, fontFamily: "var(--font-display)", fontWeight: 600, color: "var(--text-secondary)", background: "var(--bg-elevated)", border: "1px solid var(--bg-border)" }}>
+                  Annuler
+                </button>
+                <button
+                  onClick={() => handleStatut(absenceActif.id, "NON_JUSTIFIEE")}
+                  disabled={enCours}
+                  style={{ all: "unset", cursor: enCours ? "default" : "pointer", padding: "10px 18px", borderRadius: 8, fontSize: 13, fontFamily: "var(--font-display)", fontWeight: 600, color: "#ef4444", background: "rgba(239,68,68,0.10)", border: "1px solid rgba(239,68,68,0.30)", opacity: enCours ? 0.6 : 1 }}
+                >
+                  Non justifiée
+                </button>
+                <button
+                  onClick={() => handleStatut(absenceActif.id, "JUSTIFIEE")}
+                  disabled={enCours}
+                  style={{ all: "unset", cursor: enCours ? "default" : "pointer", padding: "10px 20px", borderRadius: 8, fontSize: 13, fontFamily: "var(--font-display)", fontWeight: 700, color: "var(--text-inverse)", background: "linear-gradient(135deg,#22c55e,#16a34a)", display: "flex", alignItems: "center", gap: 6, opacity: enCours ? 0.6 : 1 }}
+                >
+                  {enCours && <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} />}
+                  Justifiée
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal formulaire signalement ── */}
+      {formulaireOuvert && (
+        <div
+          style={{ position: "fixed", inset: 0, zIndex: 1000, background: "var(--modal-overlay)", backdropFilter: "blur(8px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}
+          onClick={(e) => { if (e.target === e.currentTarget && !creation) setFormulaire(false) }}
+        >
+          <div style={{ width: "100%", maxWidth: 480, background: "var(--bg-surface)", border: "1px solid var(--bg-border)", borderRadius: 16 }}>
+            <div style={{ padding: "22px 28px 18px", borderBottom: "1px solid var(--bg-border)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <h2 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: "var(--text-primary)", fontFamily: "var(--font-display)" }}>Signaler une absence</h2>
+              <button onClick={() => { if (!creation) setFormulaire(false) }} style={{ all: "unset", cursor: "pointer", width: 30, height: 30, borderRadius: 8, background: "var(--bg-elevated)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <X size={15} style={{ color: "var(--text-secondary)" }} />
+              </button>
+            </div>
+            <form onSubmit={handleCreer} style={{ padding: "20px 28px", display: "flex", flexDirection: "column", gap: 16 }}>
+              <div>
+                <label style={labelStyle}>Type d'absence *</label>
+                <select value={typeAbsence} onChange={(e) => setTypeAbsence(e.target.value as TypeAbsence)} required style={inputStyle}>
+                  {(Object.entries(LABEL_TYPE_ABSENCE) as [TypeAbsence, string][]).map(([k, v]) => (
                     <option key={k} value={k}>{v}</option>
                   ))}
                 </select>
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 100px", gap: 12 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                 <div>
-                  <label style={{ display: "block", fontSize: 11, color: "var(--text-secondary)", fontFamily: "var(--font-body)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Date *</label>
-                  <input type="date" name="dateAbsence" required style={{ width: "100%", padding: "10px 14px", background: "var(--bg-elevated)", border: "1px solid var(--bg-border)", borderRadius: 8, color: "var(--text-primary)", fontSize: 14, fontFamily: "var(--font-body)", outline: "none", boxSizing: "border-box" }} />
+                  <label style={labelStyle}>Date *</label>
+                  <input type="date" value={dateAbsence} onChange={(e) => setDateAbsence(e.target.value)} required style={inputStyle} />
                 </div>
                 <div>
-                  <label style={{ display: "block", fontSize: 11, color: "var(--text-secondary)", fontFamily: "var(--font-body)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Durée (j.)</label>
-                  <input type="number" name="duree" min={1} defaultValue={1} style={{ width: "100%", padding: "10px 14px", background: "var(--bg-elevated)", border: "1px solid var(--bg-border)", borderRadius: 8, color: "var(--text-primary)", fontSize: 14, fontFamily: "var(--font-body)", outline: "none", boxSizing: "border-box" }} />
+                  <label style={labelStyle}>Durée (jours) *</label>
+                  <input type="number" min="1" value={duree} onChange={(e) => setDuree(e.target.value)} required style={inputStyle} />
                 </div>
               </div>
               <div>
-                <label style={{ display: "block", fontSize: 11, color: "var(--text-secondary)", fontFamily: "var(--font-body)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Motif</label>
-                <textarea name="motif" rows={3} placeholder="Expliquez la raison de l'absence..." style={{ width: "100%", padding: "10px 14px", background: "var(--bg-elevated)", border: "1px solid var(--bg-border)", borderRadius: 8, color: "var(--text-primary)", fontSize: 14, fontFamily: "var(--font-body)", outline: "none", resize: "vertical", boxSizing: "border-box" }} />
+                <label style={labelStyle}>Motif</label>
+                <textarea rows={3} placeholder="Précisez le motif (optionnel)…" value={motif} onChange={(e) => setMotif(e.target.value)} style={{ ...inputStyle, resize: "vertical" }} />
               </div>
-              <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", paddingTop: 4 }}>
-                <button type="button" onClick={() => setFormulaire(false)} style={{ all: "unset", cursor: "pointer", padding: "10px 18px", borderRadius: 8, fontSize: 13, fontFamily: "var(--font-display)", fontWeight: 600, color: "var(--text-secondary)", background: "var(--bg-elevated)", border: "1px solid var(--bg-border)" }}>
+              <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+                <button type="button" onClick={() => setFormulaire(false)} disabled={creation} style={{ all: "unset", cursor: "pointer", padding: "10px 18px", borderRadius: 8, fontSize: 13, fontFamily: "var(--font-display)", fontWeight: 600, color: "var(--text-secondary)", background: "var(--bg-elevated)", border: "1px solid var(--bg-border)" }}>
                   Annuler
                 </button>
-                <button type="submit" style={{ all: "unset", cursor: "pointer", padding: "10px 22px", borderRadius: 8, fontSize: 13, fontFamily: "var(--font-display)", fontWeight: 700, color: "var(--text-inverse)", background: "linear-gradient(135deg,#ef4444,#dc2626)" }}>
+                <button type="submit" disabled={creation} style={{ all: "unset", cursor: creation ? "default" : "pointer", padding: "10px 22px", borderRadius: 8, fontSize: 13, fontFamily: "var(--font-display)", fontWeight: 700, color: "var(--text-inverse)", background: "linear-gradient(135deg,#ef4444,#dc2626)", display: "flex", alignItems: "center", gap: 8, opacity: creation ? 0.7 : 1 }}>
+                  {creation && <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} />}
                   Signaler
                 </button>
               </div>

@@ -2,42 +2,16 @@ import { useState } from "react"
 import { useNavigate } from "react-router-dom"
 import {
   ShieldAlert, ChevronLeft, Plus, Search, X, Lock,
-  User, Calendar,
+  User, Calendar, Loader2,
 } from "lucide-react"
 import { toast } from "sonner"
 import { useCurrentUser } from "@/hooks/useCurrentUser"
-import { getModuleAccess } from "@/lib/permissions"
+import { useEmployes } from "@/hooks/useEmployes"
+import { hasPermission } from "@/lib/permissions"
 import { AccessDenied } from "@/components/shared/AccessDenied"
 import type { DossierSanction, StatutSanction, GraviteSanction } from "@/types/rh"
 import { STATUT_SANCTION_CONFIG, LABEL_GRAVITE_SANCTION } from "@/types/rh"
 
-/* ── Données de démonstration ── */
-const SANCTIONS_MOCK: DossierSanction[] = [
-  {
-    id:            "s1",
-    employe:       "ibrahima.ndiaye@giwaanvo.com",
-    dateIncident:  "2026-03-18",
-    natureFaits:   "Absence injustifiée répétée",
-    description:   "Trois absences non signalées en l'espace d'un mois sans justificatif.",
-    gravite:       "MODEREE",
-    statut:        "EN_INSTRUCTION",
-    dateOuverture: "2026-03-20",
-    decision:      "Avertissement formel en cours de rédaction",
-  },
-  {
-    id:            "s2",
-    employe:       "kofi.mensah@giwaanvo.com",
-    dateIncident:  "2026-02-10",
-    natureFaits:   "Non-respect des consignes de sécurité",
-    description:   "Intervention sur site sans équipement de protection individuelle obligatoire.",
-    gravite:       "GRAVE",
-    statut:        "NOTIFIE",
-    dateOuverture: "2026-02-12",
-    decision:      "Mise en demeure notifiée",
-    sanction:      "Blâme écrit",
-    decideur:      "directrice@giwaanvo.com",
-  },
-]
 
 type Onglet = "tous" | "en-cours" | "clotures"
 
@@ -83,9 +57,8 @@ function BadgeGravite({ gravite }: { gravite: GraviteSanction }) {
 export default function RHSanctionsPage() {
   const { role } = useCurrentUser()
   const navigate  = useNavigate()
-  const access    = role ? getModuleAccess(role, "rh") : "none"
-
-  const [sanctions, setSanctions]     = useState<DossierSanction[]>(SANCTIONS_MOCK)
+  const { employes, isLoading: isLoadingEmployes } = useEmployes()
+  const [sanctions, setSanctions]     = useState<DossierSanction[]>([])
   const [onglet, setOnglet]           = useState<Onglet>("tous")
   const [recherche, setRecherche]     = useState("")
   const [formulaireOuvert, setForm]   = useState(false)
@@ -98,9 +71,9 @@ export default function RHSanctionsPage() {
   const [fDescription, setFDescription]  = useState("")
   const [fGravite, setFGravite]           = useState<GraviteSanction>("MODEREE")
 
-  /* Accès restreint : uniquement Directrice, RAF, RH */
-  if (access === "none" || role === "Employé" || role === "Comptable") {
-    return <AccessDenied message="Ce module est restreint à la direction et aux RH." />
+  /* Accès restreint : uniquement RAF et Directrice */
+  if (!role || !hasPermission(role, "canGererSanctions")) {
+    return <AccessDenied message="Ce sous-module est restreint au RAF et à la direction." backTo="/rh" backLabel="Ressources Humaines" />
   }
 
   const liste = sanctions.filter((s) => {
@@ -186,14 +159,12 @@ export default function RHSanctionsPage() {
               </p>
             </div>
           </div>
-          {(role === "Directrice" || role === "RAF") && (
-            <button
-              onClick={() => setForm(true)}
-              style={{ all: "unset", cursor: "pointer", display: "flex", alignItems: "center", gap: 8, padding: "10px 20px", borderRadius: 10, fontSize: 13, fontFamily: "var(--font-display)", fontWeight: 700, color: "var(--text-inverse)", background: "linear-gradient(135deg, #f59e0b, #d97706)" }}
-            >
-              <Plus size={16} /> Nouveau dossier
-            </button>
-          )}
+          <button
+            onClick={() => setForm(true)}
+            style={{ all: "unset", cursor: "pointer", display: "flex", alignItems: "center", gap: 8, padding: "10px 20px", borderRadius: 10, fontSize: 13, fontFamily: "var(--font-display)", fontWeight: 700, color: "var(--text-inverse)", background: "linear-gradient(135deg, #f59e0b, #d97706)" }}
+          >
+            <Plus size={16} /> Nouveau dossier
+          </button>
         </div>
       </div>
 
@@ -205,7 +176,7 @@ export default function RHSanctionsPage() {
           { label: "Graves",        value: sanctions.filter((s) => ["GRAVE","TRES_GRAVE"].includes(s.gravite)).length, color: "#ef4444" },
           { label: "Clôturés",      value: sanctions.filter((s) => s.statut === "CLOTURE").length,        color: "#34d399" },
         ].map((s) => (
-          <div key={s.label} style={{ padding: "14px 18px", background: "rgba(13,26,16,0.7)", border: "1px solid var(--bg-border)", borderRadius: 12 }}>
+          <div key={s.label} style={{ padding: "14px 18px", background: "var(--glass-card-bg)", border: "1px solid var(--bg-border)", borderRadius: 12 }}>
             <p style={{ margin: "0 0 4px", fontSize: 11, color: "var(--text-secondary)", fontFamily: "var(--font-body)", textTransform: "uppercase", letterSpacing: "0.06em" }}>{s.label}</p>
             <p style={{ margin: 0, fontSize: 26, fontWeight: 800, color: s.color, fontFamily: "var(--font-display)", letterSpacing: "-0.02em", lineHeight: 1 }}>{s.value}</p>
           </div>
@@ -243,7 +214,7 @@ export default function RHSanctionsPage() {
 
       {/* Liste */}
       {liste.length === 0 ? (
-        <div style={{ padding: "60px 24px", textAlign: "center", background: "rgba(13,26,16,0.5)", border: "1px dashed var(--bg-border)", borderRadius: 14 }}>
+        <div style={{ padding: "60px 24px", textAlign: "center", background: "var(--bg-elevated)", border: "1px dashed var(--bg-border)", borderRadius: 14 }}>
           <ShieldAlert size={32} style={{ color: "var(--text-muted)", marginBottom: 12 }} />
           <p style={{ margin: 0, fontSize: 15, color: "var(--text-secondary)", fontFamily: "var(--font-body)" }}>Aucun dossier trouvé</p>
         </div>
@@ -255,9 +226,9 @@ export default function RHSanctionsPage() {
               <button
                 key={s.id}
                 onClick={() => setSelectionne(s)}
-                style={{ all: "unset", cursor: "pointer", display: "flex", alignItems: "flex-start", gap: 16, padding: "18px 22px", background: "rgba(13,26,16,0.7)", border: "1px solid var(--bg-border)", borderRadius: 12, transition: "all 150ms", textAlign: "left" }}
-                onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#f59e0b"; e.currentTarget.style.background = "rgba(13,26,16,0.9)" }}
-                onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--bg-border)"; e.currentTarget.style.background = "rgba(13,26,16,0.7)" }}
+                style={{ all: "unset", cursor: "pointer", display: "flex", alignItems: "flex-start", gap: 16, padding: "18px 22px", background: "var(--glass-card-bg)", border: "1px solid var(--bg-border)", borderRadius: 12, transition: "all 150ms", textAlign: "left" }}
+                onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#f59e0b"; e.currentTarget.style.background = "var(--bg-elevated)" }}
+                onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--bg-border)"; e.currentTarget.style.background = "var(--glass-card-bg)" }}
               >
                 <div style={{ width: 40, height: 40, borderRadius: 10, background: "rgba(245,158,11,0.10)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 2 }}>
                   <ShieldAlert size={18} style={{ color: "#f59e0b" }} />
@@ -290,7 +261,7 @@ export default function RHSanctionsPage() {
       {/* Modal détail */}
       {selectionne && (
         <div
-          style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(8,15,11,0.90)", backdropFilter: "blur(8px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}
+          style={{ position: "fixed", inset: 0, zIndex: 1000, background: "var(--modal-overlay)", backdropFilter: "blur(8px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}
           onClick={(e) => { if (e.target === e.currentTarget) setSelectionne(null) }}
         >
           <div style={{ width: "100%", maxWidth: 560, background: "var(--bg-surface)", border: "1px solid var(--bg-border)", borderRadius: 16 }}>
@@ -331,7 +302,7 @@ export default function RHSanctionsPage() {
                 </div>
               )}
               {/* Actions d'avancement */}
-              {selectionne.statut !== "CLOTURE" && role === "Directrice" && (
+              {selectionne.statut !== "CLOTURE" && role && hasPermission(role, "canAvancerSanction") && (
                 <div style={{ display: "flex", gap: 10, marginTop: 8, justifyContent: "flex-end" }}>
                   {selectionne.statut === "SIGNALE" && (
                     <button onClick={() => handleAvancer(selectionne.id, "EN_ANALYSE")} style={{ all: "unset", cursor: "pointer", padding: "8px 14px", borderRadius: 8, fontSize: 12, fontFamily: "var(--font-display)", fontWeight: 600, color: "#60a5fa", background: "rgba(59,130,246,0.10)", border: "1px solid rgba(59,130,246,0.30)" }}>
@@ -358,7 +329,7 @@ export default function RHSanctionsPage() {
       {/* Modal formulaire */}
       {formulaireOuvert && (
         <div
-          style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(8,15,11,0.90)", backdropFilter: "blur(8px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}
+          style={{ position: "fixed", inset: 0, zIndex: 1000, background: "var(--modal-overlay)", backdropFilter: "blur(8px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}
           onClick={(e) => { if (e.target === e.currentTarget) { setForm(false); resetForm() } }}
         >
           <div style={{ width: "100%", maxWidth: 560, background: "var(--bg-surface)", border: "1px solid var(--bg-border)", borderRadius: 16 }}>
@@ -376,7 +347,41 @@ export default function RHSanctionsPage() {
             <div style={{ padding: "20px 28px", display: "flex", flexDirection: "column", gap: 14 }}>
               <div>
                 <label style={labelStyle}>Employé concerné *</label>
-                <input type="text" placeholder="email@giwaanvo.com" value={fEmploye} onChange={(e) => setFEmploye(e.target.value)} style={fieldStyle} />
+                <div style={{ position: "relative" }}>
+                  <select
+                    value={fEmploye}
+                    onChange={(e) => setFEmploye(e.target.value)}
+                    disabled={isLoadingEmployes}
+                    style={{
+                      ...fieldStyle,
+                      appearance: "none",
+                      paddingRight: 36,
+                      cursor: isLoadingEmployes ? "wait" : "pointer",
+                      opacity: isLoadingEmployes ? 0.6 : 1,
+                    }}
+                  >
+                    <option value="">
+                      {isLoadingEmployes ? "Chargement des employés…" : "— Sélectionner un employé —"}
+                    </option>
+                    {employes.map((emp) => (
+                      <option key={emp.id} value={emp.nom}>
+                        {emp.nom}{emp.departement ? ` — ${emp.departement}` : ""}
+                      </option>
+                    ))}
+                  </select>
+                  {/* Icône chevron ou spinner */}
+                  <div style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", pointerEvents: "none", color: "var(--text-secondary)" }}>
+                    {isLoadingEmployes
+                      ? <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} />
+                      : <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 4l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                    }
+                  </div>
+                </div>
+                {!isLoadingEmployes && employes.length === 0 && (
+                  <p style={{ margin: "6px 0 0", fontSize: 11, color: "#f59e0b", fontFamily: "var(--font-body)" }}>
+                    Aucun employé trouvé — vérifiez votre connexion SharePoint.
+                  </p>
+                )}
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                 <div>

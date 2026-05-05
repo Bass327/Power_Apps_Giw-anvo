@@ -1,7 +1,10 @@
 import { useQuery } from "@tanstack/react-query"
 import { graphFetch, graphFetchBlob, getListItems } from "@/lib/graphClient"
 import { useAuth } from "@/hooks/useAuth"
+import { isPowerAppsEnv, getContextFromBridge } from "@/lib/powerAppsBridge"
 import type { GiwAnvoUser, UserRole } from "@/types/user"
+
+// ─── Types internes ───────────────────────────────────────────────────────────
 
 interface MsGraphUser {
   id:                string
@@ -11,134 +14,245 @@ interface MsGraphUser {
   jobTitle:          string | null
 }
 
-interface SharePointUserFields {
-  Title:               string
-  R_x00f4_le?:         string   // Rôle — nom interne réel (ô encodé)
-  D_x00e9_partement?:  string   // Département — nom interne réel (é encodé)
-  Actif?:              string   // "Oui" | "Non"
+interface SPUserFields {
+  Title:              string
+  R_x00f4_le?:        string
+  D_x00e9_partement?: string
+  Actif?:             string
 }
 
-interface SharePointUserItem {
+interface SPUserItem {
   id:     string
-  fields: SharePointUserFields
+  fields: SPUserFields
 }
 
-/** Génère les initiales à partir du nom complet (ex: "Mamadou Diallo" → "MD") */
+// ─── Utilitaires purs ─────────────────────────────────────────────────────────
+
+/** Génère 2 initiales depuis un nom complet (ex: "Mamadou Diallo" → "MD"). */
 function buildInitials(name: string): string {
   return name
     .split(" ")
     .filter(Boolean)
     .slice(0, 2)
-    .map((part) => part[0].toUpperCase())
+    .map(p => p[0].toUpperCase())
     .join("")
 }
 
 /**
- * Vérifie que le rôle correspond exactement à l'une des valeurs autorisées.
- * Sensible à la casse — la liste SharePoint doit utiliser les valeurs exactes.
+ * Normalise un rôle brut SharePoint vers une valeur typée.
+ * Insensible à la casse, tolère les variantes courantes de saisie.
+ * Retourne "Employé" en dernier recours — jamais d'exception.
  */
 function parseRole(raw: string | undefined): UserRole {
-  const valid: UserRole[] = ["Employé", "RAF", "Chef Dept.", "Comptable", "Directrice"]
-  if (valid.includes(raw as UserRole)) return raw as UserRole
+  if (!raw) return "Employé"
+
+  const VALID: UserRole[] = ["Employé", "RAF", "Chef Dept.", "Comptable", "Directrice"]
+  const exact = VALID.find(r => r === raw)
+  if (exact) return exact
+
+  const lower = raw.trim().toLowerCase()
+  const ALIASES: Record<string, UserRole> = {
+    "employe":                       "Employé",
+    "employé(e)":                    "Employé",
+    "employe(e)":                    "Employé",
+    "collaborateur":                 "Employé",
+    "chef dept":                     "Chef Dept.",
+    "chef":                          "Chef Dept.",
+    "chef de département":           "Chef Dept.",
+    "chef departement":              "Chef Dept.",
+    "directeur":                     "Directrice",
+    "directeur général":             "Directrice",
+    "directrice générale":           "Directrice",
+    "dg":                            "Directrice",
+    "raf":                           "RAF",
+    "responsable administratif":     "RAF",
+    "comptable":                     "Comptable",
+    "accountant":                    "Comptable",
+  }
+
+  if (ALIASES[lower]) return ALIASES[lower]
+
+  console.warn(`[GiwAnvo] Rôle non reconnu : "${raw}" → défaut Employé`)
   return "Employé"
 }
 
 /**
- * Récupère le profil complet de l'utilisateur connecté :
- * - Données Microsoft 365 (nom, email) via Graph /me
- * - Rôle et département GIW'ANVO via la liste SharePoint Utilisateurs_GiwAnvo
- * - Photo de profil Microsoft 365
+ * Recherche l'utilisateur dans les items SharePoint.
+ * Passe 1 : email (fiable même si le nom d'affichage diffère entre M365 et SP).
+ * Passe 2 : Title (nom court) en dernier recours.
  */
+function matchSPUser(
+  items:       SPUserItem[],
+  displayName: string,
+  email:       string,
+): SPUserItem | undefined {
+  if (!items.length) return undefined
+
+  const emailLower = email.toLowerCase()
+  const nameLower  = displayName.toLowerCase()
+
+  const byEmail = items.find(item => {
+    const f = item.fields as unknown as Record<string, string>
+    return (
+      f.Email?.toLowerCase()        === emailLower ||
+      f.UserEmail?.toLowerCase()    === emailLower ||
+      f.EmailAddress?.toLowerCase() === emailLower
+    )
+  })
+  if (byEmail) return byEmail
+
+  return items.find(item =>
+    item.fields.Title?.toLowerCase() === nameLower
+  )
+}
+
+// ─── Hook principal ───────────────────────────────────────────────────────────
+
 export const useCurrentUser = () => {
-  const { isAuthenticated, getToken } = useAuth()
+  const { isAuthenticated, tryGetToken } = useAuth()
 
   const query = useQuery<GiwAnvoUser>({
     queryKey:  ["current-user"],
     enabled:   isAuthenticated,
-    staleTime: 10 * 60 * 1000, // Profil mis en cache 10 minutes
+    staleTime: 10 * 60 * 1000,
+    retry:     1,
 
     queryFn: async (): Promise<GiwAnvoUser> => {
-      const token = await getToken()
 
-      // Récupération du profil Microsoft 365
-      const msUser = await graphFetch<MsGraphUser>(token, "/me")
-      const email  = msUser.mail ?? msUser.userPrincipalName
+      // ── Étape 1 : Identité ─────────────────────────────────────────────────
+      //
+      //   Power Apps → SDK AppLifecycle.getContext (garanti, pas de token requis)
+      //   Dev/navigateur → Graph /me (token MSAL requis)
+      //
+      let displayName = ""
+      let email       = ""
+      let msUserId    = ""
+      let jobTitle    = "Collaborateur"
 
-      // Rôle par défaut avant lookup SharePoint
+      if (isPowerAppsEnv()) {
+        try {
+          const ctx = await getContextFromBridge()
+          displayName = ctx.fullName          ?? ""
+          email       = ctx.userPrincipalName ?? ""
+          msUserId    = ctx.objectId          ?? ""
+          console.info("[GiwAnvo] ✅ Identité SDK :", { displayName, email })
+        } catch (err) {
+          console.error("[GiwAnvo] ❌ Contexte SDK inaccessible :", err)
+          // displayName / email restent vides → l'app continue avec un profil minimal
+        }
+      }
+
+      // ── Étape 2 : Token Graph (best-effort) ───────────────────────────────
+      //
+      //   Power Apps : nécessite window.powerAppsBridge + connection reference configurée.
+      //   Si absent → token null → étapes 3 et 4 sautées → rôle "Employé", photo initiales.
+      //   Dev : MSAL, toujours disponible après login.
+      //
+      const token = await tryGetToken()
+
+      if (!token) {
+        console.warn(
+          "[GiwAnvo] ⚠️ Token Graph indisponible" +
+          (isPowerAppsEnv() ? " — configurez une connection reference SharePoint/Office365" : "") +
+          " → rôle: Employé, photo: initiales"
+        )
+      }
+
+      // Compléter l'identité via /me en mode dev (champs absents du SDK en Power Apps)
+      if (!isPowerAppsEnv() && token) {
+        try {
+          const me = await graphFetch<MsGraphUser>(token, "/me")
+          displayName = me.displayName
+          email       = me.mail ?? me.userPrincipalName
+          msUserId    = me.id
+          jobTitle    = me.jobTitle ?? "Collaborateur"
+        } catch (err) {
+          console.error("[GiwAnvo] ❌ Erreur /me :", err)
+        }
+      }
+
+      // ── Étape 3 : Rôle et département (Utilisateurs_Giwanvo) ──────────────
+      //
+      //   Requiert un token. Silencieux si absent.
+      //   En cas d'erreur SP (liste inaccessible, timeout…) → "Employé" par défaut.
+      //
       let role:        UserRole = "Employé"
       let departement: string   = ""
       let actif:       boolean  = true
 
-      try {
-        const spItems = await getListItems<SharePointUserItem>(
-          token,
-          "Utilisateurs_Giwanvo",
-        )
+      // Override de rôle via le sélecteur (réservé au compte propriétaire de l'app)
+      const roleOverride = localStorage.getItem("role_override") as UserRole | null
+      if (roleOverride) {
+        role = roleOverride
+        console.info(`[GiwAnvo] 🛠️ Rôle simulé : ${role}`)
+      }
 
-        // Recherche par nom affiché ou email (insensible à la casse)
-        const rawFields = (item: SharePointUserItem) =>
-          item.fields as unknown as Record<string, string>
+      if (!roleOverride && token && email) {
+        try {
+          const items = await getListItems<SPUserItem>(token, "Utilisateurs_Giwanvo")
+          const found = matchSPUser(items, displayName, email)
 
-        const spUser = spItems.find(
-          (item) =>
-            item.fields.Title?.toLowerCase() === msUser.displayName.toLowerCase() ||
-            rawFields(item).Email?.toLowerCase()        === email.toLowerCase() ||
-            rawFields(item).UserEmail?.toLowerCase()    === email.toLowerCase() ||
-            rawFields(item).EmailAddress?.toLowerCase() === email.toLowerCase() ||
-            rawFields(item).Demandeur?.toLowerCase()    === email.toLowerCase(),
-        )
-
-        if (spUser) {
-          role        = parseRole(spUser.fields.R_x00f4_le)
-          departement = spUser.fields.D_x00e9_partement ?? ""
-          actif       = spUser.fields.Actif !== "Non"
+          if (found) {
+            role        = parseRole(found.fields.R_x00f4_le)
+            departement = found.fields.D_x00e9_partement ?? ""
+            actif       = found.fields.Actif !== "Non"
+            console.info(`[GiwAnvo] ✅ Rôle SP : ${role} | Dép : ${departement}`)
+          } else {
+            console.warn(
+              `[GiwAnvo] ⚠️ Non trouvé dans Utilisateurs_Giwanvo (${items.length} items)\n` +
+              `  email: "${email}" | displayName: "${displayName}" → rôle: Employé`
+            )
+          }
+        } catch (err) {
+          console.warn("[GiwAnvo] ⚠️ Lecture SP échouée — rôle: Employé :", (err as Error).message)
         }
-      } catch (err) {
-        // Liste SharePoint inaccessible ou colonne manquante — on garde le rôle par défaut
-        console.warn("Impossible de récupérer le profil SharePoint:", err)
       }
 
-      // En mode DEV, le RoleSwitcher peut forcer un rôle via localStorage
-      if (import.meta.env.DEV) {
-        const devRole = localStorage.getItem("dev_role") as UserRole | null
-        if (devRole) role = devRole
+      // ── Étape 4 : Photo de profil ─────────────────────────────────────────
+      //
+      //   Non critique : le Header affiche les initiales si photoUrl est null.
+      //   Silencieux en cas d'échec (pas de photo = normal pour certains comptes M365).
+      //
+      let photoUrl: string | null = null
+      if (token) {
+        try {
+          photoUrl = await graphFetchBlob(token, "/me/photo/$value")
+        } catch { /* non critique — initiales affichées */ }
       }
-
-      // Photo de profil Microsoft 365 — null si absente ou non accessible
-      const photoUrl = await graphFetchBlob(token, "/me/photo/$value")
 
       return {
-        id:          msUser.id,
-        displayName: msUser.displayName,
+        id:          msUserId,
+        displayName,
         email,
-        initials:    buildInitials(msUser.displayName),
+        initials:    buildInitials(displayName || "?"),
         role,
         departement,
         actif,
-        jobTitle:    msUser.jobTitle ?? "Collaborateur",
+        jobTitle,
         photoUrl,
       }
     },
   })
 
-  /** Vérifie si l'utilisateur a exactement le rôle donné */
-  const hasRole = (r: UserRole): boolean => query.data?.role === r
+  const role: UserRole | undefined = query.data?.role
+
+  /** Vérifie si l'utilisateur a exactement le rôle donné. */
+  const hasRole = (r: UserRole): boolean => role === r
 
   /**
-   * Vérifie si l'utilisateur peut approuver ou valider dans le circuit.
-   * Chef Dept. (N1), RAF (N2), Directrice (finale) et Comptable (paiement).
+   * Vérifie si l'utilisateur peut valider dans le circuit d'approbation.
+   * Chef Dept. (N1) → RAF (N2) → Directrice (N3) → Comptable (paiement).
    */
-  const canApprove = (): boolean => {
-    const r = query.data?.role
-    return r === "Chef Dept." || r === "RAF" || r === "Directrice" || r === "Comptable"
-  }
+  const canApprove = (): boolean =>
+    role === "Chef Dept." ||
+    role === "RAF"        ||
+    role === "Directrice" ||
+    role === "Comptable"
 
   return {
     ...query,
-    /** Profil complet de l'utilisateur (undefined si chargement en cours) */
-    user: query.data,
-    /** Rôle GIW'ANVO (undefined si chargement en cours) */
-    role: query.data?.role,
+    user:       query.data,
+    role,
     hasRole,
     canApprove,
   }

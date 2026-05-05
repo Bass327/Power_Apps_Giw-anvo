@@ -8,7 +8,7 @@ type ThemeProviderState = {
 }
 
 const initialState: ThemeProviderState = {
-  theme:       "dark",
+  theme:       "light",
   toggleTheme: () => null,
 }
 
@@ -17,7 +17,7 @@ export const ThemeProviderContext = createContext<ThemeProviderState>(initialSta
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setTheme] = useState<Theme>(() => {
     const stored = localStorage.getItem("giwa-theme")
-    return stored === "light" ? "light" : "dark"
+    return stored === "dark" ? "dark" : "light"
   })
 
   useEffect(() => {

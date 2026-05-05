@@ -43,17 +43,21 @@ export function DetailDemandeAchat({ demande, open, onClose }: Props) {
   const circuit = CIRCUIT_VALIDATION[demande.typeAchat]
   const role    = currentUser?.role
 
-  /* ── Déterminer quelle action l'utilisateur peut faire ── */
-  // La DG peut approuver toute demande qui n'est pas encore finalisée (APPROUVE, SOLDE, EN_PAIEMENT, REJETE)
-  const STATUTS_FINAUX: StatutDemande[] = ["APPROUVE", "EN_PAIEMENT", "SOLDE", "REJETE"]
-  const peutApprouverDir    = role === "Directrice" && !STATUTS_FINAUX.includes(statut)
-  const peutMarquerPaiement = role === "Comptable"  && statut === "APPROUVE"
-  const peutSolderPaiement  = role === "Comptable"  && statut === "EN_PAIEMENT"
+  /* ── Déterminer quelle action l'utilisateur peut faire selon son étape dans le circuit ── */
+  // Chef Dept. valide après soumission (SOUMIS → VALIDE_CHEF)
+  const peutValiderChef     = role === "Chef Dept." && statut === "SOUMIS"
+  // Directrice peut approuver dès SOUMIS ou après VALIDE_CHEF :
+  // le Chef et la DG reçoivent les deux la demande en parallèle.
+  // L'approbation DG suffit même si le Chef n'a pas encore validé.
+  const peutApprouverDir    = role === "Directrice"  && (statut === "SOUMIS" || statut === "VALIDE_CHEF")
+  const peutMarquerPaiement = role === "Comptable"   && statut === "APPROUVE"
+  const peutSolderPaiement  = role === "Comptable"   && statut === "EN_PAIEMENT"
 
-  const peutAgir = peutApprouverDir || peutMarquerPaiement || peutSolderPaiement
+  const peutAgir = peutValiderChef || peutApprouverDir || peutMarquerPaiement || peutSolderPaiement
 
   /* ── Libellé de l'action selon le rôle ── */
   function labelAction(): string {
+    if (peutValiderChef)     return "Validation Chef de département"
     if (peutApprouverDir)    return "Approbation Directrice Générale"
     if (peutMarquerPaiement) return "Traitement du paiement"
     if (peutSolderPaiement)  return "Confirmation de paiement soldé"
@@ -68,6 +72,8 @@ export function DetailDemandeAchat({ demande, open, onClose }: Props) {
 
     if (rejeter) {
       nouveauStatut = "REJETE"
+    } else if (peutValiderChef) {
+      nouveauStatut = "VALIDE_CHEF"
     } else if (peutApprouverDir) {
       nouveauStatut = "APPROUVE"
     } else if (peutMarquerPaiement) {
@@ -106,6 +112,7 @@ export function DetailDemandeAchat({ demande, open, onClose }: Props) {
     <Dialog open={open} onOpenChange={(o) => { if (!o) handleClose() }}>
       <DialogContent
         className="max-w-2xl max-h-[90vh] overflow-y-auto p-0"
+        showCloseButton={false}
         style={{
           background:   "var(--bg-surface)",
           border:       "1px solid var(--bg-border)",
@@ -323,7 +330,24 @@ export function DetailDemandeAchat({ demande, open, onClose }: Props) {
                 })}
               </div>
 
-              {/* Commentaire de la Directrice */}
+              {/* Note sur le circuit parallèle */}
+              {statut === "SOUMIS" && (
+                <p className="text-xs mb-3" style={{ color: "var(--text-muted)" }}>
+                  Le Chef de département et la Directrice Générale ont tous les deux reçu cette demande. L'approbation de l'un ou l'autre suffit.
+                </p>
+              )}
+
+              {/* Commentaire du Chef de département (si validé ou rejeté par lui) */}
+              {demande.commentaireChef && (
+                <CommentaireValideur
+                  role="Chef de département"
+                  commentaire={demande.commentaireChef}
+                  date={demande.dateValidationChef}
+                  rejete={statut === "REJETE" && !demande.commentaireDirectrice}
+                />
+              )}
+
+              {/* Commentaire de la Directrice Générale */}
               {demande.commentaireDirectrice && (
                 <CommentaireValideur
                   role="Directrice Générale"
@@ -441,7 +465,7 @@ export function DetailDemandeAchat({ demande, open, onClose }: Props) {
                     ? <Loader2 className="w-4 h-4 animate-spin" />
                     : <CheckCircle className="w-4 h-4" />
                   }
-                  Approuver
+                  {peutValiderChef ? "Valider" : "Approuver"}
                 </button>
               </div>
             </div>

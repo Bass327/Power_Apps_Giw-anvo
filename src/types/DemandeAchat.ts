@@ -7,9 +7,9 @@ export type TypeAchat = "ORDINAIRE" | "RESTREINT"
 export type StatutDemande =
   | "BROUILLON"
   | "SOUMIS"
-  | "VALIDE_CHEF"   // Héritage — plus créé par le nouveau circuit
-  | "VALIDE_RAF"    // Héritage — plus créé par le nouveau circuit
-  | "APPROUVE"      // Approuvé par la Directrice (finale)
+  | "VALIDE_CHEF"   // Validé par le Chef de département
+  | "VALIDE_RAF"    // Héritage — non utilisé dans le circuit actuel
+  | "APPROUVE"      // Approuvé par la Directrice Générale (finale)
   | "EN_PAIEMENT"   // Pris en charge par le Comptable
   | "SOLDE"         // Paiement effectué
   | "REJETE"        // Rejeté
@@ -272,15 +272,17 @@ export const TYPE_CONFIG: Record<TypeAchat, { label: string; seuil: string }> = 
   RESTREINT: { label: "Restreint", seuil: "≥ 500 000 FCFA"         },
 }
 
-/* Circuit de validation selon le type — libellés des étapes */
+/* Circuit de validation selon le type — libellés des étapes
+   Chef Dept. et Directrice reçoivent la demande en parallèle dès la soumission.
+   L'approbation de la Directrice suffit, même sans validation du Chef. */
 export const CIRCUIT_VALIDATION: Record<TypeAchat, string[]> = {
-  ORDINAIRE: ["Demandeur", "Directrice", "Comptable"],
-  RESTREINT: ["Demandeur", "Directrice", "Comptable"],
+  ORDINAIRE: ["Demandeur", "Chef Dept. / DG", "Comptable"],
+  RESTREINT: ["Demandeur", "Chef Dept. / DG", "Comptable"],
 }
 
 /** Ordre des statuts pour afficher la progression dans le circuit */
 export const ETAPES_CIRCUIT: StatutDemande[] = [
-  "SOUMIS", "VALIDE_CHEF", "VALIDE_RAF", "APPROUVE", "EN_PAIEMENT", "SOLDE",
+  "SOUMIS", "APPROUVE", "EN_PAIEMENT", "SOLDE",
 ]
 
 /** Détecte automatiquement le type d'achat selon le montant */

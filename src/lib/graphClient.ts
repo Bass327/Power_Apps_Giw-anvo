@@ -1,5 +1,5 @@
-const GRAPH_BASE = "https://graph.microsoft.com/v1.0"
-const SP_HOSTNAME = import.meta.env.VITE_SHAREPOINT_HOSTNAME as string
+const GRAPH_BASE   = "https://graph.microsoft.com/v1.0"
+const SP_HOSTNAME  = import.meta.env.VITE_SHAREPOINT_HOSTNAME  as string
 const SP_SITE_PATH = import.meta.env.VITE_SHAREPOINT_SITE_PATH as string
 
 /** Requête générique vers Graph API */
@@ -60,14 +60,12 @@ export async function graphMutate<T>(
   return response.json() as Promise<T>
 }
 
-// Cache de l'ID du site SharePoint pour éviter une requête à chaque appel
+// ─── Cache site principal ───────────────────────────────────────────────────
 let cachedSiteId: string | null = null
 
-/** Récupère l'ID du site SharePoint (mis en cache après le premier appel) */
+/** Récupère l'ID du site SharePoint principal (mis en cache après le premier appel) */
 export async function getSiteId(token: string): Promise<string> {
   if (cachedSiteId) return cachedSiteId
-
-  // L'apostrophe dans le chemin du site doit être encodée pour l'URL
   const encodedPath = SP_SITE_PATH.replace(/'/g, "%27")
   const site = await graphFetch<{ id: string }>(
     token,
@@ -77,39 +75,55 @@ export async function getSiteId(token: string): Promise<string> {
   return cachedSiteId
 }
 
-// Cache des GUIDs de listes (nom affiché ou interne → GUID)
-// Graph API est plus fiable avec les GUIDs qu'avec les noms dans les URLs d'items
-const listIdCache: Record<string, string> = {}
+// ─── Cache multi-sites (chemin de site → siteId) ─────────────────────────────
+const siteIdCache: Record<string, string> = {}
 
 /**
- * Résout un nom de liste SharePoint (interne ou affiché) en son GUID.
- * Essaie d'abord `/lists/{name}`, puis énumère toutes les listes en fallback.
- * Le GUID est mis en cache pour les appels suivants.
+ * Récupère l'ID d'un site SharePoint quelconque par son chemin de site.
+ * Exemple : getSiteIdByPath(token, "/sites/DTO")
+ * Résultat mis en cache par chemin pour éviter les requêtes répétées.
+ */
+export async function getSiteIdByPath(token: string, sitePath: string): Promise<string> {
+  if (siteIdCache[sitePath]) return siteIdCache[sitePath]
+  const encodedPath = sitePath.replace(/'/g, "%27")
+  const site = await graphFetch<{ id: string }>(
+    token,
+    `/sites/${SP_HOSTNAME}:${encodedPath}`,
+  )
+  siteIdCache[sitePath] = site.id
+  return siteIdCache[sitePath]
+}
+
+// ─── Cache des GUIDs de listes (siteId+listName → listId) ────────────────────
+const listIdCache: Record<string, string> = {}
+
+// Cache de l'énumération complète par siteId — une seule requête résout toutes les listes du site
+const allListsEnumCache: Record<string, { id: string; name: string; displayName: string }[]> = {}
+
+/**
+ * Résout un nom de liste SharePoint en son GUID via énumération.
+ * Approche directe — évite les 404 dans la console browser.
+ * L'énumération est mise en cache par site (une seule requête par site et par session).
  */
 async function resolveListId(token: string, siteId: string, listName: string): Promise<string> {
-  if (listIdCache[listName]) return listIdCache[listName]
+  const cacheKey = `${siteId}::${listName}`
+  if (listIdCache[cacheKey]) return listIdCache[cacheKey]
 
-  try {
-    // Tentative directe par nom interne
-    const list = await graphFetch<{ id: string }>(
-      token,
-      `/sites/${siteId}/lists/${encodeURIComponent(listName)}?$select=id`,
-    )
-    listIdCache[listName] = list.id
-    return list.id
-  } catch {
-    // Fallback : énumération de toutes les listes pour trouver par displayName
-    const allLists = await graphFetch<{ value: { id: string; name: string; displayName: string }[] }>(
+  // Charge l'intégralité des listes du site une seule fois, puis réutilise le cache
+  if (!allListsEnumCache[siteId]) {
+    const result = await graphFetch<{ value: { id: string; name: string; displayName: string }[] }>(
       token,
       `/sites/${siteId}/lists?$select=id,name,displayName`,
     )
-    const found = allLists.value.find(
-      (l) => l.name === listName || l.displayName === listName,
-    )
-    if (!found) throw new Error(`Liste SharePoint "${listName}" introuvable sur ce site`)
-    listIdCache[listName] = found.id
-    return found.id
+    allListsEnumCache[siteId] = result.value
   }
+
+  const found = allListsEnumCache[siteId].find(
+    (l) => l.name === listName || l.displayName === listName,
+  )
+  if (!found) throw new Error(`Liste SharePoint "${listName}" introuvable sur ce site`)
+  listIdCache[cacheKey] = found.id
+  return found.id
 }
 
 /** Récupère tous les éléments d'une liste SharePoint */
@@ -125,6 +139,59 @@ export async function getListItems<T>(
     `/sites/${siteId}/lists/${listId}/items?$expand=fields${queryParams}`,
   )
   return data.value
+}
+
+/**
+ * Récupère tous les éléments d'une liste SharePoint sur un site arbitraire.
+ * Utilise getSiteIdByPath() pour résoudre le site, puis resolveListId() pour la liste.
+ * @param sitePath  Chemin du site, ex: "/sites/DTO"
+ * @param listName  Nom interne de la liste SharePoint
+ */
+export async function getListItemsFromSite<T>(
+  token:       string,
+  sitePath:    string,
+  listName:    string,
+  queryParams: string = "",
+): Promise<T[]> {
+  const siteId = await getSiteIdByPath(token, sitePath)
+  const listId = await resolveListId(token, siteId, listName)
+  const data   = await graphFetch<{ value: T[] }>(
+    token,
+    `/sites/${siteId}/lists/${listId}/items?$expand=fields${queryParams}`,
+  )
+  return data.value
+}
+
+/**
+ * Affiche dans la console tous les champs d'une liste SharePoint d'un site donné.
+ * Utile pour découvrir les noms internes exacts des colonnes (diagnostic).
+ * @param sitePath  Chemin du site, ex: "/sites/DTO"
+ * @param listName  Nom interne de la liste SharePoint
+ */
+export async function logListFieldsFromSite(
+  token:    string,
+  sitePath: string,
+  listName: string,
+): Promise<void> {
+  try {
+    const siteId = await getSiteIdByPath(token, sitePath)
+    const listId = await resolveListId(token, siteId, listName)
+    const result = await graphFetch<{ value: { name: string; displayName: string; type: string }[] }>(
+      token,
+      `/sites/${siteId}/lists/${listId}/columns?$select=name,displayName,type`,
+    )
+    console.group(`🗂️ Champs de la liste "${listName}" (site: ${sitePath})`)
+    console.table(
+      result.value.map((f) => ({
+        "Nom interne (name)":      f.name,
+        "Nom affiché":             f.displayName,
+        "Type":                    f.type,
+      })),
+    )
+    console.groupEnd()
+  } catch (err) {
+    console.error(`Impossible de récupérer les champs de "${listName}":`, err)
+  }
 }
 
 /** Crée un élément dans une liste SharePoint */

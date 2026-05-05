@@ -6,7 +6,7 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 import { useCurrentUser } from "@/hooks/useCurrentUser"
-import { getModuleAccess } from "@/lib/permissions"
+import { hasPermission } from "@/lib/permissions"
 import { AccessDenied } from "@/components/shared/AccessDenied"
 import type {
   Courrier, StatutCourrier, TypeCourrier, PrioriteCourrier,
@@ -17,62 +17,6 @@ import {
   LABEL_PRIORITE_COURRIER,
 } from "@/types/rh"
 
-/* ── Données de démonstration ── */
-const COURRIER_MOCK: Courrier[] = [
-  {
-    id:                 "cr1",
-    reference:          "CRE-2026-042",
-    type:               "ENTRANT",
-    date:               "2026-04-05",
-    expediteur:         "Ministère de l'Énergie du Sénégal",
-    destinataire:       "Direction Générale GIW'ANVO",
-    objet:              "Convocation réunion partenaires énergie renouvelable",
-    serviceConcerne:    "Direction Générale",
-    priorite:           "URGENT",
-    statut:             "EN_TRAITEMENT",
-    affecteA:           "directrice@giwaanvo.com",
-    dateEnregistrement: "2026-04-05",
-  },
-  {
-    id:                 "cr2",
-    reference:          "CRS-2026-018",
-    type:               "SORTANT",
-    date:               "2026-04-03",
-    expediteur:         "GIW'ANVO Energy",
-    destinataire:       "SENELEC — Direction des projets",
-    objet:              "Offre technique pour l'appel d'offres éclairage public",
-    serviceConcerne:    "Direction Technique",
-    priorite:           "NORMALE",
-    statut:             "REPONDU",
-    dateEnregistrement: "2026-04-03",
-  },
-  {
-    id:                 "cr3",
-    reference:          "CRE-2026-041",
-    type:               "ENTRANT",
-    date:               "2026-04-01",
-    expediteur:         "Banque Atlantique Sénégal",
-    destinataire:       "Service Comptabilité",
-    objet:              "Relevé bancaire mensuel — Mars 2026",
-    serviceConcerne:    "Comptabilité",
-    priorite:           "NORMALE",
-    statut:             "ARCHIVE",
-    dateEnregistrement: "2026-04-01",
-  },
-  {
-    id:                 "cr4",
-    reference:          "CRE-2026-043",
-    type:               "ENTRANT",
-    date:               "2026-04-07",
-    expediteur:         "Délégation UE au Sénégal",
-    destinataire:       "Responsable Partenariats",
-    objet:              "Invitation forum Africa Green Energy 2026",
-    serviceConcerne:    "Partenariats",
-    priorite:           "CONFIDENTIEL",
-    statut:             "RECU",
-    dateEnregistrement: "2026-04-07",
-  },
-]
 
 type Onglet = "tous" | "entrant" | "sortant" | "archives"
 
@@ -116,9 +60,9 @@ function BadgePriorite({ priorite }: { priorite: PrioriteCourrier }) {
 export default function RHCourrierPage() {
   const { role } = useCurrentUser()
   const navigate         = useNavigate()
-  const access           = role ? getModuleAccess(role, "rh") : "none"
 
-  const [courriers, setCourriers]     = useState<Courrier[]>(COURRIER_MOCK)
+
+  const [courriers, setCourriers]     = useState<Courrier[]>([])
   const [onglet, setOnglet]           = useState<Onglet>("tous")
   const [recherche, setRecherche]     = useState("")
   const [formulaireOuvert, setForm]   = useState(false)
@@ -133,7 +77,9 @@ export default function RHCourrierPage() {
   const [fService, setFService]       = useState("")
   const [fPriorite, setFPriorite]     = useState<PrioriteCourrier>("NORMALE")
 
-  if (access === "none") return <AccessDenied message="Accès réservé aux RH et à la direction." />
+  if (!role || !hasPermission(role, "canGererCourrier")) {
+    return <AccessDenied message="Ce sous-module est réservé aux chefs de département, au RAF et à la direction." backTo="/rh" backLabel="Ressources Humaines" />
+  }
 
   const liste = courriers.filter((c) => {
     if (onglet === "entrant"  && c.type !== "ENTRANT")       return false
@@ -236,7 +182,7 @@ export default function RHCourrierPage() {
           { label: "Sortants",  value: courriers.filter((c) => c.type === "SORTANT").length,          color: "#60a5fa" },
           { label: "En cours",  value: courriers.filter((c) => !["ARCHIVE","REPONDU"].includes(c.statut)).length, color: "#f0a500" },
         ].map((s) => (
-          <div key={s.label} style={{ padding: "14px 18px", background: "rgba(13,26,16,0.7)", border: "1px solid var(--bg-border)", borderRadius: 12 }}>
+          <div key={s.label} style={{ padding: "14px 18px", background: "var(--glass-card-bg)", border: "1px solid var(--bg-border)", borderRadius: 12 }}>
             <p style={{ margin: "0 0 4px", fontSize: 11, color: "var(--text-secondary)", fontFamily: "var(--font-body)", textTransform: "uppercase", letterSpacing: "0.06em" }}>{s.label}</p>
             <p style={{ margin: 0, fontSize: 26, fontWeight: 800, color: s.color, fontFamily: "var(--font-display)", letterSpacing: "-0.02em", lineHeight: 1 }}>{s.value}</p>
           </div>
@@ -275,7 +221,7 @@ export default function RHCourrierPage() {
 
       {/* Liste */}
       {liste.length === 0 ? (
-        <div style={{ padding: "60px 24px", textAlign: "center", background: "rgba(13,26,16,0.5)", border: "1px dashed var(--bg-border)", borderRadius: 14 }}>
+        <div style={{ padding: "60px 24px", textAlign: "center", background: "var(--bg-elevated)", border: "1px dashed var(--bg-border)", borderRadius: 14 }}>
           <Mail size={32} style={{ color: "var(--text-muted)", marginBottom: 12 }} />
           <p style={{ margin: 0, fontSize: 15, color: "var(--text-secondary)", fontFamily: "var(--font-body)" }}>Aucun courrier trouvé</p>
         </div>
@@ -288,9 +234,9 @@ export default function RHCourrierPage() {
               <button
                 key={c.id}
                 onClick={() => setSelectionne(c)}
-                style={{ all: "unset", cursor: "pointer", display: "flex", alignItems: "center", gap: 14, padding: "16px 20px", background: "rgba(13,26,16,0.7)", border: "1px solid var(--bg-border)", borderRadius: 12, transition: "all 150ms", textAlign: "left" }}
-                onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#34d399"; e.currentTarget.style.background = "rgba(13,26,16,0.9)" }}
-                onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--bg-border)"; e.currentTarget.style.background = "rgba(13,26,16,0.7)" }}
+                style={{ all: "unset", cursor: "pointer", display: "flex", alignItems: "center", gap: 14, padding: "16px 20px", background: "var(--glass-card-bg)", border: "1px solid var(--bg-border)", borderRadius: 12, transition: "all 150ms", textAlign: "left" }}
+                onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#34d399"; e.currentTarget.style.background = "var(--bg-elevated)" }}
+                onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--bg-border)"; e.currentTarget.style.background = "var(--glass-card-bg)" }}
               >
                 {/* Icône type */}
                 <div style={{ width: 38, height: 38, borderRadius: 9, background: entrant ? "rgba(52,211,153,0.10)" : "rgba(96,165,250,0.10)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
@@ -336,7 +282,7 @@ export default function RHCourrierPage() {
       {/* Modal détail */}
       {selectionne && (
         <div
-          style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(8,15,11,0.85)", backdropFilter: "blur(8px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}
+          style={{ position: "fixed", inset: 0, zIndex: 1000, background: "var(--modal-overlay)", backdropFilter: "blur(8px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}
           onClick={(e) => { if (e.target === e.currentTarget) setSelectionne(null) }}
         >
           <div style={{ width: "100%", maxWidth: 540, background: "var(--bg-surface)", border: "1px solid var(--bg-border)", borderRadius: 16 }}>
@@ -400,7 +346,7 @@ export default function RHCourrierPage() {
       {/* Modal formulaire */}
       {formulaireOuvert && (
         <div
-          style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(8,15,11,0.85)", backdropFilter: "blur(8px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}
+          style={{ position: "fixed", inset: 0, zIndex: 1000, background: "var(--modal-overlay)", backdropFilter: "blur(8px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}
           onClick={(e) => { if (e.target === e.currentTarget) { setForm(false); resetForm() } }}
         >
           <div style={{ width: "100%", maxWidth: 560, background: "var(--bg-surface)", border: "1px solid var(--bg-border)", borderRadius: 16 }}>

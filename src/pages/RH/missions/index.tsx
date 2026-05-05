@@ -2,12 +2,12 @@ import { useState } from "react"
 import { useNavigate } from "react-router-dom"
 import {
   Briefcase, Plus, Search, ChevronLeft,
-  MapPin, Calendar, Truck,
+  MapPin, Calendar, Truck, Loader2, AlertCircle,
 } from "lucide-react"
-import { toast } from "sonner"
 import { useCurrentUser } from "@/hooks/useCurrentUser"
-import { getModuleAccess } from "@/lib/permissions"
+import { getModuleAccess, hasPermission, getDataScope } from "@/lib/permissions"
 import { AccessDenied } from "@/components/shared/AccessDenied"
+import { useMissions, useCreateMission, useUpdateStatutMission } from "@/hooks/useMissions"
 import type { Mission, StatutMission } from "@/types/rh"
 import {
   STATUT_MISSION_CONFIG,
@@ -16,8 +16,6 @@ import {
 } from "@/types/rh"
 import { FormulaireMission } from "./components/FormulaireMission"
 import { DetailMission } from "./components/DetailMission"
-
-import { MISSIONS_MOCK } from "@/data/mockRH"
 
 /* ── Onglets de navigation ── */
 type Onglet = "toutes" | "a-approuver" | "en-cours" | "terminees"
@@ -51,23 +49,31 @@ export default function RHMissionsPage() {
   const navigate             = useNavigate()
   const access               = role ? getModuleAccess(role, "rh") : "none"
 
-  const [missions, setMissions]           = useState<Mission[]>(MISSIONS_MOCK)
   const [onglet, setOnglet]               = useState<Onglet>("toutes")
   const [recherche, setRecherche]         = useState("")
   const [formulaireOuvert, setFormulaire] = useState(false)
   const [missionSelectee, setMission]     = useState<Mission | null>(null)
 
+  /* Hooks SharePoint */
+  const { data: missions = [], isLoading, isError } = useMissions()
+  const { mutate: creer }                           = useCreateMission()
+  const { mutate: majStatut }                       = useUpdateStatutMission()
+
   if (access === "none") {
     return <AccessDenied message="Accès réservé aux RH et à la direction." />
   }
+
+  const peutApprouver = role ? hasPermission(role, "canApprouverMission") : false
+  const peutCreer     = role ? hasPermission(role, "canSubmitOwnRH")      : false
+  const scope         = role ? getDataScope(role)                          : "own"
 
   /* Filtrage des missions selon l'onglet et la recherche */
   const missionsFiltrees = missions.filter((m) => {
     const cfg = ONGLETS.find((o) => o.id === onglet)
     if (cfg?.statuts && !cfg.statuts.includes(m.statut)) return false
 
-    // Employé voit uniquement ses missions
-    if (role === "Employé" && m.demandeur !== email) return false
+    // Scope : les profils "own" ne voient que leurs propres missions
+    if (scope === "own" && m.demandeur !== email) return false
 
     if (recherche) {
       const q = recherche.toLowerCase()
@@ -81,50 +87,35 @@ export default function RHMissionsPage() {
   })
 
   /* Compteurs pour les badges d'onglet */
-  const nbAApprouver = missions.filter(
-    (m) => m.statut === "SOUMIS" && (role === "Directrice" || role === "RAF"),
-  ).length
+  const nbAApprouver = peutApprouver
+    ? missions.filter((m) => m.statut === "SOUMIS").length
+    : 0
 
-  /* Création d'une mission */
+  /* Création d'une mission → SharePoint */
   const handleCreer = (
     data: Omit<Mission, "id" | "dateDemande" | "statut">,
     soumettre: boolean,
   ) => {
-    const nouvelle: Mission = {
-      ...data,
-      id:          `m${Date.now()}`,
-      dateDemande: new Date().toISOString().slice(0, 10),
-      statut:      soumettre ? "SOUMIS" : "BROUILLON",
-    }
-    setMissions((prev) => [nouvelle, ...prev])
-    setFormulaire(false)
-    toast.success(soumettre ? "Mission soumise pour approbation" : "Brouillon enregistré")
+    creer(
+      { data: { ...data, statut: soumettre ? "SOUMIS" : "BROUILLON" }, soumettre },
+      { onSuccess: () => setFormulaire(false) },
+    )
   }
 
-  /* Approbation d'une mission */
+  /* Approbation d'une mission → SharePoint */
   const handleApprouver = (id: string, commentaire: string) => {
-    setMissions((prev) =>
-      prev.map((m) =>
-        m.id === id
-          ? { ...m, statut: "APPROUVE", commentaireDir: commentaire || "Approuvé", dateApprobation: new Date().toISOString().slice(0, 10) }
-          : m,
-      ),
+    majStatut(
+      { id, statut: "APPROUVE", commentaire: commentaire || undefined },
+      { onSuccess: () => setMission(null) },
     )
-    setMission(null)
-    toast.success("Mission approuvée")
   }
 
-  /* Rejet d'une mission */
+  /* Rejet d'une mission → SharePoint */
   const handleRejeter = (id: string, commentaire: string) => {
-    setMissions((prev) =>
-      prev.map((m) =>
-        m.id === id
-          ? { ...m, statut: "REJETE", commentaireDir: commentaire || "Rejeté" }
-          : m,
-      ),
+    majStatut(
+      { id, statut: "REJETE", commentaire: commentaire || undefined },
+      { onSuccess: () => setMission(null) },
     )
-    setMission(null)
-    toast.error("Mission rejetée")
   }
 
   /* ── Rendu ── */
@@ -175,7 +166,7 @@ export default function RHMissionsPage() {
           </div>
 
           {/* Bouton nouvelle mission */}
-          {access !== "read" && (
+          {peutCreer && (
             <button
               onClick={() => setFormulaire(true)}
               style={{
@@ -212,7 +203,7 @@ export default function RHMissionsPage() {
             key={stat.label}
             style={{
               padding: "14px 18px",
-              background: "rgba(13,26,16,0.7)",
+              background: "var(--glass-card-bg)",
               border: "1px solid var(--bg-border)",
               borderRadius: 12,
             }}
@@ -297,12 +288,32 @@ export default function RHMissionsPage() {
         </div>
       </div>
 
+      {/* ── Chargement / Erreur ── */}
+      {isLoading && (
+        <div className="flex items-center justify-center py-12 gap-3" style={{ color: "var(--text-muted)" }}>
+          <Loader2 className="w-5 h-5 animate-spin" />
+          <span style={{ fontFamily: "var(--font-body)", fontSize: 14 }}>Chargement des missions…</span>
+        </div>
+      )}
+
+      {isError && !isLoading && (
+        <div
+          className="flex items-center gap-3 p-4 rounded-xl"
+          style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)" }}
+        >
+          <AlertCircle className="w-5 h-5 flex-shrink-0" style={{ color: "#ef4444" }} />
+          <p style={{ margin: 0, fontSize: 13, color: "#ef4444", fontFamily: "var(--font-body)" }}>
+            Impossible de charger les missions depuis SharePoint.
+          </p>
+        </div>
+      )}
+
       {/* ── Liste des missions ── */}
-      {missionsFiltrees.length === 0 ? (
+      {!isLoading && !isError && missionsFiltrees.length === 0 ? (
         <div
           style={{
             padding: "60px 24px", textAlign: "center",
-            background: "rgba(13,26,16,0.5)",
+            background: "var(--bg-elevated)",
             border: "1px dashed var(--bg-border)",
             borderRadius: 14,
           }}
@@ -312,7 +323,7 @@ export default function RHMissionsPage() {
             Aucune mission trouvée
           </p>
         </div>
-      ) : (
+      ) : !isLoading && !isError ? (
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {missionsFiltrees.map((mission) => {
             const cfg = STATUT_MISSION_CONFIG[mission.statut]
@@ -324,7 +335,7 @@ export default function RHMissionsPage() {
                   all: "unset", cursor: "pointer",
                   display: "flex", alignItems: "center", gap: 16,
                   padding: "16px 20px",
-                  background: "rgba(13,26,16,0.7)",
+                  background: "var(--glass-card-bg)",
                   border: "1px solid var(--bg-border)",
                   borderRadius: 12,
                   transition: "all 150ms",
@@ -332,11 +343,11 @@ export default function RHMissionsPage() {
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.borderColor = "#f0a500"
-                  e.currentTarget.style.background   = "rgba(13,26,16,0.9)"
+                  e.currentTarget.style.background   = "var(--bg-elevated)"
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.borderColor = "var(--bg-border)"
-                  e.currentTarget.style.background   = "rgba(13,26,16,0.7)"
+                  e.currentTarget.style.background   = "var(--glass-card-bg)"
                 }}
               >
                 {/* Icône type */}
@@ -408,7 +419,7 @@ export default function RHMissionsPage() {
             )
           })}
         </div>
-      )}
+      ) : null}
 
       {/* ── Modals ── */}
       {formulaireOuvert && (

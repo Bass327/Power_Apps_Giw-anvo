@@ -4,6 +4,7 @@ import { Menu, LogOut, Sun, Moon } from "lucide-react"
 import { useCurrentUser } from "@/hooks/useCurrentUser"
 import { useAuth } from "@/hooks/useAuth"
 import { useTheme } from "@/hooks/use-theme"
+import { NotificationBell } from "@/components/layout/NotificationBell"
 
 /* ── Données statiques hissées hors du composant (rendering-hoist-jsx) ── */
 const pageTitles: Record<string, string> = {
@@ -29,12 +30,11 @@ interface HeaderProps {
 }
 
 export const Header = ({ onMenuToggle }: HeaderProps) => {
-  const { pathname }             = useLocation()
-  const title                    = pageTitles[pathname] ?? "GIW'ANVO"
-  const { data: currentUser }    = useCurrentUser()
-  const { logout }               = useAuth()
-  const { theme, toggleTheme }   = useTheme()
-
+  const { pathname }                         = useLocation()
+  const title                                = pageTitles[pathname] ?? "GIW'ANVO"
+  const { data: currentUser }               = useCurrentUser()
+  const { logout }                           = useAuth()
+  const { theme, toggleTheme }              = useTheme()
   /* Date en français — calculée une fois au montage */
   const frenchDate = useMemo(
     () =>
@@ -97,20 +97,6 @@ export const Header = ({ onMenuToggle }: HeaderProps) => {
 
       {/* ── Droite ── */}
       <div className="flex items-center gap-3">
-        {/* Pill mode test — visible uniquement en DEV si dev_role est défini */}
-        {import.meta.env.DEV && localStorage.getItem("dev_role") && (
-          <div
-            className="hidden sm:flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold font-display"
-            style={{
-              backgroundColor: "rgba(245,158,11,0.15)",
-              border:          "1px solid rgba(245,158,11,0.4)",
-              color:           "#f59e0b",
-            }}
-          >
-            🧪 Test : {localStorage.getItem("dev_role")}
-          </div>
-        )}
-
         {/* Date — masquée sur mobile */}
         <div className="text-right hidden md:block">
           <p
@@ -126,6 +112,9 @@ export const Header = ({ onMenuToggle }: HeaderProps) => {
           className="w-px h-8 hidden md:block"
           style={{ backgroundColor: "var(--bg-border)" }}
         />
+
+        {/* Cloche de notification — visible pour Chef Dept. et Directrice */}
+        <NotificationBell />
 
         {/* Bouton toggle dark / light */}
         <button
@@ -159,11 +148,11 @@ export const Header = ({ onMenuToggle }: HeaderProps) => {
 
         {/* Utilisateur */}
         <div className="flex items-center gap-3">
-          <div className="text-right hidden sm:block">
-            <p className="text-sm font-semibold leading-none font-display" style={{ color: "var(--text-primary)" }}>
+          <div className="text-right hidden sm:block min-w-0 max-w-[150px]">
+            <p className="text-sm font-semibold leading-none font-display truncate" style={{ color: "var(--text-primary)" }}>
               {user.name}
             </p>
-            <p className="text-xs mt-1 leading-none" style={{ color: "var(--text-secondary)" }}>
+            <p className="text-xs mt-1 leading-none truncate" style={{ color: "var(--text-secondary)" }}>
               {user.jobTitle || roleLabels[user.role]}
             </p>
           </div>

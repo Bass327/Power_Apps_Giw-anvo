@@ -1,0 +1,42 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/teams/v1.17/MicrosoftTeams.schema.json",
+  "manifestVersion": "1.17",
+  "version": "1.0.0",
+  "id": "8e3c7f2a-1d5b-4a9e-b6c8-3f0d2e4a7c1b",
+  "packageName": "com.giw-anvo.gestion-interne",
+  "developer": {
+    "name": "GIW'ANVO Energy",
+    "websiteUrl": "https://giw-anvo-app.azurestaticapps.net",
+    "privacyUrl": "https://giw-anvo-app.azurestaticapps.net",
+    "termsOfUseUrl": "https://giw-anvo-app.azurestaticapps.net"
+  },
+  "icons": {
+    "color": "color.png",
+    "outline": "outline.png"
+  },
+  "name": {
+    "short": "GIW'ANVO",
+    "full": "GIW'ANVO Gestion Interne"
+  },
+  "description": {
+    "short": "Plateforme de gestion interne GIW'ANVO Energy",
+    "full": "Application de gestion administrative, RH, budgétaire et financière de GIW'ANVO Energy."
+  },
+  "accentColor": "#f0a500",
+  "staticTabs": [
+    {
+      "entityId": "giwanvo-accueil",
+      "name": "Accueil",
+      "contentUrl": "https://giw-anvo-app.azurestaticapps.net",
+      "websiteUrl": "https://giw-anvo-app.azurestaticapps.net",
+      "scopes": ["personal"]
+    }
+  ],
+  "permissions": [
+    "identity",
+    "messageTeamMembers"
+  ],
+  "validDomains": [
+    "giw-anvo-app.azurestaticapps.net"
+  ]
+}

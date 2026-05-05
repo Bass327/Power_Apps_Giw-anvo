@@ -131,7 +131,7 @@ export function FormulaireMission({ onClose, onSubmit, demandeur }: Props) {
     <div
       style={{
         position: "fixed", inset: 0, zIndex: 1000,
-        background: "rgba(8,15,11,0.85)",
+        background: "var(--modal-overlay)",
         backdropFilter: "blur(8px)",
         display: "flex", alignItems: "center", justifyContent: "center",
         padding: 24,

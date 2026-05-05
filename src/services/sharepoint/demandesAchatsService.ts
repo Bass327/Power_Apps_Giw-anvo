@@ -56,6 +56,24 @@ export async function logColumnNames(token: string): Promise<void> {
 }
 
 /* ════════════════════════════════════════════════
+   Mapping statuts : valeurs TypeScript ↔ valeurs SharePoint
+   SharePoint stocke "Approuvé DG" — le flow Power Automate vérifie cette valeur exacte.
+   Les autres statuts restent identiques entre les deux couches.
+   ════════════════════════════════════════════════ */
+
+/** Convertit un statut TypeScript vers la valeur à stocker dans SharePoint */
+function statutVersSP(statut: StatutDemande): string {
+  if (statut === "APPROUVE") return "Approuvé DG"
+  return statut
+}
+
+/** Convertit une valeur SharePoint vers le statut TypeScript applicatif */
+function spVersStatut(spStatut: string | undefined): StatutDemande {
+  if (spStatut === "Approuvé DG") return "APPROUVE"
+  return (spStatut as StatutDemande) ?? "BROUILLON"
+}
+
+/* ════════════════════════════════════════════════
    Conversion SharePoint → modèle applicatif
    Noms internes réels (source : logColumnNames) :
      Description  → Description_Besoin
@@ -76,7 +94,7 @@ function mapSPItem(item: DemandeAchatSPItem): DemandeAchat {
     montant,
     devise:          "FCFA",
     typeAchat:       detecterTypeAchat(montant),
-    statut:          (f.Statut as StatutDemande) ?? "BROUILLON",
+    statut:          spVersStatut(f.Statut),
     demandeur:       f.Demandeur                ?? "",
     dateDemande:     f.Created                  ?? "",
     dateBesoin:      f.Date                     ?? "",  // colonne "Date" dans SP
@@ -142,48 +160,53 @@ export async function getDemandeAchatById(token: string, id: string): Promise<De
 export async function createDemandeAchat(
   token:    string,
   payload:  CreateDemandeAchatPayload,
-  statut:   "BROUILLON" | "SOUMIS",
+  statut:   StatutDemande,
   fichiers?: File[],
   spToken?: string,
 ): Promise<DemandeAchat> {
 
-  const fields: Record<string, unknown> = {
+  const rawFields: Record<string, unknown> = {
     Title:                   payload.titre,
     Description_Besoin:      payload.description,       // ← nom interne réel
     Montant_Estim_x00e9_:    payload.montant,            // ← nom interne réel
-    Statut:                  statut,
+    Statut:                  statutVersSP(statut),       // "APPROUVE" → "Approuvé DG" pour le flow
     Demandeur:               payload.demandeur,
     Date:                    payload.dateBesoin,
-    Ligne_Budg_x00e9_taire:  payload.ligneBudgetaire,
-    Fournisseur:             payload.fournisseur  || undefined,
-    Justification:           payload.justification || undefined,
+    Ligne_Budg_x00e9_taire:  payload.ligneBudgetaire    || undefined,
+    Fournisseur:             payload.fournisseur        || undefined,
+    Justification:           payload.justification      || undefined,
     /* ── Champs étendus ── */
-    TypeDemande:    payload.typeDemande,
-    DateDebut:      payload.dateDebut,
-    DateFin:        payload.dateFin     || undefined,
-    ModePaiement:   payload.modePaiement,
-    TypePaiement:   payload.typePaiement,
-    Urgent:         payload.urgent      ? "Oui" : "Non",
-    JustificationOp: payload.justificationOp,
-    CategorieDep:   payload.categorieDep,
+    TypeDemande:    payload.typeDemande                 || undefined,
+    DateDebut:      payload.dateDebut                   || undefined,
+    DateFin:        payload.dateFin                     || undefined,
+    ModePaiement:   payload.modePaiement                || undefined,
+    TypePaiement:   payload.typePaiement                || undefined,
+    Urgent:         payload.urgent != null ? (payload.urgent ? "Oui" : "Non") : undefined,
+    JustificationOp: payload.justificationOp            || undefined,
+    CategorieDep:   payload.categorieDep                || undefined,
     /* ── Pièce de caisse ── */
-    MotifCaisse:      payload.motifCaisse,
-    EncaissementPar:  payload.encaissementPar,
-    ModeEncaissement: payload.modePaiementCaisse,
+    MotifCaisse:      payload.motifCaisse               || undefined,
+    EncaissementPar:  payload.encaissementPar           || undefined,
+    ModeEncaissement: payload.modePaiementCaisse        || undefined,
     /* ── Départ de mission ── */
-    IntituleMission:    payload.intituleMission,
-    TypeMission:        payload.typeMission,
-    ObjectifMission:    payload.objectifMission,
-    LieuxMission:       payload.lieuxMission,
-    DateDepart:         payload.dateDepart,
-    DateRetour:         payload.dateRetour,
-    DureeMission:       payload.dureeMission,
-    MoyenTransport:     payload.moyenTransport,
-    BesoinAvance:       payload.besoinAvance           ? "Oui" : "Non",
-    MontantAvance:      payload.montantAvance,
-    Mission:            payload.typeMissionCollective,  // ← nom interne réel (était MissionCollective)
-    NombreParticipants: payload.nombreParticipants,
+    IntituleMission:    payload.intituleMission         || undefined,
+    TypeMission:        payload.typeMission             || undefined,
+    ObjectifMission:    payload.objectifMission         || undefined,
+    LieuxMission:       payload.lieuxMission            || undefined,
+    DateDepart:         payload.dateDepart              || undefined,
+    DateRetour:         payload.dateRetour              || undefined,
+    DureeMission:       payload.dureeMission            ?? undefined,
+    MoyenTransport:     payload.moyenTransport          || undefined,
+    BesoinAvance:       payload.besoinAvance != null ? (payload.besoinAvance ? "Oui" : "Non") : undefined,
+    MontantAvance:      payload.montantAvance           ?? undefined,
+    Mission:            payload.typeMissionCollective   || undefined,  // ← nom interne réel (était MissionCollective)
+    NombreParticipants: payload.nombreParticipants      ?? undefined,
   }
+
+  // Filtre les valeurs undefined pour ne pas envoyer de champs vides à SharePoint
+  const fields = Object.fromEntries(
+    Object.entries(rawFields).filter(([, v]) => v !== undefined),
+  )
 
   const created = await createListItem<DemandeAchatSPItem>(token, LIST_NAME, fields)
 
@@ -208,7 +231,7 @@ export async function updateStatutDemande(
   role:    UserRole,
 ): Promise<void> {
   const fields: Record<string, unknown> = {
-    Statut: update.statut,
+    Statut: statutVersSP(update.statut),  // "APPROUVE" → "Approuvé DG" pour le flow
   }
 
   const now = new Date().toISOString()

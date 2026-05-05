@@ -2,7 +2,7 @@ import { useState } from "react"
 import { Outlet } from "react-router-dom"
 import { Sidebar } from "@/components/layout/Sidebar"
 import { Header } from "@/components/layout/Header"
-import { RoleSwitcher } from "@/components/dev/RoleSwitcher"
+import { DevRoleSwitcher } from "@/components/shared/DevRoleSwitcher"
 
 export default function Layout() {
   const [collapsed, setCollapsed] = useState(false)
@@ -44,8 +44,7 @@ export default function Layout() {
         </main>
       </div>
 
-      {/* Switcher de rôle — visible uniquement en développement */}
-      {import.meta.env.DEV && <RoleSwitcher />}
+      <DevRoleSwitcher />
 
     </div>
   )

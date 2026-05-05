@@ -1,14 +1,24 @@
-import { Lock } from "lucide-react"
+import { Lock, ArrowLeft } from "lucide-react"
+import { useNavigate } from "react-router-dom"
 
 interface AccessDeniedProps {
   message?: string
+  /** Route vers laquelle revenir. Par défaut "/" (Tableau de bord). */
+  backTo?:  string
+  backLabel?: string
 }
 
 /**
  * Écran affiché quand un rôle n'a pas accès à un module.
- * Utiliser via RoleGuard ou directement dans les pages.
+ * Inclut toujours un lien de retour pour ne pas bloquer la navigation.
  */
-export const AccessDenied = ({ message = "Vous n'avez pas accès à ce module" }: AccessDeniedProps) => {
+export const AccessDenied = ({
+  message    = "Vous n'avez pas accès à ce module",
+  backTo     = "/",
+  backLabel  = "Tableau de bord",
+}: AccessDeniedProps) => {
+  const navigate = useNavigate()
+
   return (
     <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6 animate-fade-in">
       <div
@@ -43,6 +53,27 @@ export const AccessDenied = ({ message = "Vous n'avez pas accès à ce module" }
       >
         Contactez votre administrateur pour obtenir un accès
       </div>
+
+      <button
+        onClick={() => navigate(backTo)}
+        className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-display font-semibold transition-all"
+        style={{
+          color:      "var(--text-secondary)",
+          background: "var(--bg-elevated)",
+          border:     "1px solid var(--bg-border)",
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.color           = "var(--text-primary)"
+          e.currentTarget.style.borderColor     = "var(--green-vivid)"
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.color           = "var(--text-secondary)"
+          e.currentTarget.style.borderColor     = "var(--bg-border)"
+        }}
+      >
+        <ArrowLeft className="w-4 h-4" />
+        Retour — {backLabel}
+      </button>
     </div>
   )
 }

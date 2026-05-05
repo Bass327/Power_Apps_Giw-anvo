@@ -10,7 +10,8 @@ import { useCurrentUser } from "@/hooks/useCurrentUser"
 import type { DemandeAchat, StatutDemande } from "@/types/DemandeAchat"
 import { STATUT_CONFIG } from "@/types/DemandeAchat"
 import type { UserRole } from "@/types/user"
-import { formatFCFA, formatDateFr } from "@/lib/utils"
+import { hasPermission } from "@/lib/permissions"
+import { formatFCFA, formatFCFAShort, formatDateFr } from "@/lib/utils"
 import { FormulaireDemandeAchat } from "./components/FormulaireDemandeAchat"
 import { DetailDemandeAchat } from "./components/DetailDemandeAchat"
 
@@ -48,15 +49,15 @@ function getOnglets(role: UserRole | undefined): OngletConfig[] {
     case "RAF":
       return [
         { id: "mes-demandes", label: "Mes demandes",        icon: <FileText className="w-4 h-4" /> },
-        { id: "a-valider",    label: "À valider",           icon: <ClipboardCheck className="w-4 h-4" /> },
         { id: "toutes",       label: "Toutes les demandes", icon: <LayoutList className="w-4 h-4" /> },
       ]
 
     case "Comptable":
       return [
-        { id: "en-paiement", label: "En paiement",         icon: <Wallet className="w-4 h-4" /> },
-        { id: "soldees",     label: "Soldées",              icon: <CheckCircle2 className="w-4 h-4" /> },
-        { id: "toutes",      label: "Toutes",               icon: <LayoutList className="w-4 h-4" /> },
+        { id: "mes-demandes", label: "Mes demandes",        icon: <FileText className="w-4 h-4" /> },
+        { id: "en-paiement",  label: "En paiement",         icon: <Wallet className="w-4 h-4" /> },
+        { id: "soldees",      label: "Soldées",              icon: <CheckCircle2 className="w-4 h-4" /> },
+        { id: "toutes",       label: "Toutes",               icon: <LayoutList className="w-4 h-4" /> },
       ]
 
     case "Directrice":
@@ -85,7 +86,11 @@ function filtrerParOnglet(
       return demandes.filter((d) => d.demandeur === user.email)
 
     case "a-approuver":
-      // Directrice approuve directement les demandes soumises
+      // La DG voit toutes les demandes sans réponse finale (SOUMIS, VALIDE_CHEF, VALIDE_RAF)
+      return demandes.filter((d) => !["APPROUVE", "EN_PAIEMENT", "SOLDE", "REJETE"].includes(d.statut))
+
+    case "a-valider":
+      // Chef Dept. voit les demandes soumises en attente de sa validation
       return demandes.filter((d) => d.statut === "SOUMIS")
 
     case "mon-departement":
@@ -106,8 +111,7 @@ function filtrerParOnglet(
   }
 }
 
-/* ── Rôles qui peuvent créer une demande ── */
-const ROLES_PEUVENT_CREER: UserRole[] = ["Employé", "RAF", "Chef Dept."]
+/* ── Rôles qui peuvent créer une demande — centralisé dans permissions.ts ── */
 
 export default function AchatsPage() {
   const [onglet, setOnglet]              = useState<Onglet>("mes-demandes")
@@ -158,8 +162,11 @@ export default function AchatsPage() {
   /* ── Badge sur l'onglet "À valider" / "À approuver" ── */
   const nbATraiter = useMemo(() => {
     if (!currentUser) return 0
-    if (currentUser.role === "Directrice") {
+    if (currentUser.role === "Chef Dept.") {
       return demandes.filter((d) => d.statut === "SOUMIS").length
+    }
+    if (currentUser.role === "Directrice") {
+      return demandes.filter((d) => !["APPROUVE", "EN_PAIEMENT", "SOLDE", "REJETE"].includes(d.statut)).length
     }
     if (currentUser.role === "Comptable") {
       return demandes.filter((d) => d.statut === "APPROUVE").length
@@ -178,7 +185,7 @@ export default function AchatsPage() {
         { label: "Soldées",     value: demandes.filter((d) => d.statut === "SOLDE").length },
         {
           label: "Volume traité",
-          value: formatFCFA(
+          value: formatFCFAShort(
             demandes
               .filter((d) => d.statut === "SOLDE" || d.statut === "EN_PAIEMENT")
               .reduce((sum, d) => sum + d.montant, 0),
@@ -196,12 +203,12 @@ export default function AchatsPage() {
         return date.getMonth() === mois && date.getFullYear() === annee
       }
       return [
-        { label: "En attente",       value: demandes.filter((d) => d.statut === "SOUMIS").length },
+        { label: "En attente",       value: demandes.filter((d) => !["APPROUVE", "EN_PAIEMENT", "SOLDE", "REJETE"].includes(d.statut)).length },
         { label: "Approuvées / mois", value: demandes.filter((d) => d.statut === "APPROUVE" && duMois(d)).length },
         { label: "Rejetées / mois",  value: demandes.filter((d) => d.statut === "REJETE" && duMois(d)).length },
         {
           label: "Volume approuvé",
-          value: formatFCFA(
+          value: formatFCFAShort(
             demandes
               .filter((d) => d.statut === "APPROUVE" && duMois(d))
               .reduce((sum, d) => sum + d.montant, 0),
@@ -222,7 +229,7 @@ export default function AchatsPage() {
         value: mesDemandes
           .filter((d) => d.statut === "APPROUVE" || d.statut === "SOLDE")
           .reduce((sum, d) => sum + d.montant, 0) > 0
-          ? formatFCFA(mesDemandes
+          ? formatFCFAShort(mesDemandes
               .filter((d) => d.statut === "APPROUVE" || d.statut === "SOLDE")
               .reduce((sum, d) => sum + d.montant, 0))
           : "—",
@@ -234,7 +241,7 @@ export default function AchatsPage() {
   /* Ids des onglets qui portent le badge numérique */
   const ongletsBadge: Onglet[] = ["a-valider", "a-approuver", "en-paiement"]
 
-  const peutCreer = ROLES_PEUVENT_CREER.includes(currentUser?.role ?? "Employé")
+  const peutCreer = currentUser?.role ? hasPermission(currentUser.role, "canCreateDemande") : false
 
   /* ── Message vide selon l'onglet ── */
   function messageVide(): string {
@@ -311,11 +318,11 @@ export default function AchatsPage() {
               className="rounded-xl px-4 py-3"
               style={{ background: "var(--bg-surface)", border: "1px solid var(--bg-border)" }}
             >
-              <p className="text-xs font-display font-semibold uppercase tracking-widest" style={{ color: "var(--text-muted)" }}>
+              <p className="text-xs font-display font-semibold uppercase tracking-widest truncate" style={{ color: "var(--text-muted)" }}>
                 {label}
               </p>
               <p
-                className="font-display font-bold text-xl mt-1"
+                className="font-display font-bold text-xl mt-1 truncate"
                 style={{ color: raw ? "var(--gold-warm)" : "var(--text-primary)" }}
               >
                 {value}
@@ -469,7 +476,16 @@ export default function AchatsPage() {
             className="rounded-xl overflow-hidden"
             style={{ border: "1px solid var(--bg-border)" }}
           >
-            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", tableLayout: "fixed" }}>
+              {/* Largeurs fixes des colonnes pour éviter les débordements */}
+              <colgroup>
+                <col style={{ width: "32%" }} />
+                <col style={{ width: "16%" }} />
+                <col style={{ width: "14%" }} />
+                <col style={{ width: "14%" }} />
+                <col style={{ width: "10%" }} />
+                <col style={{ width: "14%" }} />
+              </colgroup>
               <thead>
                 <tr style={{ background: "var(--bg-elevated)" }}>
                   {["Objet", "Demandeur", "Montant", "Date de besoin", "Type", "Statut"].map((col) => (
@@ -505,34 +521,34 @@ export default function AchatsPage() {
                         e.currentTarget.style.borderLeft  = "3px solid transparent"
                       }}
                     >
-                      <td className="px-4 py-3">
-                        <p className="text-sm font-display font-medium" style={{ color: "var(--text-primary)" }}>
+                      <td className="px-4 py-3 overflow-hidden">
+                        <p className="text-sm font-display font-medium truncate" style={{ color: "var(--text-primary)" }}>
                           {d.titre}
                         </p>
                         {d.ligneBudgetaire && (
-                          <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)" }}>
+                          <p className="text-xs mt-0.5 truncate" style={{ color: "var(--text-muted)" }}>
                             {d.ligneBudgetaire}
                           </p>
                         )}
                       </td>
-                      <td className="px-4 py-3">
-                        <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
+                      <td className="px-4 py-3 overflow-hidden">
+                        <p className="text-sm truncate" style={{ color: "var(--text-secondary)" }}>
                           {d.demandeur.split("@")[0]}
                         </p>
                       </td>
                       <td className="px-4 py-3">
-                        <p className="text-sm font-display font-semibold" style={{ color: "var(--gold-warm)" }}>
+                        <p className="text-sm font-display font-semibold whitespace-nowrap" style={{ color: "var(--gold-warm)" }}>
                           {formatFCFA(d.montant)}
                         </p>
                       </td>
                       <td className="px-4 py-3">
-                        <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
+                        <p className="text-sm whitespace-nowrap" style={{ color: "var(--text-secondary)" }}>
                           {formatDateFr(d.dateBesoin)}
                         </p>
                       </td>
                       <td className="px-4 py-3">
                         <span
-                          className="text-xs font-display font-medium px-2 py-0.5 rounded-md"
+                          className="text-xs font-display font-medium px-2 py-0.5 rounded-md whitespace-nowrap"
                           style={{
                             background: d.typeAchat === "ORDINAIRE"
                               ? "rgba(34,197,94,0.08)"
@@ -545,7 +561,7 @@ export default function AchatsPage() {
                       </td>
                       <td className="px-4 py-3">
                         <span
-                          className="text-xs font-display font-semibold px-2.5 py-1 rounded-full"
+                          className="text-xs font-display font-semibold px-2.5 py-1 rounded-full whitespace-nowrap"
                           style={{
                             background: cfg.bg,
                             color:      cfg.color,

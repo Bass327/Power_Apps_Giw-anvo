@@ -4,7 +4,10 @@ export const msalConfig: Configuration = {
   auth: {
     clientId:    import.meta.env.VITE_CLIENT_ID as string,
     authority:   `https://login.microsoftonline.com/${import.meta.env.VITE_TENANT_ID as string}`,
-    redirectUri: window.location.origin,
+    // Racine de l'origine — stable entre les déploiements, enregistrée dans Azure AD
+    // Utilisé comme redirect URI pour les popups : MSAL lit le hash depuis la popup
+    // sans avoir besoin que la page cible exécute du code MSAL
+    redirectUri: window.location.origin + "/",
   },
   cache: {
     cacheLocation:          "sessionStorage",

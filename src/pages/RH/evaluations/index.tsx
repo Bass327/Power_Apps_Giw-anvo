@@ -2,12 +2,14 @@ import { useState } from "react"
 import { useNavigate } from "react-router-dom"
 import {
   Award, ChevronLeft, Plus, Search, X,
-  User, Calendar, Star, TrendingUp,
+  User, Calendar, Star, TrendingUp, Loader2, AlertCircle,
 } from "lucide-react"
 import { toast } from "sonner"
 import { useCurrentUser } from "@/hooks/useCurrentUser"
-import { getModuleAccess } from "@/lib/permissions"
+import { useEmployes } from "@/hooks/useEmployes"
+import { hasPermission } from "@/lib/permissions"
 import { AccessDenied } from "@/components/shared/AccessDenied"
+import { useEvaluations, useCreateEvaluation, useUpdateEvaluation } from "@/hooks/useEvaluations"
 import type {
   Evaluation, StatutEvaluation, PeriodeEvaluation, NoteEvaluation,
 } from "@/types/rh"
@@ -16,47 +18,6 @@ import {
   LABEL_PERIODE_EVALUATION,
   LABEL_NOTE_EVALUATION,
 } from "@/types/rh"
-
-/* ── Données de démonstration ── */
-const EVALUATIONS_MOCK: Evaluation[] = [
-  {
-    id:                "e1",
-    employe:           "amadou.diallo@giwaanvo.com",
-    evaluateur:        "cheikh.diop@giwaanvo.com",
-    periode:           "ANNUELLE",
-    annee:             2025,
-    objectifs:         "Réduire les délais d'intervention sur site, améliorer la documentation technique.",
-    resultats:         "Délais réduits de 30%. Documentation complète et à jour.",
-    note:              "TRES_BON",
-    commentaires:      "Très bonne performance. Progrès remarquables sur la documentation.",
-    statut:            "VALIDEE",
-    datePlanification: "2026-01-10",
-    dateValidation:    "2026-02-15",
-  },
-  {
-    id:                "e2",
-    employe:           "fatou.sall@giwaanvo.com",
-    evaluateur:        "mariama.ba@giwaanvo.com",
-    periode:           "S1",
-    annee:             2026,
-    objectifs:         "Développer la communication digitale, atteindre 1000 abonnés LinkedIn.",
-    statut:            "AUTOEVAL",
-    datePlanification: "2026-03-01",
-  },
-  {
-    id:                "e3",
-    employe:           "ibrahima.ndiaye@giwaanvo.com",
-    evaluateur:        "cheikh.diop@giwaanvo.com",
-    periode:           "ANNUELLE",
-    annee:             2025,
-    objectifs:         "Missions terrain sans incident de sécurité, formation équipe junior.",
-    resultats:         "Toutes les missions effectuées. Formation de 2 techniciens.",
-    note:              "EXCELLENT",
-    statut:            "CLOTUREE",
-    datePlanification: "2026-01-10",
-    dateValidation:    "2026-02-20",
-  },
-]
 
 type Onglet = "toutes" | "en-cours" | "validees"
 
@@ -106,9 +67,8 @@ export default function RHEvaluationsPage() {
   const { role, user } = useCurrentUser()
   const email = user?.email
   const navigate         = useNavigate()
-  const access           = role ? getModuleAccess(role, "rh") : "none"
+  
 
-  const [evaluations, setEvaluations] = useState<Evaluation[]>(EVALUATIONS_MOCK)
   const [onglet, setOnglet]           = useState<Onglet>("toutes")
   const [recherche, setRecherche]     = useState("")
   const [formulaireOuvert, setForm]   = useState(false)
@@ -120,7 +80,19 @@ export default function RHEvaluationsPage() {
   const [fAnnee, setFAnnee]             = useState(new Date().getFullYear().toString())
   const [fObjectifs, setFObjectifs]     = useState("")
 
-  if (access === "none") return <AccessDenied message="Accès réservé aux RH et à la direction." />
+  /* Hooks SharePoint */
+  const { data: evaluations = [], isLoading, isError } = useEvaluations()
+  const { employes, isLoading: isLoadingEmployes }     = useEmployes()
+  const { mutate: creer,   isPending: creation } = useCreateEvaluation()
+  const { mutate: majEval }                     = useUpdateEvaluation()
+
+  /* Bloc les rôles sans droit sur ce sous-module (Employé, Comptable) */
+  if (!role || !hasPermission(role, "canCreerEvaluation")) {
+    return <AccessDenied message="Ce sous-module est réservé aux chefs de département, au RAF et à la direction." backTo="/rh" backLabel="Ressources Humaines" />
+  }
+
+  const peutCreerEval  = role ? hasPermission(role, "canCreerEvaluation")  : false
+  const peutAvancerEval = role ? hasPermission(role, "canAvancerEvaluation") : false
 
   const liste = evaluations.filter((e) => {
     if (onglet === "en-cours" && !["PLANIFIEE","AUTOEVAL","EVAL_MANAGER","EN_REVUE_RH"].includes(e.statut)) return false
@@ -137,31 +109,32 @@ export default function RHEvaluationsPage() {
     setFAnnee(new Date().getFullYear().toString()); setFObjectifs("")
   }
 
+  /* Création d'une évaluation → SharePoint */
   const handleCreer = () => {
     if (!fEmploye.trim() || !fObjectifs.trim()) {
       toast.error("Remplissez les champs obligatoires")
       return
     }
-    const nouvelle: Evaluation = {
-      id:                `ev${Date.now()}`,
-      employe:           fEmploye.trim(),
-      evaluateur:        email ?? "rh@giwaanvo.com",
-      periode:           fPeriode,
-      annee:             parseInt(fAnnee) || new Date().getFullYear(),
-      objectifs:         fObjectifs.trim(),
-      statut:            "PLANIFIEE",
-      datePlanification: new Date().toISOString().slice(0, 10),
-    }
-    setEvaluations((prev) => [nouvelle, ...prev])
-    setForm(false)
-    resetForm()
-    toast.success("Évaluation planifiée")
+    creer(
+      {
+        employe:           fEmploye.trim(),
+        evaluateur:        email ?? "rh@giwaanvo.com",
+        periode:           fPeriode,
+        annee:             parseInt(fAnnee) || new Date().getFullYear(),
+        objectifs:         fObjectifs.trim(),
+        statut:            "PLANIFIEE",
+        datePlanification: new Date().toISOString().slice(0, 10),
+      },
+      { onSuccess: () => { setForm(false); resetForm() } },
+    )
   }
 
+  /* Avancement du statut → SharePoint */
   const handleAvancer = (id: string, nouveauStatut: StatutEvaluation) => {
-    setEvaluations((prev) => prev.map((e) => e.id === id ? { ...e, statut: nouveauStatut } : e))
-    setSelectionne(null)
-    toast.success("Statut mis à jour")
+    majEval(
+      { id, patch: { statut: nouveauStatut } },
+      { onSuccess: () => setSelectionne(null) },
+    )
   }
 
   /* ── Rendu ── */
@@ -191,7 +164,7 @@ export default function RHEvaluationsPage() {
               </p>
             </div>
           </div>
-          {(role === "Directrice" || role === "RAF" || role === "Chef Dept.") && (
+          {peutCreerEval && (
             <button
               onClick={() => setForm(true)}
               style={{ all: "unset", cursor: "pointer", display: "flex", alignItems: "center", gap: 8, padding: "10px 20px", borderRadius: 10, fontSize: 13, fontFamily: "var(--font-display)", fontWeight: 700, color: "var(--text-inverse)", background: "linear-gradient(135deg, #60a5fa, #3b82f6)" }}
@@ -210,7 +183,7 @@ export default function RHEvaluationsPage() {
           { label: "Validées",    value: evaluations.filter((e) => e.statut === "VALIDEE").length,        color: "#22c55e" },
           { label: "Excellentes", value: evaluations.filter((e) => e.note === "EXCELLENT").length,        color: "#f0a500" },
         ].map((s) => (
-          <div key={s.label} style={{ padding: "14px 18px", background: "rgba(13,26,16,0.7)", border: "1px solid var(--bg-border)", borderRadius: 12 }}>
+          <div key={s.label} style={{ padding: "14px 18px", background: "var(--glass-card-bg)", border: "1px solid var(--bg-border)", borderRadius: 12 }}>
             <p style={{ margin: "0 0 4px", fontSize: 11, color: "var(--text-secondary)", fontFamily: "var(--font-body)", textTransform: "uppercase", letterSpacing: "0.06em" }}>{s.label}</p>
             <p style={{ margin: 0, fontSize: 26, fontWeight: 800, color: s.color, fontFamily: "var(--font-display)", letterSpacing: "-0.02em", lineHeight: 1 }}>{s.value}</p>
           </div>
@@ -246,13 +219,29 @@ export default function RHEvaluationsPage() {
         </div>
       </div>
 
+      {/* Chargement / Erreur */}
+      {isLoading && (
+        <div className="flex items-center justify-center py-12 gap-3" style={{ color: "var(--text-muted)" }}>
+          <Loader2 className="w-5 h-5 animate-spin" />
+          <span style={{ fontFamily: "var(--font-body)", fontSize: 14 }}>Chargement des évaluations…</span>
+        </div>
+      )}
+      {isError && !isLoading && (
+        <div className="flex items-center gap-3 p-4 rounded-xl" style={{ background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.25)" }}>
+          <AlertCircle className="w-5 h-5 flex-shrink-0" style={{ color: "#ef4444" }} />
+          <p style={{ margin: 0, fontSize: 13, color: "#ef4444", fontFamily: "var(--font-body)" }}>
+            Impossible de charger les évaluations depuis SharePoint.
+          </p>
+        </div>
+      )}
+
       {/* Liste */}
-      {liste.length === 0 ? (
-        <div style={{ padding: "60px 24px", textAlign: "center", background: "rgba(13,26,16,0.5)", border: "1px dashed var(--bg-border)", borderRadius: 14 }}>
+      {!isLoading && !isError && liste.length === 0 ? (
+        <div style={{ padding: "60px 24px", textAlign: "center", background: "var(--bg-elevated)", border: "1px dashed var(--bg-border)", borderRadius: 14 }}>
           <Award size={32} style={{ color: "var(--text-muted)", marginBottom: 12 }} />
           <p style={{ margin: 0, fontSize: 15, color: "var(--text-secondary)", fontFamily: "var(--font-body)" }}>Aucune évaluation trouvée</p>
         </div>
-      ) : (
+      ) : !isLoading && !isError ? (
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {liste.map((ev) => {
             const cfg = STATUT_EVALUATION_CONFIG[ev.statut]
@@ -260,9 +249,9 @@ export default function RHEvaluationsPage() {
               <button
                 key={ev.id}
                 onClick={() => setSelectionne(ev)}
-                style={{ all: "unset", cursor: "pointer", display: "flex", alignItems: "center", gap: 16, padding: "18px 22px", background: "rgba(13,26,16,0.7)", border: "1px solid var(--bg-border)", borderRadius: 12, transition: "all 150ms", textAlign: "left" }}
-                onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#60a5fa"; e.currentTarget.style.background = "rgba(13,26,16,0.9)" }}
-                onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--bg-border)"; e.currentTarget.style.background = "rgba(13,26,16,0.7)" }}
+                style={{ all: "unset", cursor: "pointer", display: "flex", alignItems: "center", gap: 16, padding: "18px 22px", background: "var(--glass-card-bg)", border: "1px solid var(--bg-border)", borderRadius: 12, transition: "all 150ms", textAlign: "left" }}
+                onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#60a5fa"; e.currentTarget.style.background = "var(--bg-elevated)" }}
+                onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--bg-border)"; e.currentTarget.style.background = "var(--glass-card-bg)" }}
               >
                 <div style={{ width: 42, height: 42, borderRadius: 10, background: "rgba(96,165,250,0.10)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                   <TrendingUp size={18} style={{ color: "#60a5fa" }} />
@@ -293,12 +282,12 @@ export default function RHEvaluationsPage() {
             )
           })}
         </div>
-      )}
+      ) : null}
 
       {/* Modal détail */}
       {selectionne && (
         <div
-          style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(8,15,11,0.85)", backdropFilter: "blur(8px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}
+          style={{ position: "fixed", inset: 0, zIndex: 1000, background: "var(--modal-overlay)", backdropFilter: "blur(8px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}
           onClick={(e) => { if (e.target === e.currentTarget) setSelectionne(null) }}
         >
           <div style={{ width: "100%", maxWidth: 580, maxHeight: "90vh", overflowY: "auto", background: "var(--bg-surface)", border: "1px solid var(--bg-border)", borderRadius: 16 }}>
@@ -346,7 +335,7 @@ export default function RHEvaluationsPage() {
                 </div>
               )}
               {/* Actions avancement */}
-              {selectionne.statut !== "CLOTUREE" && (role === "Directrice" || role === "Chef Dept.") && (
+              {selectionne.statut !== "CLOTUREE" && peutAvancerEval && (
                 <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", paddingTop: 4 }}>
                   {selectionne.statut === "PLANIFIEE" && (
                     <button onClick={() => handleAvancer(selectionne.id, "AUTOEVAL")} style={{ all: "unset", cursor: "pointer", padding: "8px 14px", borderRadius: 8, fontSize: 12, fontFamily: "var(--font-display)", fontWeight: 600, color: "#60a5fa", background: "rgba(59,130,246,0.10)", border: "1px solid rgba(59,130,246,0.30)" }}>
@@ -373,7 +362,7 @@ export default function RHEvaluationsPage() {
       {/* Modal formulaire */}
       {formulaireOuvert && (
         <div
-          style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(8,15,11,0.85)", backdropFilter: "blur(8px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}
+          style={{ position: "fixed", inset: 0, zIndex: 1000, background: "var(--modal-overlay)", backdropFilter: "blur(8px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}
           onClick={(e) => { if (e.target === e.currentTarget) { setForm(false); resetForm() } }}
         >
           <div style={{ width: "100%", maxWidth: 520, background: "var(--bg-surface)", border: "1px solid var(--bg-border)", borderRadius: 16 }}>
@@ -391,7 +380,40 @@ export default function RHEvaluationsPage() {
             <div style={{ padding: "20px 28px", display: "flex", flexDirection: "column", gap: 14 }}>
               <div>
                 <label style={labelStyle}>Employé évalué *</label>
-                <input type="text" placeholder="email@giwaanvo.com" value={fEmploye} onChange={(e) => setFEmploye(e.target.value)} style={fieldStyle} />
+                <div style={{ position: "relative" }}>
+                  <select
+                    value={fEmploye}
+                    onChange={(e) => setFEmploye(e.target.value)}
+                    disabled={isLoadingEmployes}
+                    style={{
+                      ...fieldStyle,
+                      appearance: "none",
+                      paddingRight: 36,
+                      cursor: isLoadingEmployes ? "wait" : "pointer",
+                      opacity: isLoadingEmployes ? 0.6 : 1,
+                    }}
+                  >
+                    <option value="">
+                      {isLoadingEmployes ? "Chargement des employés…" : "— Sélectionner un employé —"}
+                    </option>
+                    {employes.map((emp) => (
+                      <option key={emp.id} value={emp.nom}>
+                        {emp.nom}{emp.departement ? ` — ${emp.departement}` : ""}
+                      </option>
+                    ))}
+                  </select>
+                  <div style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", pointerEvents: "none", color: "var(--text-secondary)" }}>
+                    {isLoadingEmployes
+                      ? <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} />
+                      : <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 4l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                    }
+                  </div>
+                </div>
+                {!isLoadingEmployes && employes.length === 0 && (
+                  <p style={{ margin: "6px 0 0", fontSize: 11, color: "#60a5fa", fontFamily: "var(--font-body)" }}>
+                    Aucun employé trouvé — vérifiez votre connexion SharePoint.
+                  </p>
+                )}
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                 <div>
@@ -416,7 +438,12 @@ export default function RHEvaluationsPage() {
               <button onClick={() => { setForm(false); resetForm() }} style={{ all: "unset", cursor: "pointer", padding: "10px 18px", borderRadius: 8, fontSize: 13, fontFamily: "var(--font-display)", fontWeight: 600, color: "var(--text-secondary)", background: "var(--bg-elevated)", border: "1px solid var(--bg-border)" }}>
                 Annuler
               </button>
-              <button onClick={handleCreer} style={{ all: "unset", cursor: "pointer", padding: "10px 22px", borderRadius: 8, fontSize: 13, fontFamily: "var(--font-display)", fontWeight: 700, color: "var(--text-inverse)", background: "linear-gradient(135deg, #60a5fa, #3b82f6)" }}>
+              <button
+                onClick={handleCreer}
+                disabled={creation}
+                style={{ all: "unset", cursor: creation ? "not-allowed" : "pointer", padding: "10px 22px", borderRadius: 8, fontSize: 13, fontFamily: "var(--font-display)", fontWeight: 700, color: "var(--text-inverse)", background: "linear-gradient(135deg, #60a5fa, #3b82f6)", opacity: creation ? 0.7 : 1, display: "flex", alignItems: "center", gap: 8 }}
+              >
+                {creation && <Loader2 size={14} className="animate-spin" />}
                 Planifier
               </button>
             </div>

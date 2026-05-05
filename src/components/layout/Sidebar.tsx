@@ -4,28 +4,31 @@ import {
   BarChart3, Users, FileText, BookOpen, Wallet, LineChart,
   ChevronLeft, ChevronRight, LogOut,
 } from "lucide-react"
-import logoGiwAnvo from "@/assets/logo africa.png"
+import logoGiwAnvo from "@/assets/logo-giwanvo.png"
+import { useCurrentUser } from "@/hooks/useCurrentUser"
+import { useAuth } from "@/hooks/useAuth"
+import { canAccessModule } from "@/lib/permissions"
+import type { Module } from "@/lib/permissions"
 
-/* ── Données statiques hissées hors du composant (rendering-hoist-jsx) ── */
-const modules = [
-  { path: "/budget",       label: "Budget",               Icon: BarChart3,    count: 3  },
-  { path: "/rh",           label: "Ressources Humaines",  Icon: Users,        count: 7  },
-  { path: "/achats",            label: "Achats",               Icon: FileText, count: 2  },
-  { path: "/comptabilite", label: "Comptabilité",         Icon: BookOpen,     count: 5  },
-  { path: "/tresorerie",   label: "Trésorerie",           Icon: Wallet,       count: 6  },
-  { path: "/suivi",        label: "Suivi & Contrôle",     Icon: LineChart,    count: 4  },
+/* ── Données statiques des modules (toujours dans cet ordre) ── */
+const ALL_MODULES = [
+  { path: "/budget",       label: "Budget",               Icon: BarChart3, module: "budget"       as Module },
+  { path: "/rh",           label: "Ressources Humaines",  Icon: Users,     module: "rh"           as Module },
+  { path: "/achats",       label: "Achats",               Icon: FileText,  module: "achats"       as Module },
+  { path: "/comptabilite", label: "Comptabilité",         Icon: BookOpen,  module: "comptabilite" as Module },
+  { path: "/tresorerie",   label: "Trésorerie",           Icon: Wallet,    module: "tresorerie"   as Module },
+  { path: "/suivi",        label: "Suivi & Contrôle",     Icon: LineChart, module: "suivi"        as Module },
 ] as const
 
-/* ── NavItem défini en dehors pour éviter les remounts (rerender-no-inline-components) ── */
+/* ── NavItem ── */
 interface NavItemProps {
   path:      string
   label:     string
   Icon:      React.ComponentType<{ className?: string; style?: React.CSSProperties }>
-  count:     number
   collapsed: boolean
 }
 
-const NavItem = memo(function NavItem({ path, label, Icon, count, collapsed }: NavItemProps) {
+const NavItem = memo(function NavItem({ path, label, Icon, collapsed }: NavItemProps) {
   return (
     <NavLink to={path} title={collapsed ? label : undefined} className="block">
       {({ isActive }) => (
@@ -55,23 +58,11 @@ const NavItem = memo(function NavItem({ path, label, Icon, count, collapsed }: N
             style={{ width: 20, height: 20, color: isActive ? "var(--gold-warm)" : "currentColor" }}
           />
           {!collapsed && (
-            <>
-              <span className="font-display text-sm font-medium flex-1 truncate leading-none">
+            <span className="font-display text-sm font-medium flex-1 truncate leading-none">
                 {label}
               </span>
-              <span
-                className="text-xs px-1.5 py-0.5 rounded font-mono leading-none flex-shrink-0"
-                style={{
-                  backgroundColor: isActive ? "rgba(240,165,0,0.15)" : "var(--bg-surface)",
-                  color:           isActive ? "var(--gold-warm)"      : "var(--text-muted)",
-                }}
-              >
-                {count}
-              </span>
-            </>
           )}
 
-          {/* Glow ambiant sur l'item actif */}
           {isActive && !collapsed && (
             <span
               className="absolute left-0 inset-y-0 w-0.5 rounded-full pointer-events-none"
@@ -91,6 +82,14 @@ interface SidebarProps {
 }
 
 export const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
+  const { role }   = useCurrentUser()
+  const { logout } = useAuth()
+
+  /* Filtrage des modules selon le rôle — si rôle inconnu, tout visible (chargement) */
+  const visibleModules = role
+    ? ALL_MODULES.filter((mod) => canAccessModule(role, mod.module))
+    : ALL_MODULES
+
   return (
     <aside
       className={`relative flex flex-col h-full flex-shrink-0 transition-all duration-300 ${
@@ -112,19 +111,11 @@ export const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
             className="flex items-center justify-center w-full transition-opacity hover:opacity-80"
             title="Agrandir le menu"
           >
-            <img
-              src={logoGiwAnvo}
-              alt="GIW'ANVO"
-              style={{ height: 32, width: "auto", objectFit: "contain" }}
-            />
+            <img src={logoGiwAnvo} alt="GIW'ANVO" style={{ height: 32, width: "auto", objectFit: "contain" }} />
           </button>
         ) : (
           <>
-            <img
-              src={logoGiwAnvo}
-              alt="GIW'ANVO"
-              style={{ height: 32, width: "auto", objectFit: "contain", flexShrink: 0 }}
-            />
+            <img src={logoGiwAnvo} alt="GIW'ANVO" style={{ height: 32, width: "auto", objectFit: "contain", flexShrink: 0 }} />
             <div className="flex-1 min-w-0">
               <p className="font-display font-bold text-sm leading-none tracking-wide" style={{ color: "var(--text-primary)" }}>
                 GIW<span style={{ color: "var(--gold-warm)" }}>'ANVO</span>
@@ -155,37 +146,30 @@ export const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
 
       {/* ── Label section ── */}
       {!collapsed && (
-        <p
-          className="text-[10px] font-semibold uppercase tracking-widest px-5 pt-5 pb-2"
-          style={{ color: "var(--green-mid)" }}
-        >
+        <p className="text-[10px] font-semibold uppercase tracking-widest px-5 pt-5 pb-2" style={{ color: "var(--green-mid)" }}>
           Modules
         </p>
       )}
 
-      {/* ── Navigation ── */}
+      {/* ── Navigation filtrée par rôle ── */}
       <nav className="flex-1 py-2 overflow-y-auto overflow-x-hidden">
         {collapsed && <div className="pt-2" />}
-        {modules.map((mod) => (
+        {visibleModules.map((mod) => (
           <NavItem
             key={mod.path}
             path={mod.path}
             label={mod.label}
             Icon={mod.Icon}
-            count={mod.count}
             collapsed={collapsed}
           />
         ))}
       </nav>
 
       {/* ── Pied ── */}
-      <div
-        className="flex-shrink-0"
-        style={{ borderTop: "1px solid var(--bg-border)" }}
-      >
+      <div className="flex-shrink-0" style={{ borderTop: "1px solid var(--bg-border)" }}>
         {collapsed ? (
           <button
-            onClick={() => console.log("Déconnexion")}
+            onClick={logout}
             title="Se déconnecter"
             className="w-full flex justify-center p-3 transition-colors duration-150"
             style={{ color: "var(--text-muted)" }}
@@ -203,7 +187,7 @@ export const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
         ) : (
           <div className="px-4 py-3">
             <button
-              onClick={() => console.log("Déconnexion")}
+              onClick={logout}
               className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg transition-colors duration-150 text-sm font-display font-medium"
               style={{ color: "var(--text-muted)" }}
               onMouseEnter={(e) => {
@@ -224,7 +208,6 @@ export const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
           </div>
         )}
 
-        {/* Bouton expand (collapsed only) */}
         {collapsed && (
           <button
             onClick={onToggle}

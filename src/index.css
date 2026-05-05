@@ -1,6 +1,15 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+/* Polices auto-hébergées — compatibles CSP Power Apps */
+@import "@fontsource/syne/400.css";
+@import "@fontsource/syne/600.css";
+@import "@fontsource/syne/700.css";
+@import "@fontsource/syne/800.css";
+@import "@fontsource/dm-sans/300.css";
+@import "@fontsource/dm-sans/400.css";
+@import "@fontsource/dm-sans/500.css";
+
 @custom-variant dark (&:is(.dark *));
 
 /* ═══════════════════════════════════════════════════════
@@ -53,9 +62,12 @@
   --status-pending: #8b5cf6;
 
   /* ── Glassmorphism ── */
-  --glass-card-bg:   rgba(255, 255, 255, 0.85);
-  --glass-header-bg: rgba(240, 244, 241, 0.95);
+  --glass-card-bg:   rgba(255, 255, 255, 0.92);
+  --glass-header-bg: rgba(240, 244, 241, 0.97);
   --sidebar-bg:      linear-gradient(180deg, #e8f0ea 0%, #f0f4f1 100%);
+
+  /* ── Overlay modal ── */
+  --modal-overlay: rgba(0, 0, 0, 0.45);
 
   /* ── Tailwind / Shadcn tokens ── */
   --background:           oklch(0.96 0.008 152);
@@ -124,6 +136,9 @@
   --glass-card-bg:   rgba(13, 26, 16, 0.70);
   --glass-header-bg: rgba(8, 15, 11, 0.90);
   --sidebar-bg:      linear-gradient(180deg, #080f0b 0%, #0d1a10 100%);
+
+  /* ── Overlay modal ── */
+  --modal-overlay: rgba(8, 15, 11, 0.85);
 
   /* ── Tailwind / Shadcn tokens ── */
   --background:           oklch(0.09 0.015 152);
@@ -236,6 +251,24 @@
   font-family: 'Syne', system-ui, sans-serif;
 }
 
+/* Valeur principale d'un KPI — sobre, lisible, dashboard financier */
+.kpi-value {
+  font-family: Inter, Manrope, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: clamp(1.75rem, 2.5vw, 2.25rem);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Unité monétaire FCFA — légèrement plus petite */
+.kpi-currency {
+  font-size: 0.72em;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  opacity: 0.75;
+}
+
 /* ═══════════════════════════════════════════════════════
    GRAIN TEXTURE (depth & atmosphere)
    ═══════════════════════════════════════════════════════ */
@@ -279,11 +312,21 @@ body::before {
   border-radius: 16px;
 }
 
+/* Ombre douce sur les cartes en mode clair pour donner du relief */
+:root:not(.dark) .glass-card {
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06), 0 4px 16px rgba(0, 0, 0, 0.04);
+}
+
 .glass-header {
   background: var(--glass-header-bg);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border-bottom: 1px solid var(--bg-border);
+}
+
+/* Ombre légère sur le header en mode clair */
+:root:not(.dark) .glass-header {
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.08);
 }
 
 /* ═══════════════════════════════════════════════════════

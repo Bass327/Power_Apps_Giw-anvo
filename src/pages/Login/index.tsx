@@ -1,27 +1,46 @@
 import { useState } from "react"
-import { useIsAuthenticated, useMsal } from "@azure/msal-react"
+import logoGiwanvo from "@/assets/logo-giwanvo.png"
+import { useMsal } from "@azure/msal-react"
 import { InteractionStatus } from "@azure/msal-browser"
 import { Navigate } from "react-router-dom"
 import { useAuth } from "@/hooks/useAuth"
 
 export default function LoginPage() {
-  const { login } = useAuth()
+  const { login, isAuthenticated } = useAuth()
   const { inProgress } = useMsal()
-  const isAuthenticated = useIsAuthenticated()
-  const [clicked, setClicked] = useState(false)
+  const [isLoading, setIsLoading]   = useState(false)
+  const [popupError, setPopupError] = useState<string | null>(null)
 
   // Déjà connecté → rediriger vers le dashboard
   if (isAuthenticated) return <Navigate to="/" replace />
 
-  // En cours de redirection Microsoft → afficher un loader
-  const isRedirecting =
-    clicked ||
+  // Connexion en cours (popup, redirect aller ou redirect retour)
+  const isInProgress =
+    isLoading ||
     inProgress === InteractionStatus.Login ||
+    inProgress === InteractionStatus.AcquireToken ||
     inProgress === InteractionStatus.HandleRedirect
 
-  const handleLogin = () => {
-    setClicked(true)
-    login()
+  const handleLogin = async () => {
+    setIsLoading(true)
+    setPopupError(null)
+    try {
+      await login()
+      // MSAL met à jour accounts → isAuthenticated devient true → Navigate s'affiche
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : String(error)
+      // Popup bloquée par le navigateur
+      if (msg.includes("popup_window_error") || msg.includes("blocked")) {
+        setPopupError("La fenêtre popup a été bloquée. Autorisez les popups pour ce site et réessayez.")
+      } else if (msg.includes("user_cancelled")) {
+        // L'utilisateur a fermé la popup — pas une erreur à afficher
+        setPopupError(null)
+      } else {
+        setPopupError("Une erreur s'est produite lors de la connexion. Veuillez réessayer.")
+        console.error("[Auth] Erreur loginPopup :", error)
+      }
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -51,37 +70,12 @@ export default function LoginPage() {
         >
           {/* Logo + nom */}
           <div className="flex flex-col items-center mb-10">
-            {/* Icône solaire stylisée */}
-            <div
-              className="w-16 h-16 rounded-2xl flex items-center justify-center mb-5"
-              style={{
-                background: "linear-gradient(135deg, #f0a500, #ffc235)",
-                boxShadow:  "0 0 32px rgba(240, 165, 0, 0.3)",
-              }}
-            >
-              <svg
-                viewBox="0 0 32 32"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-                className="w-9 h-9"
-              >
-                <path
-                  d="M16 4C16 4 10 10 10 16C10 19.3137 12.6863 22 16 22C19.3137 22 22 19.3137 22 16C22 10 16 4 16 4Z"
-                  fill="#080f0b"
-                  fillOpacity="0.9"
-                />
-                <circle cx="16" cy="16" r="4" fill="#080f0b" />
-                <line x1="16" y1="2" x2="16" y2="6" stroke="#080f0b" strokeWidth="2" strokeLinecap="round" />
-                <line x1="16" y1="26" x2="16" y2="30" stroke="#080f0b" strokeWidth="2" strokeLinecap="round" />
-                <line x1="2" y1="16" x2="6" y2="16" stroke="#080f0b" strokeWidth="2" strokeLinecap="round" />
-                <line x1="26" y1="16" x2="30" y2="16" stroke="#080f0b" strokeWidth="2" strokeLinecap="round" />
-                <line x1="5.5" y1="5.5" x2="8.3" y2="8.3" stroke="#080f0b" strokeWidth="2" strokeLinecap="round" />
-                <line x1="23.7" y1="23.7" x2="26.5" y2="26.5" stroke="#080f0b" strokeWidth="2" strokeLinecap="round" />
-                <line x1="26.5" y1="5.5" x2="23.7" y2="8.3" stroke="#080f0b" strokeWidth="2" strokeLinecap="round" />
-                <line x1="8.3" y1="23.7" x2="5.5" y2="26.5" stroke="#080f0b" strokeWidth="2" strokeLinecap="round" />
-              </svg>
-            </div>
-
+            <img
+              src={logoGiwanvo}
+              alt="GIW'ANVO Energy"
+              className="mb-5"
+              style={{ height: "80px", width: "auto", objectFit: "contain" }}
+            />
             <h1
               className="font-display font-extrabold text-3xl tracking-tight leading-none"
               style={{ color: "#e8f0eb" }}
@@ -118,31 +112,31 @@ export default function LoginPage() {
 
           {/* Bouton de connexion Microsoft */}
           <button
-            onClick={handleLogin}
-            disabled={isRedirecting}
+            onClick={() => { void handleLogin() }}
+            disabled={isInProgress}
             className="w-full flex items-center justify-center gap-3 rounded-lg py-3.5 px-5 font-display font-semibold text-sm transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed"
             style={{
-              background: isRedirecting
+              background: isInProgress
                 ? "rgba(240, 165, 0, 0.5)"
                 : "linear-gradient(135deg, #f0a500, #ffc235)",
               color:      "#080f0b",
-              boxShadow:  isRedirecting ? "none" : "0 0 24px rgba(240, 165, 0, 0.2)",
+              boxShadow:  isInProgress ? "none" : "0 0 24px rgba(240, 165, 0, 0.2)",
             }}
             onMouseEnter={(e) => {
-              if (!isRedirecting)
+              if (!isInProgress)
                 e.currentTarget.style.boxShadow = "0 0 32px rgba(240, 165, 0, 0.4)"
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.boxShadow = "0 0 24px rgba(240, 165, 0, 0.2)"
             }}
           >
-            {isRedirecting ? (
+            {isInProgress ? (
               <>
                 <div
                   className="w-4 h-4 rounded-full border-2 border-t-transparent animate-spin"
                   style={{ borderColor: "#080f0b", borderTopColor: "transparent" }}
                 />
-                Redirection vers Microsoft…
+                Connexion en cours…
               </>
             ) : (
               <>
@@ -158,6 +152,16 @@ export default function LoginPage() {
             )}
           </button>
 
+          {/* Message d'erreur popup */}
+          {popupError && (
+            <p
+              className="text-center text-xs mt-4 px-2"
+              style={{ color: "#ef4444" }}
+            >
+              {popupError}
+            </p>
+          )}
+
           {/* Note de sécurité */}
           <p
             className="text-center text-xs mt-6"
@@ -167,13 +171,6 @@ export default function LoginPage() {
           </p>
         </div>
 
-        {/* Version */}
-        <p
-          className="text-center text-xs mt-6"
-          style={{ color: "#3d6650" }}
-        >
-          GIW'ANVO Gestion Interne — v1.0
-        </p>
       </div>
     </div>
   )

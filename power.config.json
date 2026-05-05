@@ -1,0 +1,14 @@
+{
+  "version": "1.0",
+  "appId": "a2451270-acdf-45e6-a4d3-0a2727f7b9a9",
+  "appDisplayName": "GIW'ANVO Gestion Interne",
+  "description": "Application interne de gestion administrative, RH, budgétaire et financière de GIW'ANVO Energy",
+  "environmentId": "3b628f36-7462-e041-bca5-038835035804",
+  "region": "prod",
+  "buildPath": "./dist",
+  "buildEntryPoint": "index.html",
+  "localAppUrl": "http://localhost:5173",
+  "logoPath": "Default",
+  "connectionReferences": {},
+  "databaseReferences": {}
+}

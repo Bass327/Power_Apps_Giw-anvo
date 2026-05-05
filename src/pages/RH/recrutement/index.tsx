@@ -6,7 +6,7 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 import { useCurrentUser } from "@/hooks/useCurrentUser"
-import { getModuleAccess } from "@/lib/permissions"
+import { hasPermission } from "@/lib/permissions"
 import { AccessDenied } from "@/components/shared/AccessDenied"
 import type {
   Recrutement, TypeContrat, PrioriteRecrutement,
@@ -16,52 +16,6 @@ import {
   LABEL_TYPE_CONTRAT,
   LABEL_PRIORITE_RECRUTEMENT,
 } from "@/types/rh"
-
-/* ── Données de démonstration ── */
-const RECRUTEMENTS_MOCK: Recrutement[] = [
-  {
-    id:               "r1",
-    intitulePoste:    "Ingénieur Électricien Solaire",
-    departement:      "Technique",
-    typeContrat:      "CDI",
-    nbPostes:         2,
-    lieu:             "Dakar",
-    dateSouhaitee:    "2026-06-01",
-    managerDemandeur: "cheikh.diop@giwaanvo.com",
-    priorite:         "HAUTE",
-    description:      "Installation et maintenance des systèmes solaires photovoltaïques.",
-    statut:           "EN_RECRUTEMENT",
-    dateDemande:      "2026-03-15",
-  },
-  {
-    id:               "r2",
-    intitulePoste:    "Chargé de Projet Infrastructure",
-    departement:      "Projets",
-    typeContrat:      "CDI",
-    nbPostes:         1,
-    lieu:             "Dakar",
-    dateSouhaitee:    "2026-05-15",
-    managerDemandeur: "mariama.ba@giwaanvo.com",
-    priorite:         "NORMALE",
-    description:      "Coordination des projets d'infrastructure durable.",
-    statut:           "ENTRETIENS",
-    dateDemande:      "2026-03-20",
-  },
-  {
-    id:               "r3",
-    intitulePoste:    "Stagiaire Communication",
-    departement:      "Communication",
-    typeContrat:      "STAGE",
-    nbPostes:         1,
-    lieu:             "Dakar",
-    dateSouhaitee:    "2026-04-15",
-    managerDemandeur: "fatou.sall@giwaanvo.com",
-    priorite:         "BASSE",
-    description:      "Appui à la communication digitale et institutionnelle.",
-    statut:           "SOUMIS",
-    dateDemande:      "2026-04-01",
-  },
-]
 
 type Onglet = "tous" | "en-cours" | "entretiens" | "clotures"
 
@@ -110,9 +64,8 @@ export default function RHRecrutementPage() {
   const { role, user } = useCurrentUser()
   const email = user?.email
   const navigate         = useNavigate()
-  const access           = role ? getModuleAccess(role, "rh") : "none"
 
-  const [recrutements, setRecrutements]       = useState<Recrutement[]>(RECRUTEMENTS_MOCK)
+  const [recrutements, setRecrutements]       = useState<Recrutement[]>([])
   const [onglet, setOnglet]                   = useState<Onglet>("tous")
   const [recherche, setRecherche]             = useState("")
   const [formulaireOuvert, setForm]           = useState(false)
@@ -130,7 +83,9 @@ export default function RHRecrutementPage() {
   const [fPriorite, setFPriorite]       = useState<PrioriteRecrutement>("NORMALE")
   const [fDescription, setFDescription] = useState("")
 
-  if (access === "none") return <AccessDenied message="Accès réservé aux RH et à la direction." />
+  if (!role || !hasPermission(role, "canGererRecrutement")) {
+    return <AccessDenied message="Ce sous-module est réservé aux chefs de département, au RAF et à la direction." backTo="/rh" backLabel="Ressources Humaines" />
+  }
 
   /* Filtrage */
   const liste = recrutements.filter((r) => {
@@ -231,7 +186,7 @@ export default function RHRecrutementPage() {
               </p>
             </div>
           </div>
-          {(role === "Directrice" || role === "RAF" || role === "Chef Dept.") && (
+          {role && hasPermission(role, "canGererRecrutement") && (
             <button
               onClick={() => setForm(true)}
               style={{ all: "unset", cursor: "pointer", display: "flex", alignItems: "center", gap: 8, padding: "10px 20px", borderRadius: 10, fontSize: 13, fontFamily: "var(--font-display)", fontWeight: 700, color: "var(--text-inverse)", background: "linear-gradient(135deg, #a78bfa, #7c3aed)" }}
@@ -250,7 +205,7 @@ export default function RHRecrutementPage() {
           { label: "Entretiens",      value: recrutements.filter((r) => r.statut === "ENTRETIENS").length,       color: "#f0a500" },
           { label: "Clôturés",        value: recrutements.filter((r) => r.statut === "CLOTURE").length,         color: "#34d399" },
         ].map((s) => (
-          <div key={s.label} style={{ padding: "14px 18px", background: "rgba(13,26,16,0.7)", border: "1px solid var(--bg-border)", borderRadius: 12 }}>
+          <div key={s.label} style={{ padding: "14px 18px", background: "var(--glass-card-bg)", border: "1px solid var(--bg-border)", borderRadius: 12 }}>
             <p style={{ margin: "0 0 4px", fontSize: 11, color: "var(--text-secondary)", fontFamily: "var(--font-body)", textTransform: "uppercase", letterSpacing: "0.06em" }}>{s.label}</p>
             <p style={{ margin: 0, fontSize: 26, fontWeight: 800, color: s.color, fontFamily: "var(--font-display)", letterSpacing: "-0.02em", lineHeight: 1 }}>{s.value}</p>
           </div>
@@ -289,7 +244,7 @@ export default function RHRecrutementPage() {
 
       {/* Liste */}
       {liste.length === 0 ? (
-        <div style={{ padding: "60px 24px", textAlign: "center", background: "rgba(13,26,16,0.5)", border: "1px dashed var(--bg-border)", borderRadius: 14 }}>
+        <div style={{ padding: "60px 24px", textAlign: "center", background: "var(--bg-elevated)", border: "1px dashed var(--bg-border)", borderRadius: 14 }}>
           <UserPlus size={32} style={{ color: "var(--text-muted)", marginBottom: 12 }} />
           <p style={{ margin: 0, fontSize: 15, color: "var(--text-secondary)", fontFamily: "var(--font-body)" }}>Aucun recrutement trouvé</p>
         </div>
@@ -301,9 +256,9 @@ export default function RHRecrutementPage() {
               <button
                 key={rec.id}
                 onClick={() => setSelectionne(rec)}
-                style={{ all: "unset", cursor: "pointer", display: "flex", alignItems: "center", gap: 16, padding: "18px 22px", background: "rgba(13,26,16,0.7)", border: "1px solid var(--bg-border)", borderRadius: 12, transition: "all 150ms", textAlign: "left" }}
-                onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#a78bfa"; e.currentTarget.style.background = "rgba(13,26,16,0.9)" }}
-                onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--bg-border)"; e.currentTarget.style.background = "rgba(13,26,16,0.7)" }}
+                style={{ all: "unset", cursor: "pointer", display: "flex", alignItems: "center", gap: 16, padding: "18px 22px", background: "var(--glass-card-bg)", border: "1px solid var(--bg-border)", borderRadius: 12, transition: "all 150ms", textAlign: "left" }}
+                onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#a78bfa"; e.currentTarget.style.background = "var(--bg-elevated)" }}
+                onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--bg-border)"; e.currentTarget.style.background = "var(--glass-card-bg)" }}
               >
                 <div style={{ width: 44, height: 44, borderRadius: 10, background: "rgba(167,139,250,0.10)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                   <Briefcase size={20} style={{ color: "#a78bfa" }} />
@@ -347,7 +302,7 @@ export default function RHRecrutementPage() {
       {/* ── Modal détail ── */}
       {selectionne && (
         <div
-          style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(8,15,11,0.85)", backdropFilter: "blur(8px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}
+          style={{ position: "fixed", inset: 0, zIndex: 1000, background: "var(--modal-overlay)", backdropFilter: "blur(8px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}
           onClick={(e) => { if (e.target === e.currentTarget) { setSelectionne(null); setActionConfirm(null); setCommentaire("") } }}
         >
           <div style={{ width: "100%", maxWidth: 560, background: "var(--bg-surface)", border: "1px solid var(--bg-border)", borderRadius: 16 }}>
@@ -390,7 +345,7 @@ export default function RHRecrutementPage() {
               )}
 
               {/* ── Zone d'approbation — DG et RAF ── */}
-              {(role === "Directrice" || role === "RAF") &&
+              {role && hasPermission(role, "canGererSanctions") &&
                !["VALIDE", "CLOTURE"].includes(selectionne.statut) && (
                 <div
                   style={{
@@ -464,7 +419,7 @@ export default function RHRecrutementPage() {
       {/* ── Modal formulaire ── */}
       {formulaireOuvert && (
         <div
-          style={{ position: "fixed", inset: 0, zIndex: 1000, background: "rgba(8,15,11,0.85)", backdropFilter: "blur(8px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}
+          style={{ position: "fixed", inset: 0, zIndex: 1000, background: "var(--modal-overlay)", backdropFilter: "blur(8px)", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}
           onClick={(e) => { if (e.target === e.currentTarget) { setForm(false); resetForm() } }}
         >
           <div style={{ width: "100%", maxWidth: 600, maxHeight: "90vh", overflowY: "auto", background: "var(--bg-surface)", border: "1px solid var(--bg-border)", borderRadius: 16, display: "flex", flexDirection: "column" }}>

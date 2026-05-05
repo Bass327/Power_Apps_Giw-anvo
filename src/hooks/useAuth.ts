@@ -15,8 +15,18 @@ export const useAuth = () => {
 
   const login = async (): Promise<void> => {
     if (isPowerAppsEnv()) return
-    // Toujours utiliser loginRedirect — les popups sont bloqués dans Teams et certains navigateurs
-    await msal.instance.loginRedirect({ ...loginRequest, redirectUri })
+    try {
+      // loginPopup : ouvre une vraie fenêtre — seul mode fiable dans Teams Desktop (Electron)
+      await msal.instance.loginPopup({ ...loginRequest, redirectUri })
+    } catch (popupErr: unknown) {
+      const msg = popupErr instanceof Error ? popupErr.message : String(popupErr)
+      // Popup bloqué (Teams Web iframe, navigateur strict) → fallback redirect
+      if (msg.includes("popup_window_error") || msg.includes("empty_window_error")) {
+        await msal.instance.loginRedirect({ ...loginRequest, redirectUri })
+      } else {
+        throw popupErr
+      }
+    }
   }
 
   const logout = (): void => {
@@ -48,9 +58,18 @@ export const useAuth = () => {
       const r = await msal.instance.acquireTokenSilent({ ...loginRequest, account: msalAccount })
       return r.accessToken
     } catch {
-      // Redirect pour le renouvellement de token — compatible Teams et navigateurs strict
-      await msal.instance.acquireTokenRedirect({ ...loginRequest, account: msalAccount })
-      throw new Error("Redirection en cours pour renouveler le token")
+      // Popup pour le renouvellement — évite la page blanche Teams (redirect en iframe)
+      try {
+        const r = await msal.instance.acquireTokenPopup({ ...loginRequest, account: msalAccount })
+        return r.accessToken
+      } catch (popupErr: unknown) {
+        const msg = popupErr instanceof Error ? popupErr.message : String(popupErr)
+        if (msg.includes("popup_window_error") || msg.includes("empty_window_error")) {
+          await msal.instance.acquireTokenRedirect({ ...loginRequest, account: msalAccount })
+          throw new Error("Redirection en cours pour renouveler le token")
+        }
+        throw popupErr
+      }
     }
   }
 
@@ -88,8 +107,17 @@ export const useAuth = () => {
       const r = await msal.instance.acquireTokenSilent(spRequest)
       return r.accessToken
     } catch {
-      await msal.instance.acquireTokenRedirect(spRequest)
-      throw new Error("Redirection en cours")
+      try {
+        const r = await msal.instance.acquireTokenPopup(spRequest)
+        return r.accessToken
+      } catch (popupErr: unknown) {
+        const msg = popupErr instanceof Error ? popupErr.message : String(popupErr)
+        if (msg.includes("popup_window_error") || msg.includes("empty_window_error")) {
+          await msal.instance.acquireTokenRedirect(spRequest)
+          throw new Error("Redirection en cours")
+        }
+        throw popupErr
+      }
     }
   }
 

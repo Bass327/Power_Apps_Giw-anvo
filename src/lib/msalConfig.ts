@@ -14,6 +14,8 @@ export const msalConfig: Configuration = {
     storeAuthStateInCookie: false,
   },
   system: {
+    // Nécessaire pour Teams Desktop (Electron webview détecté comme iframe par MSAL)
+    allowRedirectInIframe: true,
     loggerOptions: {
       loggerCallback: (level, message, containsPii) => {
         if (containsPii) return

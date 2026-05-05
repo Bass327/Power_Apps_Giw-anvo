@@ -32,8 +32,8 @@ export default function LoginPage() {
       if (msg.includes("user_cancelled")) {
         // L'utilisateur a annulé — pas une erreur à afficher
         setPopupError(null)
-      } else if (msg.includes("Redirection en cours")) {
-        // Redirection MSAL en cours — comportement normal, pas une erreur
+      } else if (msg.includes("Redirection en cours") || msg.includes("redirect_in_iframe")) {
+        // Redirection MSAL en cours (iframe Teams ou webview) — comportement normal
         return
       } else {
         setPopupError("Une erreur s'est produite lors de la connexion. Veuillez réessayer.")

@@ -7,6 +7,7 @@ import {
   updateStatutDemande,
 } from "@/services/sharepoint/demandesAchatsService"
 import { getListItemAttachments, type SPAttachment } from "@/lib/graphClient"
+import { sendNotificationsAsync } from "@/services/notificationService"
 import type {
   CreateDemandeAchatPayload,
   UpdateStatutPayload,
@@ -73,7 +74,18 @@ export function useCreateDemandeAchat() {
 
       const token   = await getToken()
       const spToken = fichiers && fichiers.length > 0 ? await getSharePointToken() : undefined
-      return createDemandeAchat(token, payload, statutAuto, fichiers, spToken)
+      const result  = await createDemandeAchat(token, payload, statutAuto, fichiers, spToken)
+
+      // Notification fire-and-forget (ne bloque pas la mutation)
+      if (soumettre && statutAuto !== "APPROUVE") {
+        sendNotificationsAsync(token, {
+          module:         "DEMANDE_ACHAT",
+          newStatut:      "SOUMIS",
+          submitterEmail: payload.demandeur,
+          titre:          payload.titre,
+        })
+      }
+      return result
     },
 
     onSuccess: (_, { soumettre, role, payload }) => {
@@ -108,13 +120,27 @@ export function useUpdateStatutDemande() {
       id,
       update,
       role,
+      demandeurEmail,
+      titre,
     }: {
-      id:     string
-      update: UpdateStatutPayload
-      role:   UserRole
+      id:              string
+      update:          UpdateStatutPayload
+      role:            UserRole
+      demandeurEmail?: string
+      titre?:          string
     }) => {
       const token = await getToken()
       await updateStatutDemande(token, id, update, role)
+
+      // Notification fire-and-forget
+      if (demandeurEmail && titre) {
+        sendNotificationsAsync(token, {
+          module:         "DEMANDE_ACHAT",
+          newStatut:      update.statut,
+          submitterEmail: demandeurEmail,
+          titre,
+        })
+      }
     },
 
     onSuccess: (_, { update }) => {

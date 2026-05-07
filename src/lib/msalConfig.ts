@@ -31,5 +31,6 @@ export const loginRequest = {
     "User.Read",
     "Sites.Read.All",
     "Sites.ReadWrite.All",
+    "TeamsActivity.Send",
   ],
 }

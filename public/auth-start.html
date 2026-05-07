@@ -13,12 +13,12 @@
   <script>
     (async function () {
       try {
-        const p       = new URLSearchParams(window.location.search)
+        const p        = new URLSearchParams(window.location.search)
         const clientId = p.get('c')
         const tenantId = p.get('t')
         const scopes   = p.get('s') || 'User.Read Sites.Read.All Sites.ReadWrite.All'
 
-        // ── PKCE : génération code_verifier + code_challenge ──────────────────
+        // ── PKCE : génération code_verifier + code_challenge ────────────────
         function base64url(buffer) {
           return btoa(String.fromCharCode(...new Uint8Array(buffer)))
             .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '')
@@ -30,11 +30,13 @@
         const codeChallenge = base64url(hashBuffer)
         const state         = base64url(crypto.getRandomValues(new Uint8Array(16)))
 
-        // Stockage pour auth-end.html (même fenêtre → même sessionStorage)
-        sessionStorage.setItem('pkce_verifier',   codeVerifier)
-        sessionStorage.setItem('pkce_state',      state)
-        sessionStorage.setItem('pkce_client_id',  clientId)
-        sessionStorage.setItem('pkce_tenant_id',  tenantId)
+        // localStorage : plus fiable que sessionStorage dans les popups Electron/Teams
+        // Desktop où le contexte de navigation peut être réinitialisé entre redirections.
+        const KEY = 'giwanvo_pkce_'
+        localStorage.setItem(KEY + 'verifier',   codeVerifier)
+        localStorage.setItem(KEY + 'state',      state)
+        localStorage.setItem(KEY + 'client_id',  clientId)
+        localStorage.setItem(KEY + 'tenant_id',  tenantId)
 
         const redirectUri = window.location.origin + '/auth-end.html'
 

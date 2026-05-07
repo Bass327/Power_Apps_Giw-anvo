@@ -29,16 +29,17 @@ export default function LoginPage() {
       // MSAL met à jour accounts → isAuthenticated devient true → Navigate s'affiche
     } catch (error: unknown) {
       const msg = error instanceof Error ? error.message : String(error)
-      if (msg.includes("user_cancelled")) {
-        // L'utilisateur a annulé — pas une erreur à afficher
-        setPopupError(null)
-      } else if (msg.includes("Redirection en cours") || msg.includes("redirect_in_iframe")) {
-        // Redirection MSAL en cours (iframe Teams ou webview) — comportement normal
+      if (
+        msg.includes("user_cancelled") ||
+        msg.includes("Redirection en cours") ||
+        msg.includes("redirect_in_iframe")
+      ) {
+        // Annulation utilisateur ou redirection en cours — pas d'erreur à afficher
         return
-      } else {
-        setPopupError("Une erreur s'est produite lors de la connexion. Veuillez réessayer.")
-        console.error("[Auth] Erreur login :", error)
       }
+      setPopupError("Une erreur s'est produite lors de la connexion. Veuillez réessayer.")
+      console.error("[Auth] Erreur login :", error)
+    } finally {
       setIsLoading(false)
     }
   }

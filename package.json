@@ -4,8 +4,9 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc -b && vite build",
+    "copy-assets": "node -e \"require('fs').copyFileSync('node_modules/@microsoft/teams-js/dist/umd/MicrosoftTeams.min.js','public/MicrosoftTeams.min.js')\"",
+    "dev": "npm run copy-assets && vite",
+    "build": "npm run copy-assets && tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview"
   },

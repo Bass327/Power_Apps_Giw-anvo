@@ -7,38 +7,68 @@
     body { background: #080f0b; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
     p { color: #7a9e87; font-family: sans-serif; font-size: 14px; }
   </style>
-  <script src="https://unpkg.com/@microsoft/teams-js@2.52.0/dist/MicrosoftTeams.min.js"></script>
+  <script src="/MicrosoftTeams.min.js"></script>
 </head>
 <body>
-  <p>Finalisation de la connexion…</p>
+  <p id="status">Finalisation de la connexion…</p>
   <script>
     (async function () {
-      await microsoftTeams.app.initialize()
+      const KEY_RESULT = 'giwanvo_pkce_result'
+      const KEY_ERROR  = 'giwanvo_pkce_error'
+      const KEY_PKCE   = 'giwanvo_pkce_'
 
+      // Ferme la popup dans tous les cas : notifySuccess/Failure pour Teams SDK,
+      // puis window.close() en secours si Teams ne la ferme pas lui-même.
+      const finish = (success, payload) => {
+        if (typeof microsoftTeams !== 'undefined') {
+          try {
+            microsoftTeams.app.initialize().catch(() => {})
+            if (success) {
+              microsoftTeams.authentication.notifySuccess(payload)
+            } else {
+              microsoftTeams.authentication.notifyFailure(payload)
+            }
+          } catch (_) {}
+        }
+        // Fermeture de secours dans 1.5 s si Teams ne ferme pas la popup
+        setTimeout(() => { try { window.close() } catch(_) {} }, 1500)
+      }
+
+      // ── Paramètres OAuth ────────────────────────────────────────────────
       const params = new URLSearchParams(window.location.search)
       const code   = params.get('code')
       const state  = params.get('state')
       const error  = params.get('error')
 
       if (error) {
-        microsoftTeams.authentication.notifyFailure(error + ': ' + (params.get('error_description') || ''))
+        const msg = error + ': ' + (params.get('error_description') || '')
+        localStorage.setItem(KEY_ERROR, msg)
+        finish(false, msg)
         return
       }
 
-      // Vérification anti-CSRF
-      const savedState = sessionStorage.getItem('pkce_state')
-      if (state !== savedState) {
-        microsoftTeams.authentication.notifyFailure('state_mismatch')
+      // ── Vérification anti-CSRF (localStorage partagé avec auth-start) ───
+      const savedState   = localStorage.getItem(KEY_PKCE + 'state')
+      const codeVerifier = localStorage.getItem(KEY_PKCE + 'verifier')
+      const clientId     = localStorage.getItem(KEY_PKCE + 'client_id')
+      const tenantId     = localStorage.getItem(KEY_PKCE + 'tenant_id')
+
+      // Nettoyage immédiat — données PKCE à usage unique
+      localStorage.removeItem(KEY_PKCE + 'state')
+      localStorage.removeItem(KEY_PKCE + 'verifier')
+      localStorage.removeItem(KEY_PKCE + 'client_id')
+      localStorage.removeItem(KEY_PKCE + 'tenant_id')
+
+      if (!savedState || state !== savedState) {
+        document.getElementById('status').textContent = 'Erreur : state_mismatch'
+        const msg = 'state_mismatch'
+        localStorage.setItem(KEY_ERROR, msg)
+        finish(false, msg)
         return
       }
 
-      const codeVerifier = sessionStorage.getItem('pkce_verifier')
-      const clientId     = sessionStorage.getItem('pkce_client_id')
-      const tenantId     = sessionStorage.getItem('pkce_tenant_id')
-      const redirectUri  = window.location.origin + '/auth-end.html'
-
+      // ── Échange code → access token (PKCE) ─────────────────────────────
       try {
-        // Échange code → access token (PKCE — pas de secret requis)
         const resp = await fetch(
           'https://login.microsoftonline.com/' + tenantId + '/oauth2/v2.0/token',
           {
@@ -47,25 +77,35 @@
             body: new URLSearchParams({
               client_id:     clientId,
               code:          code,
-              redirect_uri:  redirectUri,
+              redirect_uri:  window.location.origin + '/auth-end.html',
               grant_type:    'authorization_code',
               code_verifier: codeVerifier,
             }),
           }
         )
         const data = await resp.json()
+
         if (data.access_token) {
-          // Renvoi du token + date d'expiration à l'app principale
           const payload = JSON.stringify({
             accessToken: data.access_token,
             expiresIn:   data.expires_in ?? 3600,
           })
-          microsoftTeams.authentication.notifySuccess(payload)
+          // Stocke dans localStorage AVANT d'appeler finish() :
+          // la fenêtre principale peut lire le résultat via l'événement storage
+          // même si notifySuccess ne fonctionne pas dans ce contexte Teams.
+          localStorage.setItem(KEY_RESULT, payload)
+          finish(true, payload)
         } else {
-          microsoftTeams.authentication.notifyFailure(data.error || 'no_access_token')
+          const msg = (data.error || 'no_access_token') + ': ' + (data.error_description || '')
+          document.getElementById('status').textContent = 'Erreur : ' + msg
+          localStorage.setItem(KEY_ERROR, msg)
+          finish(false, msg)
         }
       } catch (err) {
-        microsoftTeams.authentication.notifyFailure('fetch_failed: ' + err.message)
+        const msg = 'fetch_failed: ' + err.message
+        document.getElementById('status').textContent = 'Erreur : ' + msg
+        localStorage.setItem(KEY_ERROR, msg)
+        finish(false, msg)
       }
     })()
   </script>

@@ -3,7 +3,6 @@
   "manifestVersion": "1.17",
   "version": "1.0.0",
   "id": "8e3c7f2a-1d5b-4a9e-b6c8-3f0d2e4a7c1b",
-  "packageName": "com.giw-anvo.gestion-interne",
   "developer": {
     "name": "GIW'ANVO Energy",
     "websiteUrl": "https://power-apps-giw-anvo.vercel.app",

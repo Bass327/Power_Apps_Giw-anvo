@@ -1,7 +1,7 @@
 import { useMsal } from "@azure/msal-react"
 import { loginRequest } from "@/lib/msalConfig"
 import { isPowerAppsEnv, tryGetTokenFromBridge } from "@/lib/powerAppsBridge"
-import { detectTeams, teamsLogin, getStoredTeamsToken, clearTeamsToken } from "@/lib/teamsAuth"
+import { detectTeams, teamsLogin, getStoredTeamsToken, clearTeamsToken, notifyTeamsReady } from "@/lib/teamsAuth"
 
 const MSAL_STUB = { instance: null as never, accounts: [] as never[] }
 
@@ -25,7 +25,8 @@ export const useAuth = () => {
       const clientId = import.meta.env.VITE_CLIENT_ID as string
       const tenantId = import.meta.env.VITE_TENANT_ID as string
       await teamsLogin(clientId, tenantId)
-      // Redirection vers le dashboard après stockage du token
+      // Auth réussie → signale à Teams que l'app est entièrement prête
+      notifyTeamsReady()
       window.location.replace("/")
       return
     }

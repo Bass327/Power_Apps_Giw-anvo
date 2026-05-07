@@ -10,8 +10,10 @@ export const msalConfig: Configuration = {
     redirectUri: window.location.origin + "/",
   },
   cache: {
-    cacheLocation:          "sessionStorage",
-    storeAuthStateInCookie: false,
+    // localStorage : le compte et le refresh token survivent à la fermeture du navigateur
+    // → MSAL renouvelle silencieusement l'access token sans redemander les credentials
+    cacheLocation:          "localStorage",
+    storeAuthStateInCookie: true,
   },
   system: {
     // Nécessaire pour Teams Desktop (Electron webview détecté comme iframe par MSAL)

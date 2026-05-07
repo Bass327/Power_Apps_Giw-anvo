@@ -1,5 +1,6 @@
 import * as microsoftTeams from "@microsoft/teams-js"
 
+// localStorage : le token survit aux rechargements de l'iframe Teams et aux fermetures de session
 const TEAMS_TOKEN_KEY = "giwanvo.teams.token"
 const TEAMS_TOKEN_EXP = "giwanvo.teams.token.exp"
 
@@ -80,8 +81,8 @@ export function teamsLogin(clientId: string, tenantId: string): Promise<void> {
         accessToken: string
         expiresIn:   number
       }
-      sessionStorage.setItem(TEAMS_TOKEN_KEY, accessToken)
-      sessionStorage.setItem(TEAMS_TOKEN_EXP, String(Date.now() + expiresIn * 1000))
+      localStorage.setItem(TEAMS_TOKEN_KEY, accessToken)
+      localStorage.setItem(TEAMS_TOKEN_EXP, String(Date.now() + expiresIn * 1000))
       localStorage.removeItem(LS_RESULT)
     }
 
@@ -124,13 +125,13 @@ export function teamsLogin(clientId: string, tenantId: string): Promise<void> {
 /** Retourne le token Teams stocké, ou null s'il est absent / expiré. */
 export function getStoredTeamsToken(): string | null {
   try {
-    const token = sessionStorage.getItem(TEAMS_TOKEN_KEY)
-    const exp   = sessionStorage.getItem(TEAMS_TOKEN_EXP)
+    const token = localStorage.getItem(TEAMS_TOKEN_KEY)
+    const exp   = localStorage.getItem(TEAMS_TOKEN_EXP)
     if (!token || !exp) return null
     // Marge de 2 min pour éviter d'utiliser un token quasi-expiré
     if (Date.now() > parseInt(exp) - 120_000) {
-      sessionStorage.removeItem(TEAMS_TOKEN_KEY)
-      sessionStorage.removeItem(TEAMS_TOKEN_EXP)
+      localStorage.removeItem(TEAMS_TOKEN_KEY)
+      localStorage.removeItem(TEAMS_TOKEN_EXP)
       return null
     }
     return token
@@ -139,6 +140,6 @@ export function getStoredTeamsToken(): string | null {
 
 /** Supprime le token Teams (déconnexion). */
 export function clearTeamsToken(): void {
-  sessionStorage.removeItem(TEAMS_TOKEN_KEY)
-  sessionStorage.removeItem(TEAMS_TOKEN_EXP)
+  localStorage.removeItem(TEAMS_TOKEN_KEY)
+  localStorage.removeItem(TEAMS_TOKEN_EXP)
 }

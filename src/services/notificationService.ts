@@ -1,6 +1,5 @@
 import { getListItems, graphMutate } from "@/lib/graphClient"
 
-const APP_URL    = "https://power-apps-giw-anvo.vercel.app"
 const TEAMS_LINK = "https://teams.microsoft.com/l/entity/8e3c7f2a-1d5b-4a9e-b6c8-3f0d2e4a7c1b/giwanvo-accueil"
 
 // ─── Cache utilisateurs (TTL 5 min) ─────────────────────────────────────────

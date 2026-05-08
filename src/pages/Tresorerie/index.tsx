@@ -208,10 +208,13 @@ export default function TresoreriePage() {
     if (!decActif || !actionCourante) return
     updateDec(
       {
-        id:          decActif.id,
-        statut:      actionCourante.statut,
-        commentaire: commentaire.trim() || undefined,
-        reference:   reference.trim()   || undefined,
+        id:             decActif.id,
+        statut:         actionCourante.statut,
+        commentaire:    commentaire.trim() || undefined,
+        reference:      reference.trim()   || undefined,
+        demandeurEmail: decActif.demandeur,
+        montant:        decActif.montant,
+        titre:          decActif.titre,
       },
       {
         onSuccess: () => {

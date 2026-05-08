@@ -259,14 +259,26 @@ function DirectriceDashboard({ prenom }: { prenom: string }) {
 
   function handleApprouver(demande: DemandeAchat, commentaire: string) {
     mutate(
-      { id: demande.id, update: { statut: "APPROUVE", commentaire }, role: "Directrice" },
+      {
+        id:             demande.id,
+        update:         { statut: "APPROUVE", commentaire },
+        role:           "Directrice",
+        demandeurEmail: demande.demandeur,
+        titre:          demande.titre,
+      },
       { onSuccess: () => setDemandeSelectee(null) },
     )
   }
 
   function handleRejeter(demande: DemandeAchat, commentaire: string) {
     mutate(
-      { id: demande.id, update: { statut: "REJETE", commentaire }, role: "Directrice" },
+      {
+        id:             demande.id,
+        update:         { statut: "REJETE", commentaire },
+        role:           "Directrice",
+        demandeurEmail: demande.demandeur,
+        titre:          demande.titre,
+      },
       { onSuccess: () => setDemandeSelectee(null) },
     )
   }
@@ -770,14 +782,26 @@ function ChefDeptDashboard({ prenom }: { prenom: string }) {
 
   function handleValider(demande: DemandeAchat, commentaire: string) {
     mutate(
-      { id: demande.id, update: { statut: "VALIDE_CHEF", commentaire }, role: "Chef Dept." },
+      {
+        id:             demande.id,
+        update:         { statut: "VALIDE_CHEF", commentaire },
+        role:           "Chef Dept.",
+        demandeurEmail: demande.demandeur,
+        titre:          demande.titre,
+      },
       { onSuccess: () => setDemandeSelectee(null) },
     )
   }
 
   function handleRejeter(demande: DemandeAchat, commentaire: string) {
     mutate(
-      { id: demande.id, update: { statut: "REJETE", commentaire }, role: "Chef Dept." },
+      {
+        id:             demande.id,
+        update:         { statut: "REJETE", commentaire },
+        role:           "Chef Dept.",
+        demandeurEmail: demande.demandeur,
+        titre:          demande.titre,
+      },
       { onSuccess: () => setDemandeSelectee(null) },
     )
   }

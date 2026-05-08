@@ -84,9 +84,11 @@ export function DetailDemandeAchat({ demande, open, onClose }: Props) {
 
     mutate(
       {
-        id:     demande.id,
-        update: { statut: nouveauStatut, commentaire },
+        id:             demande.id,
+        update:         { statut: nouveauStatut, commentaire },
         role,
+        demandeurEmail: demande.demandeur,
+        titre:          demande.titre,
       },
       {
         onSuccess: () => {

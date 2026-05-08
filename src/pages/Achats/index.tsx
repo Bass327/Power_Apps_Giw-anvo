@@ -11,7 +11,7 @@ import type { DemandeAchat, StatutDemande } from "@/types/DemandeAchat"
 import { STATUT_CONFIG } from "@/types/DemandeAchat"
 import type { UserRole } from "@/types/user"
 import { hasPermission } from "@/lib/permissions"
-import { formatFCFA, formatFCFAShort, formatDateFr } from "@/lib/utils"
+import { formatFCFA, formatDateFr } from "@/lib/utils"
 import { FormulaireDemandeAchat } from "./components/FormulaireDemandeAchat"
 import { DetailDemandeAchat } from "./components/DetailDemandeAchat"
 
@@ -185,7 +185,7 @@ export default function AchatsPage() {
         { label: "Soldées",     value: demandes.filter((d) => d.statut === "SOLDE").length },
         {
           label: "Volume traité",
-          value: formatFCFAShort(
+          value: formatFCFA(
             demandes
               .filter((d) => d.statut === "SOLDE" || d.statut === "EN_PAIEMENT")
               .reduce((sum, d) => sum + d.montant, 0),
@@ -208,7 +208,7 @@ export default function AchatsPage() {
         { label: "Rejetées / mois",  value: demandes.filter((d) => d.statut === "REJETE" && duMois(d)).length },
         {
           label: "Volume approuvé",
-          value: formatFCFAShort(
+          value: formatFCFA(
             demandes
               .filter((d) => d.statut === "APPROUVE" && duMois(d))
               .reduce((sum, d) => sum + d.montant, 0),
@@ -229,7 +229,7 @@ export default function AchatsPage() {
         value: mesDemandes
           .filter((d) => d.statut === "APPROUVE" || d.statut === "SOLDE")
           .reduce((sum, d) => sum + d.montant, 0) > 0
-          ? formatFCFAShort(mesDemandes
+          ? formatFCFA(mesDemandes
               .filter((d) => d.statut === "APPROUVE" || d.statut === "SOLDE")
               .reduce((sum, d) => sum + d.montant, 0))
           : "—",
@@ -273,7 +273,7 @@ export default function AchatsPage() {
           Tableau de bord
         </button>
 
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-y-3">
           <div className="flex items-center gap-3">
             <div
               className="p-2.5 rounded-xl"
@@ -311,7 +311,7 @@ export default function AchatsPage() {
         </div>
 
         {/* ── Statistiques rapides ── */}
-        <div className="grid grid-cols-4 gap-3 mt-5">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-5">
           {stats.map(({ label, value, raw }) => (
             <div
               key={label}
@@ -334,7 +334,7 @@ export default function AchatsPage() {
 
       {/* ── Onglets ── */}
       <div
-        className="px-6 flex items-center gap-1 pt-4"
+        className="px-6 flex items-center gap-1 pt-4 overflow-x-auto"
         style={{ borderBottom: "1px solid var(--bg-border)" }}
       >
         {onglets.map(({ id, label, icon }) => {
@@ -473,10 +473,10 @@ export default function AchatsPage() {
 
         {!isLoading && !isError && demandesFiltrees.length > 0 && (
           <div
-            className="rounded-xl overflow-hidden"
+            className="rounded-xl overflow-x-auto"
             style={{ border: "1px solid var(--bg-border)" }}
           >
-            <table style={{ width: "100%", borderCollapse: "collapse", tableLayout: "fixed" }}>
+            <table style={{ width: "100%", minWidth: "640px", borderCollapse: "collapse", tableLayout: "fixed" }}>
               {/* Largeurs fixes des colonnes pour éviter les débordements */}
               <colgroup>
                 <col style={{ width: "32%" }} />

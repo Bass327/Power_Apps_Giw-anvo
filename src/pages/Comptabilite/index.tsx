@@ -23,18 +23,6 @@ function formatFCFA(n: number) {
   return n.toLocaleString("fr-FR") + " FCFA"
 }
 
-function formatFCFAShort(n: number): string {
-  if (n >= 1_000_000) {
-    const v = n / 1_000_000
-    return (Number.isInteger(v) ? v : v.toFixed(1).replace(".", ",")) + "\u00A0M FCFA"
-  }
-  if (n >= 1_000) {
-    const v = n / 1_000
-    return (Number.isInteger(v) ? v : v.toFixed(1).replace(".", ",")) + "\u00A0K FCFA"
-  }
-  return n + "\u00A0FCFA"
-}
-
 function formatDate(iso: string) {
   if (!iso) return "—"
   return new Date(iso).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" })
@@ -388,13 +376,13 @@ export default function ComptabilitePage() {
 
       {/* ── Stats mensuelles ── */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <StatCard label="Entrées du mois" value={formatFCFAShort(stats.totalEntrees)}
+        <StatCard label="Entrées du mois" value={formatFCFA(stats.totalEntrees)}
           sub={`${mouvementsDuMois.filter(m => m.entree > 0).length} op.`}
           icon={TrendingUp} color="#22c55e" />
-        <StatCard label="Sorties du mois" value={formatFCFAShort(stats.totalSorties)}
+        <StatCard label="Sorties du mois" value={formatFCFA(stats.totalSorties)}
           sub={`${mouvementsDuMois.filter(m => m.sortie > 0).length} op.`}
           icon={TrendingDown} color="#ef4444" />
-        <StatCard label="Solde net" value={formatFCFAShort(stats.solde)}
+        <StatCard label="Solde net" value={formatFCFA(stats.solde)}
           sub={stats.solde >= 0 ? "Excédent" : "Déficit"}
           icon={Wallet} color={stats.solde >= 0 ? "#60a5fa" : "#ef4444"} />
         <StatCard label="Opérations" value={String(stats.nbOps)}
@@ -439,7 +427,7 @@ export default function ComptabilitePage() {
                 Aucun mouvement ce mois
               </p>
             ) : (
-              <div className="grid grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 {(["CAISSE", "DECAISSEMENT"] as const).map(src => {
                   const filtered = mouvementsDuMois.filter(m => m.source === src)
                   const totalE = filtered.reduce((s, m) => s + m.entree, 0)
@@ -717,14 +705,14 @@ export default function ComptabilitePage() {
         <div className="space-y-5">
           {/* KPIs annuels */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <StatCard label="Entrées annuelles" value={formatFCFAShort(totalAnnuel.entrees)}
+            <StatCard label="Entrées annuelles" value={formatFCFA(totalAnnuel.entrees)}
               sub={`Année ${anneeCourante}`} icon={TrendingUp} color="#22c55e" />
-            <StatCard label="Sorties annuelles" value={formatFCFAShort(totalAnnuel.sorties)}
+            <StatCard label="Sorties annuelles" value={formatFCFA(totalAnnuel.sorties)}
               sub={`Année ${anneeCourante}`} icon={TrendingDown} color="#ef4444" />
-            <StatCard label="Résultat net" value={formatFCFAShort(totalAnnuel.entrees - totalAnnuel.sorties)}
+            <StatCard label="Résultat net" value={formatFCFA(totalAnnuel.entrees - totalAnnuel.sorties)}
               sub={totalAnnuel.entrees - totalAnnuel.sorties >= 0 ? "Bénéfice" : "Perte"}
               icon={Wallet} color={totalAnnuel.entrees >= totalAnnuel.sorties ? "#60a5fa" : "#ef4444"} />
-            <StatCard label="Budget approuvé" value={formatFCFAShort(budgetAnnuel)}
+            <StatCard label="Budget approuvé" value={formatFCFA(budgetAnnuel)}
               sub={`${lignesBudget.filter(l => l.annee === anneeCourante && l.statut === "APPROUVE").length} lignes`}
               icon={CheckCircle2} color="#4ade80" />
           </div>

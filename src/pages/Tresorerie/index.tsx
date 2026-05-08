@@ -262,7 +262,7 @@ export default function TresoreriePage() {
           <ArrowLeft className="w-4 h-4" />
           Tableau de bord
         </button>
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-y-3">
           <div className="flex items-center gap-3">
             <div className="p-2.5 rounded-xl" style={{ background: "rgba(52,211,153,0.12)", border: "1px solid rgba(52,211,153,0.20)" }}>
               <Wallet className="w-5 h-5" style={{ color: "#34d399" }} />
@@ -311,7 +311,7 @@ export default function TresoreriePage() {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-4 gap-3 mt-5">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-5">
           {(onglet === "decaissements" ? statsDecaissements : statsCaisse).map(({ label, value, color }) => (
             <div key={label} className="rounded-xl px-4 py-3" style={{ background: "var(--bg-surface)", border: "1px solid var(--bg-border)" }}>
               <p className="text-xs font-display font-semibold uppercase tracking-widest truncate" style={{ color: "var(--text-muted)" }}>{label}</p>
@@ -324,7 +324,7 @@ export default function TresoreriePage() {
       </div>
 
       {/* Onglets */}
-      <div className="px-6 flex items-center gap-1 pt-4" style={{ borderBottom: "1px solid var(--bg-border)" }}>
+      <div className="px-6 flex items-center gap-1 pt-4 overflow-x-auto" style={{ borderBottom: "1px solid var(--bg-border)" }}>
         {([
           { id: "decaissements", label: "Décaissements",     icon: <Building2      className="w-4 h-4" /> },
           { id: "caisse",        label: "Journal de caisse", icon: <Banknote       className="w-4 h-4" /> },
@@ -403,8 +403,8 @@ export default function TresoreriePage() {
             />
           )}
           {!loadDec && !errDec && decFiltres.length > 0 && (
-            <div className="rounded-xl overflow-hidden" style={{ border: "1px solid var(--bg-border)" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", tableLayout: "fixed" }}>
+            <div className="rounded-xl overflow-x-auto" style={{ border: "1px solid var(--bg-border)" }}>
+              <table style={{ width: "100%", minWidth: "680px", borderCollapse: "collapse", tableLayout: "fixed" }}>
                 <colgroup>
                   <col style={{ width: "28%" }} />
                   <col style={{ width: "16%" }} />
@@ -521,8 +521,8 @@ export default function TresoreriePage() {
             </div>
           )}
           {!loadCaisse && !errCaisse && opsFiltrees.length > 0 && (
-            <div className="rounded-xl overflow-hidden" style={{ border: "1px solid var(--bg-border)" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", tableLayout: "fixed" }}>
+            <div className="rounded-xl overflow-x-auto" style={{ border: "1px solid var(--bg-border)" }}>
+              <table style={{ width: "100%", minWidth: "640px", borderCollapse: "collapse", tableLayout: "fixed" }}>
                 <colgroup>
                   <col style={{ width: "11%" }} />
                   <col style={{ width: "14%" }} />

@@ -38,18 +38,6 @@ function formatFCFA(n: number) {
   return n.toLocaleString("fr-FR") + " FCFA"
 }
 
-function formatFCFAShort(n: number): string {
-  if (n >= 1_000_000) {
-    const v = n / 1_000_000
-    return (Number.isInteger(v) ? v : v.toFixed(1).replace(".", ",")) + "\u00A0M FCFA"
-  }
-  if (n >= 1_000) {
-    const v = n / 1_000
-    return (Number.isInteger(v) ? v : v.toFixed(1).replace(".", ",")) + "\u00A0K FCFA"
-  }
-  return n + "\u00A0FCFA"
-}
-
 function pct(part: number, total: number) {
   if (total === 0) return 0
   return Math.min(100, Math.round((part / total) * 100))
@@ -624,13 +612,13 @@ export default function BudgetPage() {
 
       {/* ── Stats ── */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <StatCard label="Budget PAB" value={formatFCFAShort(stats.totalPAB)} sub={`${lignesFiltrees.length} lignes`}
+        <StatCard label="Budget PAB" value={formatFCFA(stats.totalPAB)} sub={`${lignesFiltrees.length} lignes`}
           icon={FileText} color="#4ade80" />
-        <StatCard label="Engagé" value={formatFCFAShort(stats.totalEngage)} sub={`${pct(stats.totalEngage, stats.totalRevise)}% du budget`}
+        <StatCard label="Engagé" value={formatFCFA(stats.totalEngage)} sub={`${pct(stats.totalEngage, stats.totalRevise)}% du budget`}
           icon={TrendingUp} color="#f0a500" />
-        <StatCard label="Réalisé" value={formatFCFAShort(stats.totalRealise)} sub={`Taux d'exécution ${stats.tauxExecution}%`}
+        <StatCard label="Réalisé" value={formatFCFA(stats.totalRealise)} sub={`Taux d'exécution ${stats.tauxExecution}%`}
           icon={CheckCircle2} color="#22c55e" />
-        <StatCard label="Disponible" value={formatFCFAShort(stats.totalDispo)} sub="Budget non consommé"
+        <StatCard label="Disponible" value={formatFCFA(stats.totalDispo)} sub="Budget non consommé"
           icon={Wallet} color="#60a5fa" />
       </div>
 
@@ -898,7 +886,7 @@ export default function BudgetPage() {
             <h3 className="text-sm font-bold font-display mb-4" style={{ color: "var(--text-primary)" }}>
               Indicateurs de performance budgétaire
             </h3>
-            <div className="grid grid-cols-3 gap-6 text-center">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 text-center">
               {[
                 { label: "Taux d'exécution global", value: `${stats.tauxExecution}%`,
                   color: stats.tauxExecution > 90 ? "#ef4444" : stats.tauxExecution > 70 ? "#f0a500" : "#22c55e" },

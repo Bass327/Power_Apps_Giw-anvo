@@ -10,7 +10,7 @@ import { useDemandesAchats } from "@/hooks/useDemandesAchats"
 import { useUpdateStatutDemande } from "@/hooks/useDemandesAchats"
 import type { DemandeAchat } from "@/types/DemandeAchat"
 import { STATUT_CONFIG, LABEL_TYPE_DEMANDE, LABEL_JUSTIFICATION_OP, TYPE_CONFIG } from "@/types/DemandeAchat"
-import { formatFCFA, formatFCFAShort, formatDateFr } from "@/lib/utils"
+import { formatFCFA, formatDateFr } from "@/lib/utils"
 import { canAccessModule } from "@/lib/permissions"
 import type { UserRole } from "@/types/user"
 
@@ -294,7 +294,7 @@ function DirectriceDashboard({ prenom }: { prenom: string }) {
     },
     {
       label:  "Montant engagé ce mois",
-      value:  montantMois > 0 ? formatFCFAShort(montantMois) : "—",
+      value:  montantMois > 0 ? formatFCFA(montantMois) : "—",
       color:  "var(--gold-warm)",
       bg:     "rgba(240,165,0,0.08)",
       border: "rgba(240,165,0,0.20)",
@@ -367,7 +367,7 @@ function DirectriceDashboard({ prenom }: { prenom: string }) {
         <p className="text-[10px] font-semibold uppercase tracking-widest mb-4 font-display" style={{ color: "var(--green-mid)" }}>
           Indicateurs direction
         </p>
-        <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
           {kpis.map((kpi) => (
             <DashboardKpiCard
               key={kpi.label}
@@ -817,7 +817,7 @@ function ChefDeptDashboard({ prenom }: { prenom: string }) {
     },
     {
       label:  "Montant validé ce mois",
-      value:  montantValideMois > 0 ? formatFCFAShort(montantValideMois) : "—",
+      value:  montantValideMois > 0 ? formatFCFA(montantValideMois) : "—",
       color:  "var(--gold-warm)",
       bg:     "rgba(240,165,0,0.08)",
       border: "rgba(240,165,0,0.20)",
@@ -888,7 +888,7 @@ function ChefDeptDashboard({ prenom }: { prenom: string }) {
         <p className="text-[10px] font-semibold uppercase tracking-widest mb-4 font-display" style={{ color: "var(--green-mid)" }}>
           Indicateurs
         </p>
-        <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
           {kpis.map((kpi) => (
             <DashboardKpiCard
               key={kpi.label}
@@ -1025,6 +1025,218 @@ function ChefDeptDashboard({ prenom }: { prenom: string }) {
   )
 }
 
+/* ════════════════════════════════════════════════
+   ComptableDashboard — vue dédiée au Comptable
+   ════════════════════════════════════════════════ */
+function ComptableDashboard({ prenom }: { prenom: string }) {
+  const { data: demandes = [], isLoading } = useDemandesAchats()
+  const { mutate, isPending }              = useUpdateStatutDemande()
+
+  const aTraiter      = demandes.filter((d) => d.statut === "APPROUVE")
+  const enPaiement    = demandes.filter((d) => d.statut === "EN_PAIEMENT")
+  const soldees       = demandes.filter((d) => d.statut === "SOLDE")
+  const volumeATraiter = aTraiter.reduce((sum, d) => sum + d.montant, 0)
+
+  const kpis = [
+    {
+      label:  "À traiter",
+      value:  aTraiter.length,
+      color:  "#ef4444",
+      bg:     "rgba(239,68,68,0.08)",
+      border: "rgba(239,68,68,0.20)",
+      icon:   <Clock className="w-5 h-5" style={{ color: "#ef4444" }} />,
+    },
+    {
+      label:  "Volume à traiter",
+      value:  volumeATraiter > 0 ? formatFCFA(volumeATraiter) : "—",
+      color:  "var(--gold-warm)",
+      bg:     "rgba(240,165,0,0.08)",
+      border: "rgba(240,165,0,0.20)",
+      icon:   <Banknote className="w-5 h-5" style={{ color: "var(--gold-warm)" }} />,
+    },
+    {
+      label:  "En paiement",
+      value:  enPaiement.length,
+      color:  "#3b82f6",
+      bg:     "rgba(59,130,246,0.08)",
+      border: "rgba(59,130,246,0.20)",
+      icon:   <CheckCircle className="w-5 h-5" style={{ color: "#3b82f6" }} />,
+    },
+    {
+      label:  "Soldées",
+      value:  soldees.length,
+      color:  "#22c55e",
+      bg:     "rgba(34,197,94,0.08)",
+      border: "rgba(34,197,94,0.20)",
+      icon:   <CheckCircle className="w-5 h-5" style={{ color: "#22c55e" }} />,
+    },
+  ]
+
+  return (
+    <div className="space-y-8 max-w-6xl">
+
+      {/* Hero */}
+      <div
+        className="relative overflow-hidden rounded-2xl animate-fade-in"
+        style={{
+          padding:        "20px 32px",
+          background:     "var(--glass-card-bg)",
+          backdropFilter: "blur(12px)",
+          border:         "1px solid var(--bg-border)",
+        }}
+      >
+        <div
+          className="absolute -top-16 -right-16 w-56 h-56 rounded-full pointer-events-none"
+          style={{ background: "radial-gradient(circle, rgba(240,165,0,0.10) 0%, transparent 70%)" }}
+        />
+        <div className="relative">
+          <p className="text-xs font-semibold font-display uppercase tracking-widest mb-2" style={{ color: "var(--gold-warm)" }}>
+            ◉ Vue Comptable
+          </p>
+          <h2 className="font-display font-bold leading-tight mb-1.5" style={{ fontSize: 30, color: "var(--text-primary)" }}>
+            Bonjour, {prenom}
+          </h2>
+          <p className="text-sm leading-relaxed" style={{ color: "var(--text-secondary)", maxWidth: "480px" }}>
+            Paiements en attente de traitement — GIW'ANVO Energy
+          </p>
+        </div>
+      </div>
+
+      {/* KPIs */}
+      <div>
+        <p className="text-[10px] font-semibold uppercase tracking-widest mb-4 font-display" style={{ color: "var(--green-mid)" }}>
+          Indicateurs paiements
+        </p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+          {kpis.map((kpi) => (
+            <DashboardKpiCard
+              key={kpi.label}
+              label={kpi.label}
+              value={kpi.value}
+              color={kpi.color}
+              bg={kpi.bg}
+              border={kpi.border}
+              icon={kpi.icon}
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* Demandes approuvées par la DG — à mettre en paiement */}
+      <div>
+        <p className="text-[10px] font-semibold uppercase tracking-widest mb-4 font-display" style={{ color: "var(--green-mid)" }}>
+          Demandes approuvées — en attente de paiement
+        </p>
+
+        {isLoading && (
+          <div className="flex items-center gap-2 py-6" style={{ color: "var(--text-muted)" }}>
+            <Loader2 className="w-4 h-4 animate-spin" />
+            <span className="text-sm">Chargement…</span>
+          </div>
+        )}
+
+        {!isLoading && aTraiter.length === 0 && (
+          <div
+            className="flex items-center justify-center py-10 rounded-xl"
+            style={{ background: "var(--bg-surface)", border: "1px solid var(--bg-border)" }}
+          >
+            <div className="text-center">
+              <CheckCircle className="w-8 h-8 mx-auto mb-2" style={{ color: "var(--green-vivid)" }} />
+              <p className="text-sm font-display font-medium" style={{ color: "var(--text-secondary)" }}>
+                Aucune demande en attente de paiement
+              </p>
+            </div>
+          </div>
+        )}
+
+        {!isLoading && aTraiter.length > 0 && (
+          <div className="rounded-xl overflow-hidden" style={{ border: "1px solid var(--bg-border)" }}>
+            {aTraiter
+              .sort((a, b) => new Date(a.dateDemande).getTime() - new Date(b.dateDemande).getTime())
+              .map((demande, i) => (
+                <div
+                  key={demande.id}
+                  className="px-5 py-4 flex items-center gap-4 flex-wrap"
+                  style={{
+                    background:   i % 2 === 0 ? "var(--bg-surface)" : "var(--bg-elevated)",
+                    borderBottom: "1px solid var(--bg-border)",
+                    borderLeft:   "3px solid rgba(34,197,94,0.60)",
+                  }}
+                >
+                  <CheckCircle className="w-5 h-5 flex-shrink-0" style={{ color: "#22c55e" }} />
+
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-0.5 flex-wrap">
+                      {demande.typeDemande && (
+                        <span
+                          className="flex-shrink-0 text-xs font-display font-semibold px-2 py-0.5 rounded-full"
+                          style={{ background: "rgba(139,92,246,0.10)", color: "#a78bfa", border: "1px solid rgba(139,92,246,0.25)" }}
+                        >
+                          {LABEL_TYPE_DEMANDE[demande.typeDemande]}
+                        </span>
+                      )}
+                      <p className="text-sm font-display font-semibold truncate flex-1 min-w-0" style={{ color: "var(--text-primary)" }}>
+                        {demande.titre}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+                        {demande.demandeur.split("@")[0]} · {formatDateFr(demande.dateDemande)}
+                      </p>
+                      <span className="text-xs font-display font-semibold" style={{ color: "var(--gold-warm)" }}>
+                        {formatFCFA(demande.montant)}
+                      </span>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() =>
+                      mutate({
+                        id:             demande.id,
+                        update:         { statut: "EN_PAIEMENT", commentaire: "" },
+                        role:           "Comptable",
+                        demandeurEmail: demande.demandeur,
+                        titre:          demande.titre,
+                      })
+                    }
+                    disabled={isPending}
+                    className="flex-shrink-0 flex items-center gap-1.5 text-xs font-display font-semibold px-3 py-1.5 rounded-lg transition-all disabled:opacity-50"
+                    style={{
+                      background: "linear-gradient(135deg, var(--gold-warm), var(--gold-bright))",
+                      color:      "var(--text-inverse)",
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.filter = "brightness(1.1)" }}
+                    onMouseLeave={(e) => { e.currentTarget.style.filter = "brightness(1)" }}
+                  >
+                    {isPending
+                      ? <Loader2 className="w-3 h-3 animate-spin" />
+                      : <CheckCircle className="w-3 h-3" />
+                    }
+                    <span className="hidden sm:inline">Mettre en paiement</span>
+                    <span className="sm:hidden">Payer</span>
+                  </button>
+                </div>
+              ))}
+          </div>
+        )}
+      </div>
+
+      {/* Modules */}
+      <div>
+        <p className="text-[10px] font-semibold uppercase tracking-widest mb-4 font-display" style={{ color: "var(--green-mid)" }}>
+          Accès rapide
+        </p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+          {ALL_MODULES.map((mod, index) => (
+            <ModuleCard key={mod.path} {...mod} index={index} />
+          ))}
+        </div>
+      </div>
+
+    </div>
+  )
+}
+
 /* ── Sous-titre selon le rôle ── */
 const ROLE_SUBTITLE: Partial<Record<UserRole, string>> = {
   "Employé":   "Gérez vos demandes personnelles — congés, missions, achats.",
@@ -1055,6 +1267,11 @@ export default function HomePage() {
   // Dashboard dédié pour le Chef de Département
   if (!isLoading && role === "Chef Dept.") {
     return <ChefDeptDashboard prenom={firstName} />
+  }
+
+  // Dashboard dédié pour le Comptable
+  if (!isLoading && role === "Comptable") {
+    return <ComptableDashboard prenom={firstName} />
   }
 
   const subtitle = (role && ROLE_SUBTITLE[role]) ??

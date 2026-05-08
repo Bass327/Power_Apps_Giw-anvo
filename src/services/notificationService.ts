@@ -1,6 +1,7 @@
 import { getListItems, graphMutate } from "@/lib/graphClient"
 
-const APP_URL = "https://power-apps-giw-anvo.vercel.app"
+const APP_URL    = "https://power-apps-giw-anvo.vercel.app"
+const TEAMS_LINK = "https://teams.microsoft.com/l/entity/8e3c7f2a-1d5b-4a9e-b6c8-3f0d2e4a7c1b/giwanvo-accueil"
 
 // ─── Cache utilisateurs (TTL 5 min) ─────────────────────────────────────────
 interface CachedUser {
@@ -16,9 +17,9 @@ interface SPUserFields {
   Actif:             string
 }
 
-let _usersCache:    CachedUser[] | null = null
-let _usersCacheAt   = 0
-const CACHE_TTL     = 5 * 60 * 1000
+let _usersCache:  CachedUser[] | null = null
+let _usersCacheAt = 0
+const CACHE_TTL   = 5 * 60 * 1000
 
 async function loadUsers(token: string): Promise<CachedUser[]> {
   if (_usersCache && Date.now() - _usersCacheAt < CACHE_TTL) return _usersCache
@@ -31,10 +32,11 @@ async function loadUsers(token: string): Promise<CachedUser[]> {
     .filter(item => item.fields.Actif === "Oui" && item.fields.Email)
     .map(item => ({
       email:       item.fields.Email.trim().toLowerCase(),
-      role:        item.fields.R_x00f4_le ?? "",
+      role:        item.fields.R_x00f4_le   ?? "",
       departement: item.fields.D_x00e9_partement ?? "",
     }))
   _usersCacheAt = Date.now()
+  console.info(`[Notifications] ${_usersCache.length} utilisateurs chargés depuis SharePoint`)
   return _usersCache
 }
 
@@ -52,6 +54,11 @@ function deptOf(users: CachedUser[], email: string): string {
   return users.find(u => u.email === email.toLowerCase())?.departement ?? ""
 }
 
+// Teams impose une limite de 128 caractères sur topic.value
+function truncate(s: string, max = 128): string {
+  return s.length <= max ? s : s.slice(0, max - 1) + "…"
+}
+
 // ─── Envoi d'une notification Teams à un utilisateur ────────────────────────
 async function sendOne(
   token:        string,
@@ -59,6 +66,7 @@ async function sendOne(
   activityType: string,
   title:        string,
 ): Promise<void> {
+  console.info(`[Notifications] → ${email} | ${activityType}`)
   await graphMutate<void>(
     token,
     `/users/${encodeURIComponent(email)}/teamwork/sendActivityNotification`,
@@ -66,13 +74,15 @@ async function sendOne(
     {
       topic: {
         source: "text",
-        value:  title,
-        webUrl: APP_URL,
+        value:  truncate(title),
+        webUrl: TEAMS_LINK,
       },
       activityType,
-      previewText: { content: title },
+      previewText:        { content: truncate(title, 150) },
+      templateParameters: [],
     },
   )
+  console.info(`[Notifications] ✓ envoyée à ${email}`)
 }
 
 // ─── Envoi en parallèle à plusieurs destinataires (dédupliqués) ─────────────
@@ -83,10 +93,18 @@ async function sendMany(
   title:        string,
 ): Promise<void> {
   const targets = [...new Set(emails.filter(Boolean))]
-  // allSettled : une erreur par destinataire n'annule pas les autres
-  await Promise.allSettled(
+  if (targets.length === 0) {
+    console.warn(`[Notifications] Aucun destinataire pour "${activityType}"`)
+    return
+  }
+  const results = await Promise.allSettled(
     targets.map(email => sendOne(token, email, activityType, title)),
   )
+  results.forEach((result, i) => {
+    if (result.status === "rejected") {
+      console.warn(`[Notifications] ✗ échec pour ${targets[i]} :`, result.reason)
+    }
+  })
 }
 
 // ─── Contexte de notification passé par les hooks ────────────────────────────
@@ -100,8 +118,8 @@ export interface NotificationContext {
 
 /**
  * Envoie les notifications Teams correspondant à un changement de statut.
- * Fire-and-forget : ne bloque jamais la mutation principale, les erreurs
- * sont uniquement loguées dans la console.
+ * Fire-and-forget : ne bloque jamais la mutation principale.
+ * Toutes les erreurs (par email ou globales) sont loguées dans la console.
  */
 export function sendNotificationsAsync(token: string, ctx: NotificationContext): void {
   void (async () => {
@@ -110,10 +128,11 @@ export function sendNotificationsAsync(token: string, ctx: NotificationContext):
       const { module, newStatut, submitterEmail, montant, titre } = ctx
       const submitterDept = deptOf(users, submitterEmail)
 
+      console.info(`[Notifications] statut=${newStatut} module=${module} demandeur=${submitterEmail} dept=${submitterDept}`)
+
       if (module === "DEMANDE_ACHAT") {
         switch (newStatut) {
           case "SOUMIS": {
-            // Chef du département du demandeur + Directrice
             const recipients = [
               ...chefByDept(users, submitterDept),
               ...byRole(users, "Directrice"),
@@ -123,13 +142,11 @@ export function sendNotificationsAsync(token: string, ctx: NotificationContext):
             break
           }
           case "VALIDE_CHEF": {
-            // Directrice doit approuver
             await sendMany(token, byRole(users, "Directrice"), "newValidationRequest",
-              `Demande validée par le chef — en attente d'approbation : ${titre}`)
+              `Demande validée par le chef — approbation requise : ${titre}`)
             break
           }
           case "APPROUVE": {
-            // Comptable doit traiter + demandeur est notifié
             const recipients = [...byRole(users, "Comptable"), submitterEmail]
             await sendMany(token, recipients, "requestApproved",
               `Demande approuvée : ${titre}`)
@@ -149,14 +166,11 @@ export function sendNotificationsAsync(token: string, ctx: NotificationContext):
       } else if (module === "DECAISSEMENT") {
         switch (newStatut) {
           case "SOUMIS": {
-            // RAF doit valider
             await sendMany(token, byRole(users, "RAF"), "newValidationRequest",
               `Nouvelle demande de décaissement à valider : ${titre}`)
             break
           }
           case "VALIDE_RAF": {
-            // Si montant > 100 000 FCFA → Directrice doit approuver
-            // Sinon → Comptable peut exécuter + demandeur est notifié
             if ((montant ?? 0) > 100_000) {
               await sendMany(token, byRole(users, "Directrice"), "newValidationRequest",
                 `Décaissement validé RAF — approbation DG requise : ${titre}`)
@@ -168,7 +182,6 @@ export function sendNotificationsAsync(token: string, ctx: NotificationContext):
             break
           }
           case "APPROUVE": {
-            // Comptable peut exécuter + demandeur est notifié
             const recipients = [...byRole(users, "Comptable"), submitterEmail]
             await sendMany(token, recipients, "requestApproved",
               `Décaissement approuvé par la Directrice : ${titre}`)
@@ -187,7 +200,7 @@ export function sendNotificationsAsync(token: string, ctx: NotificationContext):
         }
       }
     } catch (err) {
-      console.error("[Notifications] Erreur lors de l'envoi :", err)
+      console.error("[Notifications] Erreur générale :", err)
     }
   })()
 }

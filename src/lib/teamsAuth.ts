@@ -54,7 +54,7 @@ const LS_ERROR  = "giwanvo_pkce_error"
  *     Fiable même quand Teams Desktop ne route pas notifySuccess().
  */
 export function teamsLogin(clientId: string, tenantId: string): Promise<void> {
-  const scopes = "User.Read Sites.Read.All Sites.ReadWrite.All"
+  const scopes = "User.Read Sites.Read.All Sites.ReadWrite.All TeamsActivity.Send"
   const url =
     window.location.origin +
     "/auth-start.html" +

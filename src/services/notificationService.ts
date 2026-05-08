@@ -101,7 +101,13 @@ async function sendMany(
   )
   results.forEach((result, i) => {
     if (result.status === "rejected") {
-      console.warn(`[Notifications] ✗ échec pour ${targets[i]} :`, result.reason)
+      const msg = String(result.reason)
+      // Cas normal en dev : l'émetteur ne peut pas se notifier lui-même
+      if (msg.includes("same as the sender")) {
+        console.info(`[Notifications] ○ auto-notification ignorée pour ${targets[i]}`)
+      } else {
+        console.warn(`[Notifications] ✗ échec pour ${targets[i]} :`, result.reason)
+      }
     }
   })
 }

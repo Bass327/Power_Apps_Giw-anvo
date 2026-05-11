@@ -671,13 +671,13 @@ export default function ReportingClientsERDPage() {
           icon={Wallet}
           accent="gold"
           label="Montant total encaissé"
-          value={formatFCFAShort(montantTotalEncaisse)}
+          value={formatFCFAFull(montantTotalEncaisse)}
         />
         <KpiCard
           icon={CalendarCheck}
           accent="green"
           label={`Encaissé en ${moisCourantLabel}`}
-          value={formatFCFAShort(montantEncaisseMoisCourant)}
+          value={formatFCFAFull(montantEncaisseMoisCourant)}
         />
         <KpiCard
           icon={Users}

@@ -32,11 +32,16 @@ export const useAuth = () => {
     }
 
     // Hors Teams → MSAL popup avec fallback redirect
+    // Le redirect est impossible dans une iframe (Teams Web) — on utilise popup uniquement
+    const isInIframe = window.self !== window.top
     try {
       await msal.instance.loginPopup({ ...loginRequest, redirectUri })
     } catch (popupErr: unknown) {
       const msg = popupErr instanceof Error ? popupErr.message : String(popupErr)
       if (msg.includes("popup_window_error") || msg.includes("empty_window_error")) {
+        if (isInIframe) {
+          throw new Error("popup_blocked_iframe")
+        }
         await msal.instance.loginRedirect({ ...loginRequest, redirectUri })
       } else {
         throw popupErr

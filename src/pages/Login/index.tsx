@@ -31,10 +31,15 @@ export default function LoginPage() {
       const msg = error instanceof Error ? error.message : String(error)
       if (
         msg.includes("user_cancelled") ||
+        msg.includes("CancelledByUser") ||
         msg.includes("Redirection en cours") ||
         msg.includes("redirect_in_iframe")
       ) {
         // Annulation utilisateur ou redirection en cours — pas d'erreur à afficher
+        return
+      }
+      if (msg.includes("popup_blocked_iframe")) {
+        setPopupError("Les popups sont bloquées dans cet environnement. Ouvrez l'application directement dans Teams.")
         return
       }
       setPopupError("Une erreur s'est produite lors de la connexion. Veuillez réessayer.")

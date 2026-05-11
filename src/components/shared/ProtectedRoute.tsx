@@ -86,8 +86,15 @@ export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
   }, [isAuthenticated])
 
   // Timeout de sécurité si MSAL reste bloqué (Teams iframe)
+  // HandleRedirect est exclu : MSAL doit traiter le code OAuth jusqu'au bout
   useEffect(() => {
-    if (inProgress === InteractionStatus.None) { setTimedOut(false); return }
+    if (
+      inProgress === InteractionStatus.None ||
+      inProgress === InteractionStatus.HandleRedirect
+    ) {
+      setTimedOut(false)
+      return
+    }
     const id = setTimeout(() => setTimedOut(true), MSAL_TIMEOUT_MS)
     return () => clearTimeout(id)
   }, [inProgress])

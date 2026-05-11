@@ -19,7 +19,7 @@ let _teamsDetected: Promise<boolean> | null = null
 export function initTeams(): Promise<boolean> {
   if (_teamsDetected) return _teamsDetected
   _teamsDetected = new Promise<boolean>((resolve) => {
-    const timer = setTimeout(() => resolve(false), 3_000)
+    const timer = setTimeout(() => resolve(false), 8_000)
     microsoftTeams.app.initialize()
       .then(() => {
         clearTimeout(timer)
@@ -115,7 +115,8 @@ export function teamsLogin(clientId: string, tenantId: string): Promise<void> {
         const msg = String(err instanceof Error ? err.message : err)
         // user_cancelled = popup fermée par window.close() sans notifySuccess —
         // cas normal avec notre fallback ; le storage event prend le relais.
-        if (!msg.includes("user_cancelled")) {
+        // user_cancelled ou CancelledByUser = popup fermée normalement par l'utilisateur
+        if (!msg.includes("user_cancelled") && !msg.includes("CancelledByUser")) {
           done(() => reject(new Error(msg)))
         }
       })

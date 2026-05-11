@@ -38,6 +38,10 @@
   "validDomains": [
     "power-apps-giw-anvo.vercel.app"
   ],
+  "webApplicationInfo": {
+    "id": "b9aeece8-860f-43d2-bc77-06972e7ff8d1",
+    "resource": "https://graph.microsoft.com"
+  },
   "activities": {
     "activityTypes": [
       {

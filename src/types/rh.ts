@@ -40,8 +40,9 @@ export interface Mission {
   demandeur:        string   // email
   dateDemande:      string   // ISO date
   statut:           StatutMission
+  region?:          string
   collective:       boolean
-  nombreParticipants?: number
+  participants?:    string[]   // format "Nom, Poste" par entrée
   besoinAvance:     boolean
   montantAvance?:   number
   commentaireDir?:  string

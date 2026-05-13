@@ -31,25 +31,23 @@ function spVersStatut(sp: string | undefined): StatutMission {
   return MAP[sp ?? ""] ?? "BROUILLON"
 }
 
-/* ── Interface brute SharePoint ── */
+/* ── Interface brute SharePoint — noms internes réels ── */
 interface MissionSPFields {
-  Title?:             string   // intitulé de la mission
-  TypeMission?:       string
-  Objectif?:          string
-  Lieu?:              string
-  DateDepart?:        string
-  DateRetour?:        string
-  DureeJours?:        number
-  MoyenTransport?:    string
-  Demandeur?:         string   // email
-  Statut?:            string
-  Collective?:        boolean
-  NombreParticipants?: number
-  BesoinAvance?:      boolean
-  MontantAvance?:     number
-  CommentaireDir?:    string
-  DateApprobation?:   string
-  Created?:           string
+  Title?:                 string   // intitulé de la mission
+  Agent?:                 string   // demandeur (email)
+  TypeMission?:           string   // type de mission
+  Objet?:                 string   // objectif de la mission
+  Region?:                string   // région
+  Lieu_Mission?:          string   // lieu(x)
+  Date_D_x00e9_part?:     string   // date de départ
+  Date_Retour?:           string   // date de retour
+  Mode_Transport?:        string   // moyen de transport
+  Frais_Perdiem?:         number   // montant avance sur frais
+  Statut?:                string   // statut de la mission
+  Participants?:          string   // JSON : ["Nom, Poste", ...]
+  DG_Commentaire?:        string   // commentaire de la DG
+  Date_Decision?:         string   // date d'approbation/rejet
+  Created?:               string   // date de création
 }
 
 interface MissionSPItem {
@@ -60,25 +58,41 @@ interface MissionSPItem {
 /* ── Conversion SP → modèle applicatif ── */
 function mapSPItem(item: MissionSPItem): Mission {
   const f = item.fields
+
+  const participants: string[] | undefined = (() => {
+    if (!f.Participants) return undefined
+    try { return JSON.parse(f.Participants) as string[] } catch { return undefined }
+  })()
+
+  /* Durée calculée depuis les dates */
+  const duree = (() => {
+    if (!f.Date_D_x00e9_part || !f.Date_Retour) return 1
+    const diff = new Date(f.Date_Retour).getTime() - new Date(f.Date_D_x00e9_part).getTime()
+    return Math.max(1, Math.ceil(diff / (1000 * 60 * 60 * 24)) + 1)
+  })()
+
   return {
-    id:                  item.id,
-    intitule:            f.Title              ?? "",
-    typeMission:         (f.TypeMission as TypeMission) ?? "AUTRE",
-    objectif:            f.Objectif           ?? "",
-    lieux:               f.Lieu               ?? "",
-    dateDepart:          f.DateDepart         ?? "",
-    dateRetour:          f.DateRetour         ?? "",
-    duree:               Number(f.DureeJours) || 1,
-    moyenTransport:      (f.MoyenTransport as MoyenTransportMission) ?? "TRANSPORT_PUBLIC",
-    demandeur:           f.Demandeur          ?? "",
-    dateDemande:         f.Created            ?? "",
-    statut:              spVersStatut(f.Statut),
-    collective:          f.Collective         ?? false,
-    nombreParticipants:  f.NombreParticipants ?? undefined,
-    besoinAvance:        f.BesoinAvance       ?? false,
-    montantAvance:       f.MontantAvance      ?? undefined,
-    commentaireDir:      f.CommentaireDir     ?? undefined,
-    dateApprobation:     f.DateApprobation    ?? undefined,
+    id:               item.id,
+    intitule:         f.Title            ?? "",
+    typeMission:      (f.TypeMission as TypeMission) ?? "AUTRE",
+    objectif:         f.Objet            ?? "",
+    region:           f.Region           ?? undefined,
+    lieux:            f.Lieu_Mission     ?? "",
+    dateDepart:       f.Date_D_x00e9_part ?? "",
+    dateRetour:       f.Date_Retour      ?? "",
+    duree,
+    moyenTransport:   (f.Mode_Transport as MoyenTransportMission) ?? "TRANSPORT_PUBLIC",
+    demandeur:        f.Agent            ?? "",
+    dateDemande:      f.Created          ?? "",
+    statut:           spVersStatut(f.Statut),
+    /* collective déduit : true si plusieurs participants */
+    collective:       (participants?.length ?? 0) > 1,
+    participants,
+    /* besoinAvance déduit : true si Frais_Perdiem renseigné */
+    besoinAvance:     (f.Frais_Perdiem ?? 0) > 0,
+    montantAvance:    f.Frais_Perdiem   ?? undefined,
+    commentaireDir:   f.DG_Commentaire ?? undefined,
+    dateApprobation:  f.Date_Decision  ?? undefined,
   }
 }
 
@@ -99,20 +113,20 @@ export async function createMission(
   const statut: StatutMission = soumettre ? "SOUMIS" : "BROUILLON"
 
   const rawFields: Record<string, unknown> = {
-    Title:             data.intitule          || undefined,
-    TypeMission:       data.typeMission       || undefined,
-    Objectif:          data.objectif          || undefined,
-    Lieu:              data.lieux             || undefined,
-    DateDepart:        data.dateDepart        || undefined,
-    DateRetour:        data.dateRetour        || undefined,
-    DureeJours:        data.duree             ?? undefined,
-    MoyenTransport:    data.moyenTransport    || undefined,
-    Demandeur:         data.demandeur         || undefined,
-    Statut:            statutVersSP(statut),
-    Collective:        data.collective        ?? undefined,
-    NombreParticipants: data.collective ? (data.nombreParticipants ?? undefined) : undefined,
-    BesoinAvance:      data.besoinAvance      ?? undefined,
-    MontantAvance:     data.besoinAvance ? (data.montantAvance ?? undefined) : undefined,
+    Title:              data.intitule        || undefined,
+    Agent:              data.demandeur       || undefined,
+    TypeMission:        data.typeMission     || undefined,
+    Objet:              data.objectif        || undefined,
+    Region:             data.region          || undefined,
+    Lieu_Mission:       data.lieux           || undefined,
+    Date_D_x00e9_part:  data.dateDepart      || undefined,
+    Date_Retour:        data.dateRetour      || undefined,
+    Mode_Transport:     data.moyenTransport  || undefined,
+    Statut:             statutVersSP(statut),
+    Participants:       data.participants?.length
+      ? JSON.stringify(data.participants)
+      : undefined,
+    Frais_Perdiem:      data.besoinAvance ? (data.montantAvance ?? undefined) : undefined,
   }
 
   const fields = Object.fromEntries(
@@ -125,15 +139,15 @@ export async function createMission(
 
 /* ── Met à jour le statut d'une mission (approbation / rejet) ── */
 export async function updateStatutMission(
-  token:         string,
-  id:            string,
-  statut:        StatutMission,
-  commentaire?:  string,
+  token:        string,
+  id:           string,
+  statut:       StatutMission,
+  commentaire?: string,
 ): Promise<void> {
   const rawFields: Record<string, unknown> = {
-    Statut:           statutVersSP(statut),
-    CommentaireDir:   commentaire || undefined,
-    DateApprobation:  statut === "APPROUVE" ? new Date().toISOString().split("T")[0] : undefined,
+    Statut:         statutVersSP(statut),
+    DG_Commentaire: commentaire || undefined,
+    Date_Decision:  statut === "APPROUVE" ? new Date().toISOString().split("T")[0] : undefined,
   }
 
   const fields = Object.fromEntries(

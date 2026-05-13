@@ -1,10 +1,11 @@
 import { useState } from "react"
-import { X, Briefcase, MapPin, Calendar, Truck, Users, DollarSign } from "lucide-react"
+import { X, Briefcase, MapPin, Calendar, Truck, Users, DollarSign, Plus, Trash2 } from "lucide-react"
 import type { Mission, TypeMission, MoyenTransportMission } from "@/types/rh"
 import {
   LABEL_TYPE_MISSION,
   LABEL_MOYEN_TRANSPORT_MISSION,
 } from "@/types/rh"
+import { useEmployes } from "@/hooks/useEmployes"
 
 /* ── Types internes ── */
 interface Props {
@@ -14,31 +15,35 @@ interface Props {
 }
 
 type FormData = {
-  intitule:          string
-  typeMission:       TypeMission | ""
-  objectif:          string
-  lieux:             string
-  dateDepart:        string
-  dateRetour:        string
-  moyenTransport:    MoyenTransportMission | ""
-  collective:        boolean
-  nombreParticipants: string
-  besoinAvance:      boolean
-  montantAvance:     string
+  intitule:         string
+  typeMission:      TypeMission | ""
+  objectifs:        string[]
+  region:           string
+  lieux:            string
+  dateDepart:       string
+  dateRetour:       string
+  moyenTransport:   MoyenTransportMission | ""
+  collective:       boolean
+  participants:     string[]   // format "Nom, Poste"
+  autreParticipant: string     // champ texte libre pour les externes
+  besoinAvance:     boolean
+  montantAvance:    string
 }
 
 const FORM_INIT: FormData = {
-  intitule:           "",
-  typeMission:        "",
-  objectif:           "",
-  lieux:              "",
-  dateDepart:         "",
-  dateRetour:         "",
-  moyenTransport:     "",
-  collective:         false,
-  nombreParticipants: "",
-  besoinAvance:       false,
-  montantAvance:      "",
+  intitule:         "",
+  typeMission:      "",
+  objectifs:        [""],
+  region:           "",
+  lieux:            "",
+  dateDepart:       "",
+  dateRetour:       "",
+  moyenTransport:   "",
+  collective:       false,
+  participants:     [],
+  autreParticipant: "",
+  besoinAvance:     false,
+  montantAvance:    "",
 }
 
 /* ── Styles réutilisables ── */
@@ -67,8 +72,10 @@ const labelStyle: React.CSSProperties = {
    ════════════════════════════════════════════════ */
 
 export function FormulaireMission({ onClose, onSubmit, demandeur }: Props) {
-  const [form, setForm]       = useState<FormData>(FORM_INIT)
-  const [errors, setErrors]   = useState<Partial<Record<keyof FormData, string>>>({})
+  const [form, setForm]     = useState<FormData>(FORM_INIT)
+  const [errors, setErrors] = useState<Partial<Record<keyof FormData, string>>>({})
+
+  const { employes, isLoading: isLoadingEmployes } = useEmployes()
 
   const set = <K extends keyof FormData>(key: K, value: FormData[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }))
@@ -82,20 +89,73 @@ export function FormulaireMission({ onClose, onSubmit, demandeur }: Props) {
     return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)) + 1)
   })()
 
-  /* Validation du formulaire */
+  /* ── Gestion des participants ── */
+
+  /* Bascule la sélection d'un membre (mode collectif = multi) */
+  const toggleParticipant = (label: string) => {
+    const next = form.participants.includes(label)
+      ? form.participants.filter((p) => p !== label)
+      : [...form.participants, label]
+    set("participants", next)
+    if (errors.participants) setErrors((prev) => ({ ...prev, participants: undefined }))
+  }
+
+  /* Sélection unique (mode individuel) */
+  const selectSingleParticipant = (label: string) => {
+    set("participants", label ? [label] : [])
+    if (errors.participants) setErrors((prev) => ({ ...prev, participants: undefined }))
+  }
+
+  /* Ajoute le participant externe saisi dans le champ texte libre */
+  const ajouterAutreParticipant = () => {
+    const val = form.autreParticipant.trim()
+    if (!val || form.participants.includes(val)) return
+    set("participants", [...form.participants, val])
+    set("autreParticipant", "")
+  }
+
+  /* Retire un participant de la liste */
+  const retirerParticipant = (label: string) => {
+    set("participants", form.participants.filter((p) => p !== label))
+  }
+
+  /* Quand on coche/décoche "Mission collective", on remet la sélection à zéro */
+  const handleCollectiveChange = (checked: boolean) => {
+    setForm((prev) => ({ ...prev, collective: checked, participants: [], autreParticipant: "" }))
+    setErrors((prev) => ({ ...prev, participants: undefined }))
+  }
+
+  /* ── Gestion des objectifs ── */
+  const addObjectif = () => set("objectifs", [...form.objectifs, ""])
+
+  const removeObjectif = (index: number) => {
+    if (form.objectifs.length <= 1) return
+    set("objectifs", form.objectifs.filter((_, i) => i !== index))
+  }
+
+  const updateObjectif = (index: number, value: string) => {
+    const next = [...form.objectifs]
+    next[index] = value
+    set("objectifs", next)
+  }
+
+  /* ── Validation ── */
   const validate = (): boolean => {
     const newErrors: Partial<Record<keyof FormData, string>> = {}
-    if (!form.intitule.trim())    newErrors.intitule    = "L'intitulé est requis"
-    if (!form.typeMission)        newErrors.typeMission  = "Le type de mission est requis"
-    if (!form.objectif.trim())    newErrors.objectif     = "L'objectif est requis"
-    if (!form.lieux.trim())       newErrors.lieux        = "Le lieu est requis"
-    if (!form.dateDepart)         newErrors.dateDepart   = "La date de départ est requise"
-    if (!form.dateRetour)         newErrors.dateRetour   = "La date de retour est requise"
+    if (!form.intitule.trim())                          newErrors.intitule    = "L'intitulé est requis"
+    if (!form.typeMission)                              newErrors.typeMission  = "Le type de mission est requis"
+    if (!form.objectifs.some((o) => o.trim()))          newErrors.objectifs    = "Au moins un objectif est requis"
+    if (!form.region.trim())    newErrors.region       = "La région est requise"
+    if (!form.lieux.trim())     newErrors.lieux        = "Le lieu est requis"
+    if (!form.dateDepart)       newErrors.dateDepart   = "La date de départ est requise"
+    if (!form.dateRetour)       newErrors.dateRetour   = "La date de retour est requise"
     if (form.dateDepart && form.dateRetour && form.dateRetour < form.dateDepart)
       newErrors.dateRetour = "La date de retour doit être après le départ"
-    if (!form.moyenTransport)     newErrors.moyenTransport = "Le moyen de transport est requis"
-    if (form.collective && !form.nombreParticipants)
-      newErrors.nombreParticipants = "Nombre de participants requis"
+    if (!form.moyenTransport)   newErrors.moyenTransport = "Le moyen de transport est requis"
+    if (form.participants.length === 0)
+      newErrors.participants = form.collective
+        ? "Sélectionnez au moins un participant"
+        : "Sélectionnez un participant"
     if (form.besoinAvance && !form.montantAvance)
       newErrors.montantAvance = "Montant de l'avance requis"
 
@@ -108,23 +168,30 @@ export function FormulaireMission({ onClose, onSubmit, demandeur }: Props) {
 
     onSubmit(
       {
-        intitule:          form.intitule.trim(),
-        typeMission:       form.typeMission as TypeMission,
-        objectif:          form.objectif.trim(),
-        lieux:             form.lieux.trim(),
-        dateDepart:        form.dateDepart,
-        dateRetour:        form.dateRetour,
-        duree:             dureeJours,
-        moyenTransport:    form.moyenTransport as MoyenTransportMission,
+        intitule:       form.intitule.trim(),
+        typeMission:    form.typeMission as TypeMission,
+        objectif:       form.objectifs.filter((o) => o.trim()).join("\n"),
+        region:         form.region.trim() || undefined,
+        lieux:          form.lieux.trim(),
+        dateDepart:     form.dateDepart,
+        dateRetour:     form.dateRetour,
+        duree:          dureeJours,
+        moyenTransport: form.moyenTransport as MoyenTransportMission,
         demandeur,
-        collective:        form.collective,
-        nombreParticipants: form.collective ? parseInt(form.nombreParticipants) : undefined,
-        besoinAvance:      form.besoinAvance,
-        montantAvance:     form.besoinAvance ? parseFloat(form.montantAvance) : undefined,
+        collective:     form.collective,
+        participants:   form.participants.length > 0 ? form.participants : undefined,
+        besoinAvance:   form.besoinAvance,
+        montantAvance:  form.besoinAvance ? parseFloat(form.montantAvance) : undefined,
       },
       soumettre,
     )
   }
+
+  /* ── Options de la liste déroulante ── */
+  const optionsEmployes = employes.map((e) => ({
+    value: `${e.nom}, ${e.poste}`,
+    label: `${e.nom}, ${e.poste}`,
+  }))
 
   /* ── Rendu ── */
   return (
@@ -245,19 +312,75 @@ export function FormulaireMission({ onClose, onSubmit, demandeur }: Props) {
                 )}
               </div>
 
-              {/* Objectif */}
+              {/* Objectifs */}
               <div>
-                <label style={labelStyle}>Objectif *</label>
-                <textarea
-                  rows={3}
-                  placeholder="Décrivez l'objectif de la mission..."
-                  value={form.objectif}
-                  onChange={(e) => set("objectif", e.target.value)}
-                  style={{ ...inputStyle, resize: "vertical", borderColor: errors.objectif ? "#ef4444" : "var(--bg-border)" }}
-                />
-                {errors.objectif && (
-                  <p style={{ margin: "4px 0 0", fontSize: 11, color: "#ef4444", fontFamily: "var(--font-body)" }}>
-                    {errors.objectif}
+                <label style={labelStyle}>Objectifs *</label>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {form.objectifs.map((obj, index) => (
+                    <div key={index} style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                      <div
+                        style={{
+                          width: 22, height: 22, borderRadius: "50%", flexShrink: 0,
+                          background: "var(--bg-border)",
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                          fontSize: 11, fontFamily: "var(--font-display)", fontWeight: 700,
+                          color: "var(--text-muted)",
+                        }}
+                      >
+                        {index + 1}
+                      </div>
+                      <input
+                        type="text"
+                        placeholder={`Objectif ${index + 1}...`}
+                        value={obj}
+                        onChange={(e) => updateObjectif(index, e.target.value)}
+                        style={{
+                          ...inputStyle,
+                          flex: 1,
+                          borderColor: errors.objectifs && !obj.trim() ? "#ef4444" : "var(--bg-border)",
+                        }}
+                      />
+                      {form.objectifs.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => removeObjectif(index)}
+                          style={{
+                            all: "unset", cursor: "pointer",
+                            width: 32, height: 32, borderRadius: 7, flexShrink: 0,
+                            background: "rgba(239,68,68,0.08)",
+                            border: "1px solid rgba(239,68,68,0.20)",
+                            display: "flex", alignItems: "center", justifyContent: "center",
+                          }}
+                        >
+                          <Trash2 size={13} style={{ color: "#ef4444" }} />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={addObjectif}
+                  style={{
+                    all: "unset", cursor: "pointer",
+                    marginTop: 10,
+                    display: "flex", alignItems: "center", gap: 6,
+                    padding: "8px 14px",
+                    borderRadius: 8,
+                    background: "var(--bg-elevated)",
+                    border: "1px dashed var(--bg-border)",
+                    fontSize: 13, fontFamily: "var(--font-display)", fontWeight: 600,
+                    color: "var(--green-bright)",
+                  }}
+                >
+                  <Plus size={14} />
+                  Ajouter un objectif
+                </button>
+
+                {errors.objectifs && (
+                  <p style={{ margin: "6px 0 0", fontSize: 11, color: "#ef4444", fontFamily: "var(--font-body)" }}>
+                    {errors.objectifs}
                   </p>
                 )}
               </div>
@@ -274,6 +397,26 @@ export function FormulaireMission({ onClose, onSubmit, demandeur }: Props) {
             </div>
 
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              {/* Région */}
+              <div>
+                <label style={labelStyle}>
+                  <MapPin size={11} style={{ verticalAlign: "middle", marginRight: 4 }} />
+                  Région *
+                </label>
+                <input
+                  type="text"
+                  placeholder="Ex : Dakar, Thiès, Saint-Louis..."
+                  value={form.region}
+                  onChange={(e) => set("region", e.target.value)}
+                  style={{ ...inputStyle, borderColor: errors.region ? "#ef4444" : "var(--bg-border)" }}
+                />
+                {errors.region && (
+                  <p style={{ margin: "4px 0 0", fontSize: 11, color: "#ef4444", fontFamily: "var(--font-body)" }}>
+                    {errors.region}
+                  </p>
+                )}
+              </div>
+
               {/* Lieu */}
               <div>
                 <label style={labelStyle}>
@@ -282,7 +425,7 @@ export function FormulaireMission({ onClose, onSubmit, demandeur }: Props) {
                 </label>
                 <input
                   type="text"
-                  placeholder="Ex : Thiès, Saint-Louis"
+                  placeholder="Ex : Site industriel de Thiès, Zone franche"
                   value={form.lieux}
                   onChange={(e) => set("lieux", e.target.value)}
                   style={{ ...inputStyle, borderColor: errors.lieux ? "#ef4444" : "var(--bg-border)" }}
@@ -392,7 +535,7 @@ export function FormulaireMission({ onClose, onSubmit, demandeur }: Props) {
                   <input
                     type="checkbox"
                     checked={form.collective}
-                    onChange={(e) => set("collective", e.target.checked)}
+                    onChange={(e) => handleCollectiveChange(e.target.checked)}
                     style={{ accentColor: "#f0a500", width: 16, height: 16 }}
                   />
                   <span style={{ fontSize: 13, color: "var(--text-secondary)", fontFamily: "var(--font-body)" }}>
@@ -401,20 +544,173 @@ export function FormulaireMission({ onClose, onSubmit, demandeur }: Props) {
                 </label>
               </div>
 
-              {form.collective && (
+              {/* ── Sélection des participants ── */}
+              {form.collective ? (
+                /* ── MODE COLLECTIF : choix multiple ── */
                 <div>
-                  <label style={labelStyle}>Nombre de participants *</label>
-                  <input
-                    type="number"
-                    min={2}
-                    placeholder="Ex : 4"
-                    value={form.nombreParticipants}
-                    onChange={(e) => set("nombreParticipants", e.target.value)}
-                    style={{ ...inputStyle, borderColor: errors.nombreParticipants ? "#ef4444" : "var(--bg-border)" }}
-                  />
-                  {errors.nombreParticipants && (
+                  <label style={labelStyle}>
+                    <Users size={11} style={{ verticalAlign: "middle", marginRight: 4 }} />
+                    Participants * (choix multiple)
+                  </label>
+
+                  {/* Liste des membres de l'organisation */}
+                  <div
+                    style={{
+                      border: `1px solid ${errors.participants ? "#ef4444" : "var(--bg-border)"}`,
+                      borderRadius: 8,
+                      overflow: "hidden",
+                      maxHeight: 220,
+                      overflowY: "auto",
+                    }}
+                  >
+                    {isLoadingEmployes ? (
+                      <div style={{ padding: "14px 16px", fontSize: 13, color: "var(--text-muted)", fontFamily: "var(--font-body)" }}>
+                        Chargement des membres...
+                      </div>
+                    ) : optionsEmployes.length === 0 ? (
+                      <div style={{ padding: "14px 16px", fontSize: 13, color: "var(--text-muted)", fontFamily: "var(--font-body)" }}>
+                        Aucun membre disponible
+                      </div>
+                    ) : (
+                      optionsEmployes.map((opt) => {
+                        const checked = form.participants.includes(opt.value)
+                        return (
+                          <label
+                            key={opt.value}
+                            style={{
+                              display: "flex", alignItems: "center", gap: 10,
+                              padding: "10px 14px",
+                              cursor: "pointer",
+                              background: checked ? "rgba(45,158,95,0.10)" : "var(--bg-elevated)",
+                              borderBottom: "1px solid var(--bg-border)",
+                              transition: "background 150ms",
+                            }}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() => toggleParticipant(opt.value)}
+                              style={{ accentColor: "#f0a500", width: 15, height: 15, flexShrink: 0 }}
+                            />
+                            <span style={{ fontSize: 13, color: checked ? "var(--text-primary)" : "var(--text-secondary)", fontFamily: "var(--font-body)" }}>
+                              {opt.label}
+                            </span>
+                          </label>
+                        )
+                      })
+                    )}
+                  </div>
+
+                  {/* Autre participant (externe) */}
+                  <div style={{ marginTop: 10 }}>
+                    <label style={{ ...labelStyle, marginBottom: 6 }}>
+                      Autre participant (externe à l'organisation)
+                    </label>
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <input
+                        type="text"
+                        placeholder="Ex : Jean Dupont, Consultant externe"
+                        value={form.autreParticipant}
+                        onChange={(e) => set("autreParticipant", e.target.value)}
+                        onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); ajouterAutreParticipant() } }}
+                        style={{ ...inputStyle, flex: 1 }}
+                      />
+                      <button
+                        type="button"
+                        onClick={ajouterAutreParticipant}
+                        disabled={!form.autreParticipant.trim()}
+                        style={{
+                          all: "unset", cursor: form.autreParticipant.trim() ? "pointer" : "not-allowed",
+                          padding: "0 14px", borderRadius: 8, flexShrink: 0,
+                          fontSize: 13, fontFamily: "var(--font-display)", fontWeight: 600,
+                          color: "var(--text-inverse)",
+                          background: form.autreParticipant.trim()
+                            ? "linear-gradient(135deg, #f0a500, #ffc235)"
+                            : "var(--bg-border)",
+                          display: "flex", alignItems: "center", gap: 6,
+                          height: 40,
+                          opacity: form.autreParticipant.trim() ? 1 : 0.5,
+                        }}
+                      >
+                        <Plus size={14} />
+                        Ajouter
+                      </button>
+                    </div>
+                  </div>
+
+                  {errors.participants && (
+                    <p style={{ margin: "6px 0 0", fontSize: 11, color: "#ef4444", fontFamily: "var(--font-body)" }}>
+                      {errors.participants}
+                    </p>
+                  )}
+
+                  {/* Récapitulatif des participants sélectionnés */}
+                  {form.participants.length > 0 && (
+                    <div style={{ marginTop: 10 }}>
+                      <p style={{ ...labelStyle, marginBottom: 8 }}>
+                        Sélectionnés ({form.participants.length})
+                      </p>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                        {form.participants.map((p) => (
+                          <div
+                            key={p}
+                            style={{
+                              display: "flex", alignItems: "center", justifyContent: "space-between",
+                              padding: "8px 12px",
+                              background: "rgba(45,158,95,0.08)",
+                              border: "1px solid rgba(45,158,95,0.25)",
+                              borderRadius: 7,
+                            }}
+                          >
+                            <span style={{ fontSize: 13, color: "var(--text-primary)", fontFamily: "var(--font-body)" }}>
+                              {p}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => retirerParticipant(p)}
+                              style={{
+                                all: "unset", cursor: "pointer",
+                                display: "flex", alignItems: "center",
+                                color: "var(--text-muted)",
+                              }}
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                /* ── MODE INDIVIDUEL : choix unique ── */
+                <div>
+                  <label style={labelStyle}>
+                    <Users size={11} style={{ verticalAlign: "middle", marginRight: 4 }} />
+                    Participant *
+                  </label>
+                  <select
+                    value={form.participants[0] ?? ""}
+                    onChange={(e) => selectSingleParticipant(e.target.value)}
+                    disabled={isLoadingEmployes}
+                    style={{
+                      ...inputStyle,
+                      borderColor: errors.participants ? "#ef4444" : "var(--bg-border)",
+                      opacity: isLoadingEmployes ? 0.6 : 1,
+                    }}
+                  >
+                    <option value="">
+                      {isLoadingEmployes ? "Chargement..." : "Sélectionner un membre..."}
+                    </option>
+                    {optionsEmployes.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                  {errors.participants && (
                     <p style={{ margin: "4px 0 0", fontSize: 11, color: "#ef4444", fontFamily: "var(--font-body)" }}>
-                      {errors.nombreParticipants}
+                      {errors.participants}
                     </p>
                   )}
                 </div>

@@ -164,6 +164,13 @@ export function DetailMission({ mission, role, onClose, onApprouver, onRejeter }
             label="Type de mission"
             value={LABEL_TYPE_MISSION[mission.typeMission]}
           />
+          {mission.region && (
+            <DetailRow
+              icon={MapPin}
+              label="Région"
+              value={mission.region}
+            />
+          )}
           <DetailRow
             icon={MapPin}
             label="Lieu(x)"
@@ -179,11 +186,38 @@ export function DetailMission({ mission, role, onClose, onApprouver, onRejeter }
             label="Moyen de transport"
             value={LABEL_MOYEN_TRANSPORT_MISSION[mission.moyenTransport]}
           />
-          {mission.collective && (
+          {mission.collective && mission.participants && mission.participants.length > 0 && (
             <DetailRow
               icon={Users}
-              label="Participants"
-              value={`${mission.nombreParticipants ?? "—"} personnes`}
+              label={`Participants (${mission.participants.length})`}
+              value={
+                <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 4 }}>
+                  {mission.participants.map((p) => (
+                    <span
+                      key={p}
+                      style={{
+                        display: "inline-block",
+                        padding: "3px 10px",
+                        background: "rgba(45,158,95,0.10)",
+                        border: "1px solid rgba(45,158,95,0.25)",
+                        borderRadius: 20,
+                        fontSize: 12,
+                        color: "var(--text-primary)",
+                        fontFamily: "var(--font-body)",
+                      }}
+                    >
+                      {p}
+                    </span>
+                  ))}
+                </div>
+              }
+            />
+          )}
+          {!mission.collective && mission.participants && mission.participants.length > 0 && (
+            <DetailRow
+              icon={Users}
+              label="Participant"
+              value={mission.participants[0]}
             />
           )}
           {mission.besoinAvance && (
@@ -194,23 +228,34 @@ export function DetailMission({ mission, role, onClose, onApprouver, onRejeter }
             />
           )}
 
-          {/* Objectif */}
+          {/* Objectifs */}
           <div style={{ padding: "16px 0" }}>
             <p style={{ margin: "0 0 8px", fontSize: 11, color: "var(--text-secondary)", fontFamily: "var(--font-body)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
-              Objectif de la mission
+              Objectifs de la mission
             </p>
-            <p
+            <div
               style={{
-                margin: 0, fontSize: 14, color: "var(--text-primary)", fontFamily: "var(--font-body)",
-                lineHeight: 1.6,
                 padding: "12px 14px",
                 background: "var(--bg-elevated)",
                 borderRadius: 8,
                 border: "1px solid var(--bg-border)",
+                display: "flex", flexDirection: "column", gap: 8,
               }}
             >
-              {mission.objectif}
-            </p>
+              {mission.objectif.split("\n").filter(Boolean).map((obj, i) => (
+                <div key={i} style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+                  <span
+                    style={{
+                      marginTop: 6, width: 6, height: 6, borderRadius: "50%", flexShrink: 0,
+                      background: "var(--green-vivid)", display: "inline-block",
+                    }}
+                  />
+                  <p style={{ margin: 0, fontSize: 14, color: "var(--text-primary)", fontFamily: "var(--font-body)", lineHeight: 1.6 }}>
+                    {obj}
+                  </p>
+                </div>
+              ))}
+            </div>
           </div>
 
           {/* Commentaire de la Directrice si approuvé */}

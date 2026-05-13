@@ -37,6 +37,13 @@ const SP_VERS_MOYEN_TRANSPORT: Record<string, MoyenTransportMission> = Object.fr
   Object.entries(LABEL_MOYEN_TRANSPORT_MISSION).map(([key, label]) => [label, key as MoyenTransportMission])
 )
 
+/* ── Noms internes SharePoint pour les colonnes créées manuellement ──
+   À VÉRIFIER via logMissionsColumns() si les données n'apparaissent pas.
+   Ouvrir la console navigateur et chercher le tableau "Colonnes SharePoint — Ordres_Mission".
+*/
+const COL_MATRICULE = "Matricule"   // nom interne réel de la colonne matricule
+const COL_CHARGES   = "Charges"     // nom interne réel de la colonne prises en charge
+
 /* ── Interface brute SharePoint — noms internes réels ── */
 interface MissionSPFields {
   Title?:                 string   // intitulé de la mission
@@ -48,14 +55,13 @@ interface MissionSPFields {
   Date_D_x00e9_part?:     string   // date de départ
   Date_Retour?:           string   // date de retour
   Mode_Transport?:        string   // moyen de transport (label français)
-  Matricule?:             string   // matricule du véhicule de service
-  Charges?:               string   // prises en charge CSV (ex: "Transport, Restauration")
   Frais_Perdiem?:         number   // montant avance sur frais
   Statut?:                string   // statut de la mission
   Participants?:          string   // JSON : ["Nom, Poste", ...]
   DG_Commentaire?:        string   // commentaire de la DG
   Date_Decision?:         string   // date d'approbation/rejet
   Created?:               string   // date de création
+  [key: string]:          unknown  // champs dynamiques (Matricule, Charges…)
 }
 
 interface MissionSPItem {
@@ -91,9 +97,10 @@ function mapSPItem(item: MissionSPItem): Mission {
     ? rawType
     : undefined
 
-  /* Prises en charge : CSV → tableau */
-  const chargesIncluses = f.Charges
-    ? f.Charges.split(",").map((c) => c.trim()).filter(Boolean)
+  /* Prises en charge : CSV → tableau (via constante COL_CHARGES) */
+  const rawCharges = f[COL_CHARGES] as string | undefined
+  const chargesIncluses = rawCharges
+    ? rawCharges.split(",").map((c) => c.trim()).filter(Boolean)
     : undefined
 
   return {
@@ -108,7 +115,7 @@ function mapSPItem(item: MissionSPItem): Mission {
     dateRetour:       f.Date_Retour      ?? "",
     duree,
     moyenTransport:   SP_VERS_MOYEN_TRANSPORT[f.Mode_Transport ?? ""] ?? "TRANSPORT_PUBLIC",
-    matricule:        f.Matricule        ?? undefined,
+    matricule:        (f[COL_MATRICULE] as string | undefined) ?? undefined,
     chargesIncluses,
     demandeur:        f.Agent            ?? "",
     dateDemande:      f.Created          ?? "",
@@ -124,9 +131,27 @@ function mapSPItem(item: MissionSPItem): Mission {
   }
 }
 
+/* ── Diagnostic colonnes — déclenché une seule fois au premier chargement (dev) ── */
+let _columnsDiagDone = false
+
 /* ── Récupère toutes les missions ── */
 export async function getMissions(token: string): Promise<Mission[]> {
+  if (import.meta.env.DEV && !_columnsDiagDone) {
+    _columnsDiagDone = true
+    logMissionsColumns(token).catch(() => {/* silencieux */})
+  }
+
   const items = await getListItems<MissionSPItem>(token, LIST_NAME)
+
+  /* Avertissement si les colonnes clés sont absentes du premier élément */
+  if (import.meta.env.DEV && items.length > 0) {
+    const firstFields = items[0].fields as Record<string, unknown>
+    if (!(COL_MATRICULE in firstFields))
+      console.warn(`[Missions] Colonne introuvable : "${COL_MATRICULE}". Vérifier le nom interne dans logMissionsColumns.`)
+    if (!(COL_CHARGES in firstFields))
+      console.warn(`[Missions] Colonne introuvable : "${COL_CHARGES}". Vérifier le nom interne dans logMissionsColumns.`)
+  }
+
   return items
     .map(mapSPItem)
     .sort((a, b) => new Date(b.dateDemande).getTime() - new Date(a.dateDemande).getTime())
@@ -151,8 +176,8 @@ export async function createMission(
     Date_D_x00e9_part:  data.dateDepart      || undefined,
     Date_Retour:        data.dateRetour      || undefined,
     Mode_Transport:     data.moyenTransport ? LABEL_MOYEN_TRANSPORT_MISSION[data.moyenTransport] : undefined,
-    Matricule:          data.matricule       || undefined,
-    Charges:            data.chargesIncluses?.length
+    [COL_MATRICULE]:    data.matricule       || undefined,
+    [COL_CHARGES]:      data.chargesIncluses?.length
       ? data.chargesIncluses.join(", ")
       : undefined,
     Statut:             statutVersSP(statut),

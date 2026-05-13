@@ -49,6 +49,7 @@ interface MissionSPFields {
   Date_Retour?:           string   // date de retour
   Mode_Transport?:        string   // moyen de transport (label français)
   Matricule?:             string   // matricule du véhicule de service
+  Charges?:               string   // prises en charge CSV (ex: "Transport, Restauration")
   Frais_Perdiem?:         number   // montant avance sur frais
   Statut?:                string   // statut de la mission
   Participants?:          string   // JSON : ["Nom, Poste", ...]
@@ -78,10 +79,28 @@ function mapSPItem(item: MissionSPItem): Mission {
     return Math.max(1, Math.ceil(diff / (1000 * 60 * 60 * 24)) + 1)
   })()
 
+  /* TypeMission : valeur reconnue ou texte personnalisé → AUTRE */
+  const TYPE_MISSION_KEYS: TypeMission[] = [
+    "TECHNIQUE", "COMMERCIALE", "INSTITUTIONNELLE", "LOGISTIQUE", "MAINTENANCE", "AUTRE",
+  ]
+  const rawType = f.TypeMission ?? ""
+  const typeMission: TypeMission = TYPE_MISSION_KEYS.includes(rawType as TypeMission)
+    ? (rawType as TypeMission)
+    : "AUTRE"
+  const typeMissionPersonnalisee = !TYPE_MISSION_KEYS.includes(rawType as TypeMission) && rawType
+    ? rawType
+    : undefined
+
+  /* Prises en charge : CSV → tableau */
+  const chargesIncluses = f.Charges
+    ? f.Charges.split(",").map((c) => c.trim()).filter(Boolean)
+    : undefined
+
   return {
     id:               item.id,
     intitule:         f.Title            ?? "",
-    typeMission:      (f.TypeMission as TypeMission) ?? "AUTRE",
+    typeMission,
+    typeMissionPersonnalisee,
     objectif:         f.Objet            ?? "",
     region:           f.Region           ?? undefined,
     lieux:            f.Lieu_Mission     ?? "",
@@ -90,6 +109,7 @@ function mapSPItem(item: MissionSPItem): Mission {
     duree,
     moyenTransport:   SP_VERS_MOYEN_TRANSPORT[f.Mode_Transport ?? ""] ?? "TRANSPORT_PUBLIC",
     matricule:        f.Matricule        ?? undefined,
+    chargesIncluses,
     demandeur:        f.Agent            ?? "",
     dateDemande:      f.Created          ?? "",
     statut:           spVersStatut(f.Statut),
@@ -123,7 +143,8 @@ export async function createMission(
   const rawFields: Record<string, unknown> = {
     Title:              data.intitule        || undefined,
     Agent:              data.demandeur       || undefined,
-    TypeMission:        data.typeMission     || undefined,
+    /* Si type personnalisé fourni (AUTRE + texte libre), on l'enregistre directement */
+    TypeMission:        data.typeMissionPersonnalisee || data.typeMission || undefined,
     Objet:              data.objectif        || undefined,
     Region:             data.region          || undefined,
     Lieu_Mission:       data.lieux           || undefined,
@@ -131,6 +152,9 @@ export async function createMission(
     Date_Retour:        data.dateRetour      || undefined,
     Mode_Transport:     data.moyenTransport ? LABEL_MOYEN_TRANSPORT_MISSION[data.moyenTransport] : undefined,
     Matricule:          data.matricule       || undefined,
+    Charges:            data.chargesIncluses?.length
+      ? data.chargesIncluses.join(", ")
+      : undefined,
     Statut:             statutVersSP(statut),
     Participants:       data.participants?.length
       ? JSON.stringify(data.participants)

@@ -43,11 +43,13 @@ export interface Mission {
   region?:          string
   collective:       boolean
   participants?:    string[]   // format "Nom, Poste" par entrée
-  besoinAvance:     boolean
-  montantAvance?:   number
-  matricule?:       string
-  commentaireDir?:  string
-  dateApprobation?: string
+  besoinAvance:              boolean
+  montantAvance?:            number
+  matricule?:                string
+  chargesIncluses?:          string[]
+  typeMissionPersonnalisee?: string
+  commentaireDir?:           string
+  dateApprobation?:          string
 }
 
 /* ── Demandes de congé ── */

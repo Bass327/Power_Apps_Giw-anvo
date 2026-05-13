@@ -162,7 +162,7 @@ export function DetailMission({ mission, role, onClose, onApprouver, onRejeter }
           <DetailRow
             icon={Briefcase}
             label="Type de mission"
-            value={LABEL_TYPE_MISSION[mission.typeMission]}
+            value={mission.typeMissionPersonnalisee ?? LABEL_TYPE_MISSION[mission.typeMission]}
           />
           {mission.region && (
             <DetailRow
@@ -191,6 +191,32 @@ export function DetailMission({ mission, role, onClose, onApprouver, onRejeter }
               icon={Truck}
               label="Matricule du véhicule"
               value={mission.matricule}
+            />
+          )}
+          {mission.chargesIncluses && mission.chargesIncluses.length > 0 && (
+            <DetailRow
+              icon={DollarSign}
+              label="Prises en charge"
+              value={
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 4 }}>
+                  {mission.chargesIncluses.map((charge) => (
+                    <span
+                      key={charge}
+                      style={{
+                        padding: "3px 10px",
+                        background: "rgba(45,158,95,0.10)",
+                        border: "1px solid rgba(45,158,95,0.25)",
+                        borderRadius: 20,
+                        fontSize: 12,
+                        color: "var(--text-primary)",
+                        fontFamily: "var(--font-body)",
+                      }}
+                    >
+                      {charge}
+                    </span>
+                  ))}
+                </div>
+              }
             />
           )}
           {mission.collective && mission.participants && mission.participants.length > 0 && (

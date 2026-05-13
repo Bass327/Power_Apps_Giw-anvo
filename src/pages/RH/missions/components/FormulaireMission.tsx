@@ -14,38 +14,54 @@ interface Props {
   demandeur: string
 }
 
+/* Options prises en charge */
+const CHARGES_OPTIONS = [
+  "Transport",
+  "Restauration",
+  "Hébergement",
+  "Carburant",
+  "Communication",
+  "Formation",
+]
+
 type FormData = {
-  intitule:         string
-  typeMission:      TypeMission | ""
-  objectifs:        string[]
-  region:           string
-  lieux:            string
-  dateDepart:       string
-  dateRetour:       string
-  moyenTransport:   MoyenTransportMission | ""
-  matricule:        string
-  collective:       boolean
-  participants:     string[]   // format "Nom, Poste"
-  autreParticipant: string     // champ texte libre pour les externes
-  besoinAvance:     boolean
-  montantAvance:    string
+  intitule:            string
+  typeMission:         TypeMission | ""
+  typeMissionAutre:    string
+  objectifs:           string[]
+  region:              string
+  lieux:               string
+  dateDepart:          string
+  dateRetour:          string
+  moyenTransport:      MoyenTransportMission | ""
+  matricule:           string
+  chargesIncluses:     string[]
+  autreCharge:         string
+  collective:          boolean
+  participants:        string[]   // format "Nom, Poste"
+  autreParticipant:    string     // champ texte libre pour les externes
+  besoinAvance:        boolean
+  montantAvance:       string
 }
 
 const FORM_INIT: FormData = {
-  intitule:         "",
-  typeMission:      "",
-  objectifs:        [""],
-  region:           "",
-  lieux:            "",
-  dateDepart:       "",
-  dateRetour:       "",
-  moyenTransport:   "",
-  matricule:        "",
-  collective:       false,
-  participants:     [],
-  autreParticipant: "",
-  besoinAvance:     false,
-  montantAvance:    "",
+  intitule:            "",
+  typeMission:         "",
+  typeMissionAutre:    "",
+  objectifs:           [""],
+  region:              "",
+  lieux:               "",
+  dateDepart:          "",
+  dateRetour:          "",
+  moyenTransport:      "",
+  matricule:           "",
+  chargesIncluses:     [],
+  autreCharge:         "",
+  collective:          false,
+  participants:        [],
+  autreParticipant:    "",
+  besoinAvance:        false,
+  montantAvance:       "",
 }
 
 /* ── Styles réutilisables ── */
@@ -144,9 +160,12 @@ export function FormulaireMission({ onClose, onSubmit, demandeur }: Props) {
   /* ── Validation ── */
   const validate = (): boolean => {
     const newErrors: Partial<Record<keyof FormData, string>> = {}
-    if (!form.intitule.trim())                          newErrors.intitule    = "L'intitulé est requis"
-    if (!form.typeMission)                              newErrors.typeMission  = "Le type de mission est requis"
-    if (!form.objectifs.some((o) => o.trim()))          newErrors.objectifs    = "Au moins un objectif est requis"
+    if (!form.intitule.trim())                                       newErrors.intitule         = "L'intitulé est requis"
+    if (!form.typeMission)                                           newErrors.typeMission       = "Le type de mission est requis"
+    if (form.typeMission === "AUTRE" && !form.typeMissionAutre.trim()) newErrors.typeMissionAutre = "Précisez le type de mission"
+    if (!form.objectifs.some((o) => o.trim()))                       newErrors.objectifs         = "Au moins un objectif est requis"
+    if (form.chargesIncluses.includes("Autre") && !form.autreCharge.trim())
+      newErrors.autreCharge = "Précisez la prise en charge"
     if (!form.region.trim())    newErrors.region       = "La région est requise"
     if (!form.lieux.trim())     newErrors.lieux        = "Le lieu est requis"
     if (!form.dateDepart)       newErrors.dateDepart   = "La date de départ est requise"
@@ -172,16 +191,20 @@ export function FormulaireMission({ onClose, onSubmit, demandeur }: Props) {
 
     onSubmit(
       {
-        intitule:       form.intitule.trim(),
-        typeMission:    form.typeMission as TypeMission,
-        objectif:       form.objectifs.filter((o) => o.trim()).join("\n"),
+        intitule:                  form.intitule.trim(),
+        typeMission:               form.typeMission as TypeMission,
+        typeMissionPersonnalisee:  form.typeMission === "AUTRE" ? form.typeMissionAutre.trim() || undefined : undefined,
+        objectif:                  form.objectifs.filter((o) => o.trim()).join("\n"),
         region:         form.region.trim() || undefined,
         lieux:          form.lieux.trim(),
         dateDepart:     form.dateDepart,
         dateRetour:     form.dateRetour,
         duree:          dureeJours,
         moyenTransport: form.moyenTransport as MoyenTransportMission,
-        matricule:      form.moyenTransport === "VEHICULE_SERVICE" ? form.matricule.trim() : undefined,
+        matricule:        form.moyenTransport === "VEHICULE_SERVICE" ? form.matricule.trim() : undefined,
+        chargesIncluses:  form.chargesIncluses.length > 0
+          ? form.chargesIncluses.map((c) => c === "Autre" ? form.autreCharge.trim() || "Autre" : c)
+          : undefined,
         demandeur,
         collective:     form.collective,
         participants:   form.participants.length > 0 ? form.participants : undefined,
@@ -302,7 +325,10 @@ export function FormulaireMission({ onClose, onSubmit, demandeur }: Props) {
                 <label style={labelStyle}>Type de mission *</label>
                 <select
                   value={form.typeMission}
-                  onChange={(e) => set("typeMission", e.target.value as TypeMission)}
+                  onChange={(e) => {
+                    set("typeMission", e.target.value as TypeMission)
+                    if (e.target.value !== "AUTRE") set("typeMissionAutre", "")
+                  }}
                   style={{ ...inputStyle, borderColor: errors.typeMission ? "#ef4444" : "var(--bg-border)" }}
                 >
                   <option value="">Sélectionner un type...</option>
@@ -314,6 +340,26 @@ export function FormulaireMission({ onClose, onSubmit, demandeur }: Props) {
                   <p style={{ margin: "4px 0 0", fontSize: 11, color: "#ef4444", fontFamily: "var(--font-body)" }}>
                     {errors.typeMission}
                   </p>
+                )}
+                {/* Champ texte libre si "Autre" est sélectionné */}
+                {form.typeMission === "AUTRE" && (
+                  <div style={{ marginTop: 8 }}>
+                    <input
+                      type="text"
+                      placeholder="Précisez le type de mission..."
+                      value={form.typeMissionAutre}
+                      onChange={(e) => set("typeMissionAutre", e.target.value)}
+                      style={{
+                        ...inputStyle,
+                        borderColor: errors.typeMissionAutre ? "#ef4444" : "var(--bg-border)",
+                      }}
+                    />
+                    {errors.typeMissionAutre && (
+                      <p style={{ margin: "4px 0 0", fontSize: 11, color: "#ef4444", fontFamily: "var(--font-body)" }}>
+                        {errors.typeMissionAutre}
+                      </p>
+                    )}
+                  </div>
                 )}
               </div>
 
@@ -546,6 +592,72 @@ export function FormulaireMission({ onClose, onSubmit, demandeur }: Props) {
                   )}
                 </div>
               )}
+
+              {/* Prises en charge */}
+              <div>
+                <label style={labelStyle}>Prises en charge</label>
+                <div
+                  style={{
+                    border: `1px solid ${errors.autreCharge ? "#ef4444" : "var(--bg-border)"}`,
+                    borderRadius: 8,
+                    overflow: "hidden",
+                  }}
+                >
+                  {[...CHARGES_OPTIONS, "Autre"].map((charge) => {
+                    const checked = form.chargesIncluses.includes(charge)
+                    return (
+                      <label
+                        key={charge}
+                        style={{
+                          display: "flex", alignItems: "center", gap: 10,
+                          padding: "10px 14px",
+                          cursor: "pointer",
+                          background: checked ? "rgba(45,158,95,0.10)" : "var(--bg-elevated)",
+                          borderBottom: "1px solid var(--bg-border)",
+                          transition: "background 150ms",
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => {
+                            const next = checked
+                              ? form.chargesIncluses.filter((c) => c !== charge)
+                              : [...form.chargesIncluses, charge]
+                            set("chargesIncluses", next)
+                            if (charge === "Autre" && checked) set("autreCharge", "")
+                          }}
+                          style={{ accentColor: "#f0a500", width: 15, height: 15, flexShrink: 0 }}
+                        />
+                        <span style={{ fontSize: 13, color: checked ? "var(--text-primary)" : "var(--text-secondary)", fontFamily: "var(--font-body)" }}>
+                          {charge}
+                        </span>
+                      </label>
+                    )
+                  })}
+                </div>
+
+                {/* Champ texte libre si "Autre" est coché */}
+                {form.chargesIncluses.includes("Autre") && (
+                  <div style={{ marginTop: 8 }}>
+                    <input
+                      type="text"
+                      placeholder="Précisez la prise en charge..."
+                      value={form.autreCharge}
+                      onChange={(e) => set("autreCharge", e.target.value)}
+                      style={{
+                        ...inputStyle,
+                        borderColor: errors.autreCharge ? "#ef4444" : "var(--bg-border)",
+                      }}
+                    />
+                    {errors.autreCharge && (
+                      <p style={{ margin: "4px 0 0", fontSize: 11, color: "#ef4444", fontFamily: "var(--font-body)" }}>
+                        {errors.autreCharge}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
 
               {/* Mission collective */}
               <div

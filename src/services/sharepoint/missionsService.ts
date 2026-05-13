@@ -1,5 +1,6 @@
 import { getListItems, createListItem, updateListItem, getSiteId, graphFetch } from "@/lib/graphClient"
 import type { Mission, StatutMission, TypeMission, MoyenTransportMission } from "@/types/rh"
+import { LABEL_MOYEN_TRANSPORT_MISSION } from "@/types/rh"
 
 const LIST_NAME = "Ordres_Mission"
 
@@ -31,6 +32,11 @@ function spVersStatut(sp: string | undefined): StatutMission {
   return MAP[sp ?? ""] ?? "BROUILLON"
 }
 
+/* Reverse-map : label français SharePoint → clé TypeScript */
+const SP_VERS_MOYEN_TRANSPORT: Record<string, MoyenTransportMission> = Object.fromEntries(
+  Object.entries(LABEL_MOYEN_TRANSPORT_MISSION).map(([key, label]) => [label, key as MoyenTransportMission])
+)
+
 /* ── Interface brute SharePoint — noms internes réels ── */
 interface MissionSPFields {
   Title?:                 string   // intitulé de la mission
@@ -41,7 +47,8 @@ interface MissionSPFields {
   Lieu_Mission?:          string   // lieu(x)
   Date_D_x00e9_part?:     string   // date de départ
   Date_Retour?:           string   // date de retour
-  Mode_Transport?:        string   // moyen de transport
+  Mode_Transport?:        string   // moyen de transport (label français)
+  Matricule?:             string   // matricule du véhicule de service
   Frais_Perdiem?:         number   // montant avance sur frais
   Statut?:                string   // statut de la mission
   Participants?:          string   // JSON : ["Nom, Poste", ...]
@@ -81,7 +88,8 @@ function mapSPItem(item: MissionSPItem): Mission {
     dateDepart:       f.Date_D_x00e9_part ?? "",
     dateRetour:       f.Date_Retour      ?? "",
     duree,
-    moyenTransport:   (f.Mode_Transport as MoyenTransportMission) ?? "TRANSPORT_PUBLIC",
+    moyenTransport:   SP_VERS_MOYEN_TRANSPORT[f.Mode_Transport ?? ""] ?? "TRANSPORT_PUBLIC",
+    matricule:        f.Matricule        ?? undefined,
     demandeur:        f.Agent            ?? "",
     dateDemande:      f.Created          ?? "",
     statut:           spVersStatut(f.Statut),
@@ -121,7 +129,8 @@ export async function createMission(
     Lieu_Mission:       data.lieux           || undefined,
     Date_D_x00e9_part:  data.dateDepart      || undefined,
     Date_Retour:        data.dateRetour      || undefined,
-    Mode_Transport:     data.moyenTransport  || undefined,
+    Mode_Transport:     data.moyenTransport ? LABEL_MOYEN_TRANSPORT_MISSION[data.moyenTransport] : undefined,
+    Matricule:          data.matricule       || undefined,
     Statut:             statutVersSP(statut),
     Participants:       data.participants?.length
       ? JSON.stringify(data.participants)

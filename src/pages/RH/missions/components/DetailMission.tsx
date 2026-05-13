@@ -186,6 +186,13 @@ export function DetailMission({ mission, role, onClose, onApprouver, onRejeter }
             label="Moyen de transport"
             value={LABEL_MOYEN_TRANSPORT_MISSION[mission.moyenTransport]}
           />
+          {mission.matricule && (
+            <DetailRow
+              icon={Truck}
+              label="Matricule du véhicule"
+              value={mission.matricule}
+            />
+          )}
           {mission.collective && mission.participants && mission.participants.length > 0 && (
             <DetailRow
               icon={Users}

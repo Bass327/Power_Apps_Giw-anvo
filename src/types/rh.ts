@@ -45,6 +45,7 @@ export interface Mission {
   participants?:    string[]   // format "Nom, Poste" par entrée
   besoinAvance:     boolean
   montantAvance?:   number
+  matricule?:       string
   commentaireDir?:  string
   dateApprobation?: string
 }

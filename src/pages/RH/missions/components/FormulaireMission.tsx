@@ -23,6 +23,7 @@ type FormData = {
   dateDepart:       string
   dateRetour:       string
   moyenTransport:   MoyenTransportMission | ""
+  matricule:        string
   collective:       boolean
   participants:     string[]   // format "Nom, Poste"
   autreParticipant: string     // champ texte libre pour les externes
@@ -39,6 +40,7 @@ const FORM_INIT: FormData = {
   dateDepart:       "",
   dateRetour:       "",
   moyenTransport:   "",
+  matricule:        "",
   collective:       false,
   participants:     [],
   autreParticipant: "",
@@ -152,6 +154,8 @@ export function FormulaireMission({ onClose, onSubmit, demandeur }: Props) {
     if (form.dateDepart && form.dateRetour && form.dateRetour < form.dateDepart)
       newErrors.dateRetour = "La date de retour doit être après le départ"
     if (!form.moyenTransport)   newErrors.moyenTransport = "Le moyen de transport est requis"
+    if (form.moyenTransport === "VEHICULE_SERVICE" && !form.matricule.trim())
+      newErrors.matricule = "Le matricule du véhicule est requis"
     if (form.participants.length === 0)
       newErrors.participants = form.collective
         ? "Sélectionnez au moins un participant"
@@ -177,6 +181,7 @@ export function FormulaireMission({ onClose, onSubmit, demandeur }: Props) {
         dateRetour:     form.dateRetour,
         duree:          dureeJours,
         moyenTransport: form.moyenTransport as MoyenTransportMission,
+        matricule:      form.moyenTransport === "VEHICULE_SERVICE" ? form.matricule.trim() : undefined,
         demandeur,
         collective:     form.collective,
         participants:   form.participants.length > 0 ? form.participants : undefined,
@@ -502,7 +507,10 @@ export function FormulaireMission({ onClose, onSubmit, demandeur }: Props) {
                 <label style={labelStyle}>Moyen de transport *</label>
                 <select
                   value={form.moyenTransport}
-                  onChange={(e) => set("moyenTransport", e.target.value as MoyenTransportMission)}
+                  onChange={(e) => {
+                    set("moyenTransport", e.target.value as MoyenTransportMission)
+                    if (e.target.value !== "VEHICULE_SERVICE") set("matricule", "")
+                  }}
                   style={{ ...inputStyle, borderColor: errors.moyenTransport ? "#ef4444" : "var(--bg-border)" }}
                 >
                   <option value="">Sélectionner...</option>
@@ -516,6 +524,28 @@ export function FormulaireMission({ onClose, onSubmit, demandeur }: Props) {
                   </p>
                 )}
               </div>
+
+              {/* Matricule — affiché uniquement si Véhicule de service */}
+              {form.moyenTransport === "VEHICULE_SERVICE" && (
+                <div>
+                  <label style={labelStyle}>Matricule du véhicule *</label>
+                  <input
+                    type="text"
+                    placeholder="Ex : DK 4521 AR"
+                    value={form.matricule}
+                    onChange={(e) => set("matricule", e.target.value)}
+                    style={{
+                      ...inputStyle,
+                      borderColor: errors.matricule ? "#ef4444" : "var(--bg-border)",
+                    }}
+                  />
+                  {errors.matricule && (
+                    <p style={{ margin: "4px 0 0", fontSize: 11, color: "#ef4444", fontFamily: "var(--font-body)" }}>
+                      {errors.matricule}
+                    </p>
+                  )}
+                </div>
+              )}
 
               {/* Mission collective */}
               <div

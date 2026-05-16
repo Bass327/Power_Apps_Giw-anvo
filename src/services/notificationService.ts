@@ -114,7 +114,7 @@ async function sendMany(
 
 // ─── Contexte de notification passé par les hooks ────────────────────────────
 export interface NotificationContext {
-  module:         "DEMANDE_ACHAT" | "DECAISSEMENT"
+  module:         "DEMANDE_ACHAT" | "DECAISSEMENT" | "ORDRE_MISSION"
   newStatut:      string
   submitterEmail: string
   montant?:       number
@@ -165,6 +165,24 @@ export function sendNotificationsAsync(token: string, ctx: NotificationContext):
           case "REJETE": {
             await sendMany(token, [submitterEmail], "requestRejected",
               `Votre demande a été rejetée : ${titre}`)
+            break
+          }
+        }
+      } else if (module === "ORDRE_MISSION") {
+        switch (newStatut) {
+          case "SOUMIS": {
+            await sendMany(token, byRole(users, "Directrice"), "newValidationRequest",
+              `Nouvel ordre de mission à approuver : ${titre}`)
+            break
+          }
+          case "APPROUVE": {
+            await sendMany(token, [submitterEmail], "requestApproved",
+              `Votre ordre de mission a été approuvé : ${titre}`)
+            break
+          }
+          case "REJETE": {
+            await sendMany(token, [submitterEmail], "requestRejected",
+              `Votre ordre de mission a été rejeté : ${titre}`)
             break
           }
         }

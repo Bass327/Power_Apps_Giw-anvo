@@ -391,7 +391,7 @@ export default function RHMissionsPage() {
                     </span>
                     <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12, color: "var(--text-secondary)", fontFamily: "var(--font-body)" }}>
                       <Truck size={11} />
-                      {LABEL_MOYEN_TRANSPORT_MISSION[mission.moyenTransport]}
+                      {mission.moyenTransport.map(k => LABEL_MOYEN_TRANSPORT_MISSION[k]).join(" / ")}
                     </span>
                     <span style={{ fontSize: 12, color: "var(--text-muted)", fontFamily: "var(--font-body)" }}>
                       {LABEL_TYPE_MISSION[mission.typeMission]}

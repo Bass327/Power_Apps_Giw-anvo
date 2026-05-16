@@ -184,7 +184,7 @@ export function DetailMission({ mission, role, onClose, onApprouver, onRejeter }
           <DetailRow
             icon={Truck}
             label="Moyen de transport"
-            value={LABEL_MOYEN_TRANSPORT_MISSION[mission.moyenTransport]}
+            value={mission.moyenTransport.map(k => LABEL_MOYEN_TRANSPORT_MISSION[k]).join(" / ")}
           />
           {mission.matricule && (
             <DetailRow

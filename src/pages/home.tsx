@@ -8,8 +8,11 @@ import {
 import { useCurrentUser } from "@/hooks/useCurrentUser"
 import { useDemandesAchats } from "@/hooks/useDemandesAchats"
 import { useUpdateStatutDemande } from "@/hooks/useDemandesAchats"
+import { useMissions, useUpdateStatutMission } from "@/hooks/useMissions"
 import type { DemandeAchat } from "@/types/DemandeAchat"
+import type { Mission } from "@/types/rh"
 import { STATUT_CONFIG, LABEL_TYPE_DEMANDE, LABEL_JUSTIFICATION_OP, TYPE_CONFIG } from "@/types/DemandeAchat"
+import { STATUT_MISSION_CONFIG, LABEL_TYPE_MISSION, LABEL_MOYEN_TRANSPORT_MISSION } from "@/types/rh"
 import { formatFCFA, formatDateFr } from "@/lib/utils"
 import { canAccessModule } from "@/lib/permissions"
 import type { UserRole } from "@/types/user"
@@ -199,13 +202,14 @@ const ModuleCard = memo(function ModuleCard({
 type ModuleTag = "ACHAT" | "MISSION" | "CONGE" | "ABSENCE"
 
 interface ItemFile {
-  id:          string
-  titre:       string
-  demandeur:   string
-  dateDemande: string
-  module:      ModuleTag
-  path:        string
-  achatData?:  DemandeAchat   // Uniquement pour les achats (SharePoint)
+  id:            string
+  titre:         string
+  demandeur:     string
+  dateDemande:   string
+  module:        ModuleTag
+  path:          string
+  achatData?:    DemandeAchat   // Uniquement pour les achats (SharePoint)
+  missionData?:  Mission        // Uniquement pour les missions (SharePoint)
 }
 
 const MODULE_CFG: Record<ModuleTag, { label: string; color: string; bg: string; border: string }> = {
@@ -221,9 +225,14 @@ const STATUTS_FINAUX_ACHAT = ["APPROUVE", "EN_PAIEMENT", "SOLDE", "REJETE"] as c
    DirectriceDashboard — vue dédiée à la Directrice
    ════════════════════════════════════════════════ */
 function DirectriceDashboard({ prenom }: { prenom: string }) {
-  const { data: demandes = [], isLoading } = useDemandesAchats()
-  const { mutate, isPending }              = useUpdateStatutDemande()
-  const [demandeSelectee, setDemandeSelectee] = useState<DemandeAchat | null>(null)
+  const { data: demandes  = [], isLoading: isLoadingAchats }  = useDemandesAchats()
+  const { data: missions  = [], isLoading: isLoadingMissions } = useMissions()
+  const { mutate, isPending }                                  = useUpdateStatutDemande()
+  const { mutate: mutateMission, isPending: isMissionPending } = useUpdateStatutMission()
+  const [demandeSelectee, setDemandeSelectee]   = useState<DemandeAchat | null>(null)
+  const [missionSelectee, setMissionSelectee]   = useState<Mission | null>(null)
+
+  const isLoading = isLoadingAchats || isLoadingMissions
 
   const mois  = new Date().getMonth()
   const annee = new Date().getFullYear()
@@ -236,12 +245,14 @@ function DirectriceDashboard({ prenom }: { prenom: string }) {
   // KPIs achats (SharePoint)
   const achatsEnAttente = demandes.filter((d) => !STATUTS_FINAUX_ACHAT.includes(d.statut as typeof STATUTS_FINAUX_ACHAT[number]))
   const approuvesMois   = demandes.filter((d) => d.statut === "APPROUVE" && duMois(d))
-  const rejetesMois     = demandes.filter((d) => d.statut === "REJETE"   && duMois(d))
   const montantMois     = approuvesMois.reduce((sum, d) => sum + d.montant, 0)
 
-  // File d'approbation — uniquement les achats SharePoint (données réelles)
-  const fileApprobation: ItemFile[] = achatsEnAttente
-    .map((d) => ({
+  // Missions en attente d'approbation DG
+  const missionsEnAttente = missions.filter((m) => m.statut === "SOUMIS")
+
+  // File d'approbation unifiée : achats + missions en attente
+  const fileApprobation: ItemFile[] = [
+    ...achatsEnAttente.map((d) => ({
       id:          d.id,
       titre:       d.titre,
       demandeur:   d.demandeur,
@@ -249,8 +260,17 @@ function DirectriceDashboard({ prenom }: { prenom: string }) {
       module:      "ACHAT" as ModuleTag,
       path:        "/achats",
       achatData:   d,
-    }))
-    .sort((a, b) => new Date(a.dateDemande).getTime() - new Date(b.dateDemande).getTime())
+    })),
+    ...missionsEnAttente.map((m) => ({
+      id:           m.id,
+      titre:        m.intitule,
+      demandeur:    m.demandeur,
+      dateDemande:  m.dateDemande,
+      module:       "MISSION" as ModuleTag,
+      path:         "/rh",
+      missionData:  m,
+    })),
+  ].sort((a, b) => new Date(a.dateDemande).getTime() - new Date(b.dateDemande).getTime())
 
   // Délai d'attente en jours
   function joursAttente(dateDemande: string): number {
@@ -283,6 +303,20 @@ function DirectriceDashboard({ prenom }: { prenom: string }) {
     )
   }
 
+  function handleApprouverMission(mission: Mission, commentaire: string) {
+    mutateMission(
+      { id: mission.id, statut: "APPROUVE", commentaire, demandeurEmail: mission.demandeur, titre: mission.intitule },
+      { onSuccess: () => setMissionSelectee(null) },
+    )
+  }
+
+  function handleRejeterMission(mission: Mission, commentaire: string) {
+    mutateMission(
+      { id: mission.id, statut: "REJETE", commentaire, demandeurEmail: mission.demandeur, titre: mission.intitule },
+      { onSuccess: () => setMissionSelectee(null) },
+    )
+  }
+
   const kpis = [
     {
       label:  "En attente d'approbation",
@@ -291,6 +325,14 @@ function DirectriceDashboard({ prenom }: { prenom: string }) {
       bg:     "rgba(239,68,68,0.08)",
       border: "rgba(239,68,68,0.20)",
       icon:   <Clock className="w-5 h-5" style={{ color: "#ef4444" }} />,
+    },
+    {
+      label:  "Missions à approuver",
+      value:  missionsEnAttente.length,
+      color:  "#3b82f6",
+      bg:     "rgba(59,130,246,0.08)",
+      border: "rgba(59,130,246,0.20)",
+      icon:   <Clock className="w-5 h-5" style={{ color: "#3b82f6" }} />,
     },
     {
       label:  "Montant engagé ce mois",
@@ -309,20 +351,12 @@ function DirectriceDashboard({ prenom }: { prenom: string }) {
       border: "rgba(34,197,94,0.20)",
       icon:   <CheckCircle className="w-5 h-5" style={{ color: "#22c55e" }} />,
     },
-    {
-      label:  "Rejetées ce mois",
-      value:  rejetesMois.length,
-      color:  "#f59e0b",
-      bg:     "rgba(245,158,11,0.08)",
-      border: "rgba(245,158,11,0.20)",
-      icon:   <XCircle className="w-5 h-5" style={{ color: "#f59e0b" }} />,
-    },
   ]
 
   return (
     <div className="space-y-8 max-w-6xl">
 
-      {/* Modal détail */}
+      {/* Modal détail achat */}
       {demandeSelectee && (
         <DemandeDetailModal
           demande={demandeSelectee}
@@ -332,6 +366,17 @@ function DirectriceDashboard({ prenom }: { prenom: string }) {
           isPending={isPending}
           canAct={!STATUTS_FINAUX_ACHAT.includes(demandeSelectee.statut as typeof STATUTS_FINAUX_ACHAT[number])}
           actionLabel="Approuver définitivement"
+        />
+      )}
+
+      {/* Modal détail mission */}
+      {missionSelectee && (
+        <MissionDetailModal
+          mission={missionSelectee}
+          onClose={() => setMissionSelectee(null)}
+          onApprouver={(comment) => handleApprouverMission(missionSelectee, comment)}
+          onRejeter={(comment) => handleRejeterMission(missionSelectee, comment)}
+          isPending={isMissionPending}
         />
       )}
 
@@ -420,16 +465,19 @@ function DirectriceDashboard({ prenom }: { prenom: string }) {
               return (
                 <button
                   key={item.id}
-                  onClick={() => isAchat && item.achatData ? setDemandeSelectee(item.achatData) : undefined}
+                  onClick={() => {
+                    if (isAchat && item.achatData) setDemandeSelectee(item.achatData)
+                    else if (item.module === "MISSION" && item.missionData) setMissionSelectee(item.missionData)
+                  }}
                   className="w-full text-left px-5 py-4 flex items-center gap-4 transition-colors duration-150"
                   style={{
                     background:   i % 2 === 0 ? "var(--bg-surface)" : "var(--bg-elevated)",
                     borderBottom: "1px solid var(--bg-border)",
                     borderLeft:   urgente ? "3px solid #ef4444" : `3px solid ${modCfg.color}40`,
-                    cursor:       isAchat ? "pointer" : "default",
+                    cursor:       "pointer",
                   }}
-                  onMouseEnter={(e) => { if (isAchat) e.currentTarget.style.background = "var(--bg-elevated)" }}
-                  onMouseLeave={(e) => { if (isAchat) e.currentTarget.style.background = i % 2 === 0 ? "var(--bg-surface)" : "var(--bg-elevated)" }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = "var(--bg-elevated)" }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = i % 2 === 0 ? "var(--bg-surface)" : "var(--bg-elevated)" }}
                 >
                   {/* Icône urgence */}
                   <div className="flex-shrink-0">
@@ -485,17 +533,15 @@ function DirectriceDashboard({ prenom }: { prenom: string }) {
                   </div>
 
                   {/* CTA */}
-                  {isAchat && (
-                    <div
-                      className="flex-shrink-0 flex items-center gap-1.5 text-xs font-display font-semibold px-3 py-1.5 rounded-lg"
-                      style={{
-                        background: "linear-gradient(135deg, var(--gold-warm), var(--gold-bright))",
-                        color:      "var(--text-inverse)",
-                      }}
-                    >
-                      Voir <ArrowRight className="w-3 h-3" />
-                    </div>
-                  )}
+                  <div
+                    className="flex-shrink-0 flex items-center gap-1.5 text-xs font-display font-semibold px-3 py-1.5 rounded-lg"
+                    style={{
+                      background: "linear-gradient(135deg, var(--gold-warm), var(--gold-bright))",
+                      color:      "var(--text-inverse)",
+                    }}
+                  >
+                    Voir <ArrowRight className="w-3 h-3" />
+                  </div>
                 </button>
               )
             })}
@@ -744,6 +790,241 @@ function DemandeDetailModal({
                     : <CheckCircle className="w-3.5 h-3.5" />
                   }
                   {actionLabel}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+/* ════════════════════════════════════════════════
+   MissionDetailModal — popup détail + approbation mission
+   ════════════════════════════════════════════════ */
+function MissionDetailModal({
+  mission,
+  onClose,
+  onApprouver,
+  onRejeter,
+  isPending,
+}: {
+  mission:     Mission
+  onClose:     () => void
+  onApprouver: (comment: string) => void
+  onRejeter:   (comment: string) => void
+  isPending:   boolean
+}) {
+  const [commentaire, setCommentaire] = useState("")
+  const [modeRejet,   setModeRejet]   = useState(false)
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose() }
+    window.addEventListener("keydown", handler)
+    return () => window.removeEventListener("keydown", handler)
+  }, [onClose])
+
+  function Field({ label, value }: { label: string; value: string | number | undefined | null }) {
+    if (!value && value !== 0) return null
+    return (
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-wide mb-0.5"
+           style={{ color: "var(--text-muted)", fontFamily: "'Syne', sans-serif" }}>
+          {label}
+        </p>
+        <p className="text-sm" style={{ color: "var(--text-primary)", fontFamily: "'DM Sans', sans-serif" }}>
+          {String(value)}
+        </p>
+      </div>
+    )
+  }
+
+  const statutCfg = STATUT_MISSION_CONFIG[mission.statut]
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: "var(--modal-overlay)", backdropFilter: "blur(4px)" }}
+      onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
+    >
+      <div
+        className="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl flex flex-col"
+        style={{ background: "var(--glass-card-bg)", border: "1px solid var(--bg-border)" }}
+      >
+        {/* Header */}
+        <div
+          className="sticky top-0 flex items-start justify-between gap-3 px-6 py-4 flex-shrink-0"
+          style={{ background: "var(--glass-header-bg)", borderBottom: "1px solid var(--bg-border)", backdropFilter: "blur(20px)" }}
+        >
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 flex-wrap mb-1">
+              <span
+                className="text-xs font-display font-semibold px-2 py-0.5 rounded-full"
+                style={{ background: statutCfg.bg, color: statutCfg.color, border: `1px solid ${statutCfg.border}` }}
+              >
+                {statutCfg.label}
+              </span>
+              <span
+                className="text-xs font-display px-2 py-0.5 rounded-full"
+                style={{ background: "rgba(59,130,246,0.10)", color: "#60a5fa", border: "1px solid rgba(59,130,246,0.25)" }}
+              >
+                Ordre de mission
+              </span>
+            </div>
+            <h2 className="text-base font-bold font-display leading-snug" style={{ color: "var(--text-primary)" }}>
+              {mission.intitule}
+            </h2>
+          </div>
+          <button
+            onClick={onClose}
+            className="flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center transition-colors duration-150"
+            style={{ background: "var(--bg-elevated)", color: "var(--text-secondary)", border: "1px solid var(--bg-border)" }}
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Corps */}
+        <div className="px-6 py-5 space-y-5 flex-1">
+
+          {/* Infos principales */}
+          <div className="grid grid-cols-2 gap-x-6 gap-y-4">
+            <Field label="Demandeur"      value={mission.demandeur.split("@")[0]} />
+            <Field label="Date de demande" value={formatDateFr(mission.dateDemande)} />
+            <Field label="Département"     value={mission.departement} />
+            <Field label="Type de mission" value={LABEL_TYPE_MISSION[mission.typeMission]} />
+            <Field label="Région"          value={mission.region} />
+            <Field label="Lieu(x)"         value={mission.lieux} />
+            <Field label="Départ"          value={formatDateFr(mission.dateDepart)} />
+            <Field label="Retour"          value={formatDateFr(mission.dateRetour)} />
+            <Field label="Durée"           value={`${mission.duree} jour(s)`} />
+            <Field label="Moyen(s) de transport" value={mission.moyenTransport.map(k => LABEL_MOYEN_TRANSPORT_MISSION[k]).join(" / ")} />
+            {mission.matricule && <Field label="Matricule véhicule" value={mission.matricule} />}
+            {(mission.montantAvance ?? 0) > 0 && (
+              <Field label="Avance demandée" value={formatFCFA(mission.montantAvance!)} />
+            )}
+          </div>
+
+          {/* Objectif */}
+          {mission.objectif && (
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide mb-1"
+                 style={{ color: "var(--text-muted)", fontFamily: "'Syne', sans-serif" }}>
+                Objectif(s)
+              </p>
+              <p className="text-sm leading-relaxed p-3 rounded-lg"
+                 style={{ color: "var(--text-primary)", background: "var(--bg-elevated)", fontFamily: "'DM Sans', sans-serif",
+                          whiteSpace: "pre-line" }}>
+                {mission.objectif}
+              </p>
+            </div>
+          )}
+
+          {/* Prises en charge */}
+          {mission.chargesIncluses && mission.chargesIncluses.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide mb-2"
+                 style={{ color: "var(--text-muted)", fontFamily: "'Syne', sans-serif" }}>
+                Prises en charge
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {mission.chargesIncluses.map((c) => (
+                  <span
+                    key={c}
+                    className="text-xs font-display px-2 py-0.5 rounded-full"
+                    style={{ background: "rgba(45,158,95,0.12)", color: "var(--green-bright)", border: "1px solid rgba(45,158,95,0.30)" }}
+                  >
+                    {c}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Participants */}
+          {mission.participants && mission.participants.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide mb-2"
+                 style={{ color: "var(--text-muted)", fontFamily: "'Syne', sans-serif" }}>
+                Participants ({mission.participants.length})
+              </p>
+              <div className="flex flex-col gap-1">
+                {mission.participants.map((p) => (
+                  <p key={p} className="text-sm" style={{ color: "var(--text-primary)", fontFamily: "'DM Sans', sans-serif" }}>
+                    · {p}
+                  </p>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Footer — actions */}
+        {mission.statut === "SOUMIS" && (
+          <div
+            className="sticky bottom-0 px-6 py-4 flex-shrink-0 space-y-3"
+            style={{ background: "var(--glass-header-bg)", borderTop: "1px solid var(--bg-border)", backdropFilter: "blur(20px)" }}
+          >
+            {modeRejet ? (
+              <div className="space-y-2">
+                <textarea
+                  placeholder="Motif de rejet (requis)…"
+                  value={commentaire}
+                  onChange={(e) => setCommentaire(e.target.value)}
+                  rows={2}
+                  className="w-full text-sm resize-none"
+                  style={{
+                    background:   "var(--bg-surface)",
+                    border:       "1px solid rgba(239,68,68,0.30)",
+                    borderRadius: "8px",
+                    padding:      "8px 12px",
+                    color:        "var(--text-primary)",
+                    outline:      "none",
+                    fontFamily:   "'DM Sans', sans-serif",
+                  }}
+                />
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => { setModeRejet(false); setCommentaire("") }}
+                    className="flex-1 py-2 rounded-lg text-sm font-display font-medium"
+                    style={{ background: "var(--bg-elevated)", color: "var(--text-secondary)", border: "1px solid var(--bg-border)" }}
+                  >
+                    Annuler
+                  </button>
+                  <button
+                    onClick={() => onRejeter(commentaire)}
+                    disabled={isPending || !commentaire.trim()}
+                    className="flex-1 py-2 rounded-lg text-sm font-display font-medium transition-all disabled:opacity-40 flex items-center justify-center gap-1.5"
+                    style={{ background: "rgba(239,68,68,0.15)", color: "#ef4444", border: "1px solid rgba(239,68,68,0.30)" }}
+                  >
+                    {isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <XCircle className="w-3.5 h-3.5" />}
+                    Confirmer le rejet
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setModeRejet(true)}
+                  disabled={isPending}
+                  className="flex-1 py-2 rounded-lg text-sm font-display font-medium flex items-center justify-center gap-1.5 disabled:opacity-50"
+                  style={{ background: "rgba(239,68,68,0.08)", color: "#ef4444", border: "1px solid rgba(239,68,68,0.25)" }}
+                >
+                  <XCircle className="w-3.5 h-3.5" /> Rejeter
+                </button>
+                <button
+                  onClick={() => onApprouver(commentaire)}
+                  disabled={isPending}
+                  className="flex-1 py-2 rounded-lg text-sm font-display font-semibold flex items-center justify-center gap-1.5 transition-all disabled:opacity-50"
+                  style={{
+                    background: "linear-gradient(135deg, var(--gold-warm), var(--gold-bright))",
+                    color:      "var(--text-inverse)",
+                    boxShadow:  "0 0 10px var(--gold-glow)",
+                  }}
+                >
+                  {isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle className="w-3.5 h-3.5" />}
+                  Approuver la mission
                 </button>
               </div>
             )}

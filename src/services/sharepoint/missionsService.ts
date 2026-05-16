@@ -12,7 +12,7 @@ function statutVersSP(statut: StatutMission): string {
   const MAP: Record<StatutMission, string> = {
     BROUILLON: "Brouillon",
     SOUMIS:    "Soumis",
-    APPROUVE:  "Approuvé",
+    APPROUVE:  "Approuvé DG",
     EN_COURS:  "En cours",
     TERMINE:   "Terminé",
     REJETE:    "Rejeté",
@@ -22,12 +22,13 @@ function statutVersSP(statut: StatutMission): string {
 
 function spVersStatut(sp: string | undefined): StatutMission {
   const MAP: Record<string, StatutMission> = {
-    "Brouillon": "BROUILLON",
-    "Soumis":    "SOUMIS",
-    "Approuvé":  "APPROUVE",
-    "En cours":  "EN_COURS",
-    "Terminé":   "TERMINE",
-    "Rejeté":    "REJETE",
+    "Brouillon":   "BROUILLON",
+    "Soumis":      "SOUMIS",
+    "Approuvé":    "APPROUVE",
+    "Approuvé DG": "APPROUVE",
+    "En cours":    "EN_COURS",
+    "Terminé":     "TERMINE",
+    "Rejeté":      "REJETE",
   }
   return MAP[sp ?? ""] ?? "BROUILLON"
 }
@@ -41,8 +42,9 @@ const SP_VERS_MOYEN_TRANSPORT: Record<string, MoyenTransportMission> = Object.fr
    À VÉRIFIER via logMissionsColumns() si les données n'apparaissent pas.
    Ouvrir la console navigateur et chercher le tableau "Colonnes SharePoint — Ordres_Mission".
 */
-const COL_MATRICULE = "Matricule"   // nom interne réel de la colonne matricule
-const COL_CHARGES   = "Charges"     // nom interne réel de la colonne prises en charge
+const COL_MATRICULE   = "Matricule"    // nom interne réel de la colonne matricule
+const COL_CHARGES     = "Charges"      // nom interne réel de la colonne prises en charge
+const COL_DEPARTEMENT = "Departement"  // nom interne réel de la colonne département
 
 /* ── Interface brute SharePoint — noms internes réels ── */
 interface MissionSPFields {
@@ -61,7 +63,7 @@ interface MissionSPFields {
   DG_Commentaire?:        string   // commentaire de la DG
   Date_Decision?:         string   // date d'approbation/rejet
   Created?:               string   // date de création
-  [key: string]:          unknown  // champs dynamiques (Matricule, Charges…)
+  [key: string]:          unknown  // champs dynamiques (Matricule, Charges, Departement…)
 }
 
 interface MissionSPItem {
@@ -109,12 +111,19 @@ function mapSPItem(item: MissionSPItem): Mission {
     typeMission,
     typeMissionPersonnalisee,
     objectif:         f.Objet            ?? "",
+    departement:      (f[COL_DEPARTEMENT] as string | undefined) ?? undefined,
     region:           f.Region           ?? undefined,
     lieux:            f.Lieu_Mission     ?? "",
     dateDepart:       f.Date_D_x00e9_part ?? "",
     dateRetour:       f.Date_Retour      ?? "",
     duree,
-    moyenTransport:   SP_VERS_MOYEN_TRANSPORT[f.Mode_Transport ?? ""] ?? "TRANSPORT_PUBLIC",
+    moyenTransport:   (() => {
+      const labels = (f.Mode_Transport ?? "").split(",").map(s => s.trim()).filter(Boolean)
+      const keys = labels
+        .map(label => SP_VERS_MOYEN_TRANSPORT[label] ?? null)
+        .filter((k): k is MoyenTransportMission => k !== null)
+      return keys.length > 0 ? keys : ["TRANSPORT_PUBLIC" as MoyenTransportMission]
+    })(),
     matricule:        (f[COL_MATRICULE] as string | undefined) ?? undefined,
     chargesIncluses,
     demandeur:        f.Agent            ?? "",
@@ -150,6 +159,8 @@ export async function getMissions(token: string): Promise<Mission[]> {
       console.warn(`[Missions] Colonne introuvable : "${COL_MATRICULE}". Vérifier le nom interne dans logMissionsColumns.`)
     if (!(COL_CHARGES in firstFields))
       console.warn(`[Missions] Colonne introuvable : "${COL_CHARGES}". Vérifier le nom interne dans logMissionsColumns.`)
+    if (!(COL_DEPARTEMENT in firstFields))
+      console.warn(`[Missions] Colonne introuvable : "${COL_DEPARTEMENT}". À créer dans SharePoint si absente.`)
   }
 
   return items
@@ -166,25 +177,28 @@ export async function createMission(
   const statut: StatutMission = soumettre ? "SOUMIS" : "BROUILLON"
 
   const rawFields: Record<string, unknown> = {
-    Title:              data.intitule        || undefined,
-    Agent:              data.demandeur       || undefined,
+    Title:                data.intitule        || undefined,
+    Agent:                data.demandeur       || undefined,
     /* Si type personnalisé fourni (AUTRE + texte libre), on l'enregistre directement */
-    TypeMission:        data.typeMissionPersonnalisee || data.typeMission || undefined,
-    Objet:              data.objectif        || undefined,
-    Region:             data.region          || undefined,
-    Lieu_Mission:       data.lieux           || undefined,
-    Date_D_x00e9_part:  data.dateDepart      || undefined,
-    Date_Retour:        data.dateRetour      || undefined,
-    Mode_Transport:     data.moyenTransport ? LABEL_MOYEN_TRANSPORT_MISSION[data.moyenTransport] : undefined,
-    [COL_MATRICULE]:    data.matricule       || undefined,
-    [COL_CHARGES]:      data.chargesIncluses?.length
+    TypeMission:          data.typeMissionPersonnalisee || data.typeMission || undefined,
+    Objet:                data.objectif        || undefined,
+    [COL_DEPARTEMENT]:    data.departement     || undefined,
+    Region:               data.region          || undefined,
+    Lieu_Mission:         data.lieux           || undefined,
+    Date_D_x00e9_part:    data.dateDepart      || undefined,
+    Date_Retour:          data.dateRetour      || undefined,
+    Mode_Transport:       data.moyenTransport.length > 0
+      ? data.moyenTransport.map(k => LABEL_MOYEN_TRANSPORT_MISSION[k]).join(", ")
+      : undefined,
+    [COL_MATRICULE]:      data.matricule       || undefined,
+    [COL_CHARGES]:        data.chargesIncluses?.length
       ? data.chargesIncluses.join(", ")
       : undefined,
-    Statut:             statutVersSP(statut),
-    Participants:       data.participants?.length
+    Statut:               statutVersSP(statut),
+    Participants:         data.participants?.length
       ? JSON.stringify(data.participants)
       : undefined,
-    Frais_Perdiem:      data.besoinAvance ? (data.montantAvance ?? undefined) : undefined,
+    Frais_Perdiem:        data.besoinAvance ? (data.montantAvance ?? undefined) : undefined,
   }
 
   const fields = Object.fromEntries(

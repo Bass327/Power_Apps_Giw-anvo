@@ -28,12 +28,13 @@ type FormData = {
   intitule:            string
   typeMission:         TypeMission | ""
   typeMissionAutre:    string
+  departement:         string
   objectifs:           string[]
   region:              string
   lieux:               string
   dateDepart:          string
   dateRetour:          string
-  moyenTransport:      MoyenTransportMission | ""
+  moyenTransport:      MoyenTransportMission[]
   matricule:           string
   chargesIncluses:     string[]
   autreCharge:         string
@@ -48,12 +49,13 @@ const FORM_INIT: FormData = {
   intitule:            "",
   typeMission:         "",
   typeMissionAutre:    "",
+  departement:         "",
   objectifs:           [""],
   region:              "",
   lieux:               "",
   dateDepart:          "",
   dateRetour:          "",
-  moyenTransport:      "",
+  moyenTransport:      [],
   matricule:           "",
   chargesIncluses:     [],
   autreCharge:         "",
@@ -163,6 +165,7 @@ export function FormulaireMission({ onClose, onSubmit, demandeur }: Props) {
     if (!form.intitule.trim())                                       newErrors.intitule         = "L'intitulé est requis"
     if (!form.typeMission)                                           newErrors.typeMission       = "Le type de mission est requis"
     if (form.typeMission === "AUTRE" && !form.typeMissionAutre.trim()) newErrors.typeMissionAutre = "Précisez le type de mission"
+    if (!form.departement.trim())                                    newErrors.departement       = "Le département est requis"
     if (!form.objectifs.some((o) => o.trim()))                       newErrors.objectifs         = "Au moins un objectif est requis"
     if (form.chargesIncluses.includes("Autre") && !form.autreCharge.trim())
       newErrors.autreCharge = "Précisez la prise en charge"
@@ -172,8 +175,8 @@ export function FormulaireMission({ onClose, onSubmit, demandeur }: Props) {
     if (!form.dateRetour)       newErrors.dateRetour   = "La date de retour est requise"
     if (form.dateDepart && form.dateRetour && form.dateRetour < form.dateDepart)
       newErrors.dateRetour = "La date de retour doit être après le départ"
-    if (!form.moyenTransport)   newErrors.moyenTransport = "Le moyen de transport est requis"
-    if (form.moyenTransport === "VEHICULE_SERVICE" && !form.matricule.trim())
+    if (form.moyenTransport.length === 0) newErrors.moyenTransport = "Sélectionnez au moins un moyen de transport"
+    if (form.moyenTransport.includes("VEHICULE_SERVICE") && !form.matricule.trim())
       newErrors.matricule = "Le matricule du véhicule est requis"
     if (form.participants.length === 0)
       newErrors.participants = form.collective
@@ -194,14 +197,15 @@ export function FormulaireMission({ onClose, onSubmit, demandeur }: Props) {
         intitule:                  form.intitule.trim(),
         typeMission:               form.typeMission as TypeMission,
         typeMissionPersonnalisee:  form.typeMission === "AUTRE" ? form.typeMissionAutre.trim() || undefined : undefined,
+        departement:               form.departement.trim() || undefined,
         objectif:                  form.objectifs.filter((o) => o.trim()).join("\n"),
         region:         form.region.trim() || undefined,
         lieux:          form.lieux.trim(),
         dateDepart:     form.dateDepart,
         dateRetour:     form.dateRetour,
         duree:          dureeJours,
-        moyenTransport: form.moyenTransport as MoyenTransportMission,
-        matricule:        form.moyenTransport === "VEHICULE_SERVICE" ? form.matricule.trim() : undefined,
+        moyenTransport: form.moyenTransport,
+        matricule:        form.moyenTransport.includes("VEHICULE_SERVICE") ? form.matricule.trim() : undefined,
         chargesIncluses:  form.chargesIncluses.length > 0
           ? form.chargesIncluses.map((c) => c === "Autre" ? form.autreCharge.trim() || "Autre" : c)
           : undefined,
@@ -360,6 +364,23 @@ export function FormulaireMission({ onClose, onSubmit, demandeur }: Props) {
                       </p>
                     )}
                   </div>
+                )}
+              </div>
+
+              {/* Département */}
+              <div>
+                <label style={labelStyle}>Département *</label>
+                <input
+                  type="text"
+                  placeholder="Ex : Technique, RH, Direction, Commercial…"
+                  value={form.departement}
+                  onChange={(e) => set("departement", e.target.value)}
+                  style={{ ...inputStyle, borderColor: errors.departement ? "#ef4444" : "var(--bg-border)" }}
+                />
+                {errors.departement && (
+                  <p style={{ margin: "4px 0 0", fontSize: 11, color: "#ef4444", fontFamily: "var(--font-body)" }}>
+                    {errors.departement}
+                  </p>
                 )}
               </div>
 
@@ -548,31 +569,53 @@ export function FormulaireMission({ onClose, onSubmit, demandeur }: Props) {
             </div>
 
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-              {/* Moyen de transport */}
+              {/* Moyen de transport — multi-sélection */}
               <div>
-                <label style={labelStyle}>Moyen de transport *</label>
-                <select
-                  value={form.moyenTransport}
-                  onChange={(e) => {
-                    set("moyenTransport", e.target.value as MoyenTransportMission)
-                    if (e.target.value !== "VEHICULE_SERVICE") set("matricule", "")
-                  }}
-                  style={{ ...inputStyle, borderColor: errors.moyenTransport ? "#ef4444" : "var(--bg-border)" }}
-                >
-                  <option value="">Sélectionner...</option>
-                  {Object.entries(LABEL_MOYEN_TRANSPORT_MISSION).map(([k, v]) => (
-                    <option key={k} value={k}>{v}</option>
-                  ))}
-                </select>
+                <label style={labelStyle}>Moyen(s) de transport *</label>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginTop: 4 }}>
+                  {(Object.entries(LABEL_MOYEN_TRANSPORT_MISSION) as [MoyenTransportMission, string][]).map(([key, label]) => {
+                    const selected = form.moyenTransport.includes(key)
+                    return (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => {
+                          const next = selected
+                            ? form.moyenTransport.filter(k => k !== key)
+                            : [...form.moyenTransport, key]
+                          set("moyenTransport", next)
+                          if (!next.includes("VEHICULE_SERVICE")) set("matricule", "")
+                          if (errors.moyenTransport) setErrors(prev => ({ ...prev, moyenTransport: undefined }))
+                        }}
+                        style={{
+                          padding: "7px 14px",
+                          borderRadius: 8,
+                          fontSize: 13,
+                          fontFamily: "var(--font-body)",
+                          cursor: "pointer",
+                          border: selected
+                            ? "1px solid var(--green-vivid)"
+                            : `1px solid ${errors.moyenTransport ? "#ef4444" : "var(--bg-border)"}`,
+                          background: selected ? "rgba(45,158,95,0.15)" : "var(--bg-elevated)",
+                          color: selected ? "var(--green-bright)" : "var(--text-secondary)",
+                          fontWeight: selected ? 600 : 400,
+                          transition: "all 150ms ease",
+                        }}
+                      >
+                        {label}
+                      </button>
+                    )
+                  })}
+                </div>
                 {errors.moyenTransport && (
-                  <p style={{ margin: "4px 0 0", fontSize: 11, color: "#ef4444", fontFamily: "var(--font-body)" }}>
+                  <p style={{ margin: "6px 0 0", fontSize: 11, color: "#ef4444", fontFamily: "var(--font-body)" }}>
                     {errors.moyenTransport}
                   </p>
                 )}
               </div>
 
-              {/* Matricule — affiché uniquement si Véhicule de service */}
-              {form.moyenTransport === "VEHICULE_SERVICE" && (
+              {/* Matricule — affiché uniquement si Véhicule de service est sélectionné */}
+              {form.moyenTransport.includes("VEHICULE_SERVICE") && (
                 <div>
                   <label style={labelStyle}>Matricule du véhicule *</label>
                   <input

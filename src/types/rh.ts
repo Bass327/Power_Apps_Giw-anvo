@@ -36,10 +36,11 @@ export interface Mission {
   dateDepart:       string   // ISO date
   dateRetour:       string   // ISO date
   duree:            number   // en jours
-  moyenTransport:   MoyenTransportMission
+  moyenTransport:   MoyenTransportMission[]
   demandeur:        string   // email
   dateDemande:      string   // ISO date
   statut:           StatutMission
+  departement?:     string
   region?:          string
   collective:       boolean
   participants?:    string[]   // format "Nom, Poste" par entrée

@@ -1,4 +1,4 @@
-/* ═══════════════════════════════════════════════════════════════════════════
+﻿/* ═══════════════════════════════════════════════════════════════════════════
    ProjetDetails — Page de détail d'un projet du pipeline
    Route : /suivi/pipeline-projets/projets/:id
    ═══════════════════════════════════════════════════════════════════════════ */
@@ -167,7 +167,7 @@ function SectionCard({ title, children }: { title: string; children: React.React
   return (
     <div
       className="rounded-2xl p-5"
-      style={{ background: "rgba(13,26,16,0.6)", border: "1px solid var(--bg-border)" }}
+      style={{ background: "var(--bg-elevated)", border: "1px solid var(--bg-border)" }}
     >
       <h3
         className="text-xs font-bold mb-3 uppercase tracking-widest"
@@ -190,7 +190,7 @@ function ResumeTab({ projet }: { projet: ProjetPipeline }) {
       {projet.description && (
         <div
           className="lg:col-span-2 rounded-2xl p-5"
-          style={{ background: "rgba(13,26,16,0.6)", border: "1px solid var(--bg-border)" }}
+          style={{ background: "var(--bg-elevated)", border: "1px solid var(--bg-border)" }}
         >
           <h3
             className="text-xs font-bold mb-3 uppercase tracking-widest"
@@ -275,7 +275,7 @@ function TachesTab({ tasks, loading }: { tasks: PipelineTask[]; loading: boolean
     return (
       <div
         className="flex flex-col items-center justify-center py-20 rounded-2xl"
-        style={{ background: "rgba(13,26,16,0.4)", border: "1px dashed #1e3528" }}
+        style={{ background: "var(--bg-surface)", border: "1px dashed var(--bg-border)" }}
       >
         <CheckSquare size={32} style={{ color: "#2d9e5f", opacity: 0.4 }} />
         <p className="mt-3 text-sm" style={{ color: "var(--text-secondary)" }}>
@@ -293,7 +293,7 @@ function TachesTab({ tasks, loading }: { tasks: PipelineTask[]; loading: boolean
           <div
             key={task.id}
             className="flex items-center gap-4 p-4 rounded-xl"
-            style={{ background: "rgba(13,26,16,0.6)", border: "1px solid var(--bg-border)" }}
+            style={{ background: "var(--bg-elevated)", border: "1px solid var(--bg-border)" }}
           >
             <div className="flex-1 min-w-0">
               <p
@@ -358,7 +358,7 @@ function JalonsTab({ milestones, loading }: { milestones: PipelineMilestone[]; l
     return (
       <div
         className="flex flex-col items-center justify-center py-20 rounded-2xl"
-        style={{ background: "rgba(13,26,16,0.4)", border: "1px dashed #1e3528" }}
+        style={{ background: "var(--bg-surface)", border: "1px dashed var(--bg-border)" }}
       >
         <Flag size={32} style={{ color: "#2d9e5f", opacity: 0.4 }} />
         <p className="mt-3 text-sm" style={{ color: "var(--text-secondary)" }}>
@@ -390,7 +390,7 @@ function JalonsTab({ milestones, loading }: { milestones: PipelineMilestone[]; l
             />
             <div
               className="rounded-xl p-4"
-              style={{ background: "rgba(13,26,16,0.6)", border: "1px solid var(--bg-border)" }}
+              style={{ background: "var(--bg-elevated)", border: "1px solid var(--bg-border)" }}
             >
               <div className="flex items-start justify-between gap-3 mb-2">
                 <p
@@ -445,7 +445,7 @@ function HistoriqueTab({ updates, loading }: { updates: PipelineUpdate[]; loadin
     return (
       <div
         className="flex flex-col items-center justify-center py-20 rounded-2xl"
-        style={{ background: "rgba(13,26,16,0.4)", border: "1px dashed #1e3528" }}
+        style={{ background: "var(--bg-surface)", border: "1px dashed var(--bg-border)" }}
       >
         <History size={32} style={{ color: "#2d9e5f", opacity: 0.4 }} />
         <p className="mt-3 text-sm" style={{ color: "var(--text-secondary)" }}>
@@ -471,7 +471,7 @@ function HistoriqueTab({ updates, loading }: { updates: PipelineUpdate[]; loadin
           />
           <div
             className="rounded-xl p-4"
-            style={{ background: "rgba(13,26,16,0.6)", border: "1px solid var(--bg-border)" }}
+            style={{ background: "var(--bg-elevated)", border: "1px solid var(--bg-border)" }}
           >
             <div className="flex items-center justify-between gap-3 mb-1.5">
               <span
@@ -711,7 +711,7 @@ export default function ProjetDetailsPage() {
           className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold flex-shrink-0 transition-all duration-150"
           style={{
             background: "linear-gradient(135deg, #f0a500, #ffc235)",
-            color:      "#080f0b",
+            color:      "var(--bg-base)",
             fontFamily: "'Syne', sans-serif",
           }}
           onMouseEnter={(e) => {
@@ -729,7 +729,7 @@ export default function ProjetDetailsPage() {
       {/* ── Barre de progression pipeline ───────────────────────────────── */}
       <div
         className="rounded-2xl p-5"
-        style={{ background: "rgba(13,26,16,0.6)", border: "1px solid var(--bg-border)" }}
+        style={{ background: "var(--bg-elevated)", border: "1px solid var(--bg-border)" }}
       >
         <div className="flex items-center justify-between mb-4">
           <span
@@ -767,7 +767,7 @@ export default function ProjetDetailsPage() {
       {/* ── Navigation onglets ───────────────────────────────────────────── */}
       <div
         className="flex gap-1 overflow-x-auto p-1 rounded-xl"
-        style={{ background: "rgba(13,26,16,0.6)", border: "1px solid #1e3528" }}
+        style={{ background: "var(--bg-elevated)", border: "1px solid var(--bg-border)" }}
       >
         {TABS.map((tab) => {
           const Icon     = tab.icon

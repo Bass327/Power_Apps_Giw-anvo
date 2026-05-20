@@ -1,4 +1,4 @@
-import { useMemo } from "react"
+﻿import { useMemo } from "react"
 import {
   BarChart,
   Bar,
@@ -79,8 +79,8 @@ function ChartTooltip({ active, payload, label }: ChartTooltipProps) {
   return (
     <div
       style={{
-        background:   "#0d1a10",
-        border:       "1px solid #1e3528",
+        background:   "var(--bg-surface)",
+        border:       "1px solid var(--bg-border)",
         borderRadius: 10,
         padding:      "8px 12px",
         fontSize:     12,
@@ -113,7 +113,7 @@ function KpiCard({ label, value, icon: Icon, color, bgColor, borderColor, sublab
     <div
       className="rounded-2xl p-5 flex flex-col gap-3"
       style={{
-        background:     "rgba(13,26,16,0.7)",
+        background:     "var(--glass-card-bg)",
         backdropFilter: "blur(12px)",
         border:         `1px solid ${borderColor}`,
       }}
@@ -157,9 +157,9 @@ function ChartCard({ title, icon: Icon, children }: ChartCardProps) {
     <div
       className="rounded-2xl p-5"
       style={{
-        background:     "rgba(13,26,16,0.7)",
+        background:     "var(--glass-card-bg)",
         backdropFilter: "blur(12px)",
-        border:         "1px solid #1e3528",
+        border:         "1px solid var(--bg-border)",
       }}
     >
       <div className="flex items-center gap-2 mb-5">
@@ -332,7 +332,7 @@ export default function PipelineDashboard() {
     return (
       <div
         className="flex flex-col items-center justify-center py-24 rounded-2xl"
-        style={{ background: "rgba(13,26,16,0.5)", border: "1px dashed #1e3528" }}
+        style={{ background: "var(--bg-surface)", border: "1px dashed var(--bg-border)" }}
       >
         <div
           className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4"
@@ -457,12 +457,12 @@ export default function PipelineDashboard() {
               />
               <XAxis
                 dataKey="label"
-                tick={{ fill: "#7a9e87", fontSize: 11 }}
-                axisLine={{ stroke: "#1e3528" }}
+                tick={{ fill: "var(--text-secondary)", fontSize: 11 }}
+                axisLine={{ stroke: "var(--bg-border)" }}
                 tickLine={false}
               />
               <YAxis
-                tick={{ fill: "#7a9e87", fontSize: 11 }}
+                tick={{ fill: "var(--text-secondary)", fontSize: 11 }}
                 axisLine={false}
                 tickLine={false}
                 allowDecimals={false}
@@ -514,8 +514,8 @@ export default function PipelineDashboard() {
                     return (
                       <div
                         style={{
-                          background:   "#0d1a10",
-                          border:       "1px solid #1e3528",
+                          background:   "var(--bg-surface)",
+                          border:       "1px solid var(--bg-border)",
                           borderRadius: 10,
                           padding:      "8px 12px",
                           fontSize:     12,
@@ -573,7 +573,7 @@ export default function PipelineDashboard() {
                 />
                 <XAxis
                   type="number"
-                  tick={{ fill: "#7a9e87", fontSize: 11 }}
+                  tick={{ fill: "var(--text-secondary)", fontSize: 11 }}
                   axisLine={false}
                   tickLine={false}
                   allowDecimals={false}
@@ -581,7 +581,7 @@ export default function PipelineDashboard() {
                 <YAxis
                   type="category"
                   dataKey="name"
-                  tick={{ fill: "#7a9e87", fontSize: 11 }}
+                  tick={{ fill: "var(--text-secondary)", fontSize: 11 }}
                   axisLine={false}
                   tickLine={false}
                   width={55}
@@ -620,7 +620,7 @@ export default function PipelineDashboard() {
                   <div
                     key={p.id}
                     className="flex items-center justify-between gap-3 py-2.5 border-b"
-                    style={{ borderColor: "#1e3528" }}
+                    style={{ borderColor: "var(--bg-border)" }}
                   >
                     <div className="min-w-0">
                       <p

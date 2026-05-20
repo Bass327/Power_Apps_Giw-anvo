@@ -1,4 +1,4 @@
-/* ═══════════════════════════════════════════════════════════════════════════
+﻿/* ═══════════════════════════════════════════════════════════════════════════
    TasksView — Vue Tâches : Kanban + Table
    Données : usePipelineTasks() + useUpdateTask() + useProjets()
    ═══════════════════════════════════════════════════════════════════════════ */
@@ -91,7 +91,7 @@ function KanbanCard({ task, statut, onMove, isLoading }: KanbanCardProps) {
     <div
       className="rounded-xl p-3 space-y-2.5 transition-all duration-150"
       style={{
-        background: isLoading ? "rgba(13,26,16,0.4)" : "rgba(13,26,16,0.7)",
+        background: isLoading ? "var(--bg-surface)" : "var(--glass-card-bg)",
         border:     "1px solid var(--bg-border)",
         opacity:    isLoading ? 0.7 : 1,
       }}
@@ -244,8 +244,8 @@ function Th({ label, col, sortCol, sortDir, onSort, minWidth }: ThProps) {
         fontSize:     "0.75rem",
         fontWeight:   600,
         color:        isActive ? "#f0a500" : "var(--text-secondary)",
-        background:   "rgba(13,26,16,0.8)",
-        borderBottom: "1px solid #1e3528",
+        background:   "var(--bg-elevated)",
+        borderBottom: "1px solid var(--bg-border)",
         minWidth,
         userSelect:   "none",
         transition:   "color 150ms",
@@ -372,7 +372,7 @@ export default function TasksView() {
     return (
       <div
         className="flex flex-col items-center justify-center py-24 rounded-2xl"
-        style={{ background: "rgba(13,26,16,0.4)", border: "1px dashed #1e3528" }}
+        style={{ background: "var(--bg-surface)", border: "1px dashed var(--bg-border)" }}
       >
         <CheckSquare size={32} style={{ color: "#2d9e5f", opacity: 0.4 }} />
         <p
@@ -396,7 +396,7 @@ export default function TasksView() {
       {/* ── Barre de contrôles ────────────────────────────────────────────── */}
       <div
         className="flex flex-wrap items-center gap-3 p-4 rounded-2xl"
-        style={{ background: "rgba(13,26,16,0.7)", border: "1px solid #1e3528" }}
+        style={{ background: "var(--glass-card-bg)", border: "1px solid var(--bg-border)" }}
       >
         <Filter size={14} style={{ color: "var(--text-muted)", flexShrink: 0 }} />
 
@@ -523,7 +523,7 @@ export default function TasksView() {
       {view === "table" && (
         <div
           className="rounded-2xl overflow-hidden"
-          style={{ border: "1px solid #1e3528" }}
+          style={{ border: "1px solid var(--bg-border)" }}
         >
           <div className="overflow-x-auto">
             <table className="w-full border-collapse">
@@ -538,8 +538,8 @@ export default function TasksView() {
                   <th
                     style={{
                       padding:      "10px 14px",
-                      background:   "rgba(13,26,16,0.8)",
-                      borderBottom: "1px solid #1e3528",
+                      background:   "var(--bg-elevated)",
+                      borderBottom: "1px solid var(--bg-border)",
                       minWidth:     72,
                     }}
                   />
@@ -570,7 +570,7 @@ export default function TasksView() {
                       <tr
                         key={task.id}
                         style={{
-                          background: isEven ? "rgba(13,26,16,0.4)" : "rgba(13,26,16,0.2)",
+                          background: isEven ? "var(--bg-surface)" : "var(--bg-elevated)",
                           transition: "background 150ms",
                           opacity:    isLoading ? 0.65 : 1,
                         }}
@@ -579,8 +579,8 @@ export default function TasksView() {
                         }}
                         onMouseLeave={(e) => {
                           e.currentTarget.style.background = isEven
-                            ? "rgba(13,26,16,0.4)"
-                            : "rgba(13,26,16,0.2)"
+                            ? "var(--bg-surface)"
+                            : "var(--bg-elevated)"
                         }}
                       >
                         {/* Code projet */}

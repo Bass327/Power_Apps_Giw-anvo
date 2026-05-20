@@ -1,4 +1,4 @@
-/* ═══════════════════════════════════════════════════════════════════════════
+﻿/* ═══════════════════════════════════════════════════════════════════════════
    MilestonesView — Timeline globale des jalons du pipeline
    Données : usePipelineMilestones() + useProjets()
    ═══════════════════════════════════════════════════════════════════════════ */
@@ -115,7 +115,7 @@ function MilestoneCard({ milestone }: { milestone: PipelineMilestone }) {
     <div
       className="rounded-xl p-4 transition-all duration-150"
       style={{
-        background: "rgba(13,26,16,0.65)",
+        background: "var(--bg-elevated)",
         border:     `1px solid var(--bg-border)`,
       }}
       onMouseEnter={(e) => {
@@ -382,7 +382,7 @@ export default function MilestonesView() {
     return (
       <div
         className="flex flex-col items-center justify-center py-24 rounded-2xl"
-        style={{ background: "rgba(13,26,16,0.4)", border: "1px dashed #1e3528" }}
+        style={{ background: "var(--bg-surface)", border: "1px dashed var(--bg-border)" }}
       >
         <Flag size={32} style={{ color: "#2d9e5f", opacity: 0.4 }} />
         <p
@@ -409,7 +409,7 @@ export default function MilestonesView() {
       {/* ── Barre de progression globale ─────────────────────────────────── */}
       <div
         className="rounded-2xl p-5"
-        style={{ background: "rgba(13,26,16,0.6)", border: "1px solid var(--bg-border)" }}
+        style={{ background: "var(--bg-elevated)", border: "1px solid var(--bg-border)" }}
       >
         <div className="flex items-center justify-between mb-3 flex-wrap gap-3">
           <div className="flex items-center gap-3 flex-wrap">
@@ -463,7 +463,7 @@ export default function MilestonesView() {
       {/* ── Barre de contrôles ────────────────────────────────────────────── */}
       <div
         className="flex flex-wrap items-center gap-3 p-4 rounded-2xl"
-        style={{ background: "rgba(13,26,16,0.7)", border: "1px solid #1e3528" }}
+        style={{ background: "var(--glass-card-bg)", border: "1px solid var(--bg-border)" }}
       >
         <Filter size={14} style={{ color: "var(--text-muted)", flexShrink: 0 }} />
 
@@ -498,7 +498,7 @@ export default function MilestonesView() {
       {!hasResults ? (
         <div
           className="flex flex-col items-center justify-center py-16 rounded-2xl"
-          style={{ background: "rgba(13,26,16,0.4)", border: "1px dashed #1e3528" }}
+          style={{ background: "var(--bg-surface)", border: "1px dashed var(--bg-border)" }}
         >
           <Flag size={28} style={{ color: "#2d9e5f", opacity: 0.4 }} />
           <p className="mt-3 text-sm" style={{ color: "var(--text-secondary)" }}>

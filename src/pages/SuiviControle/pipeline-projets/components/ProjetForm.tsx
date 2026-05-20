@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+﻿import { useState, useEffect } from "react"
 import { useNavigate, useParams } from "react-router-dom"
 import {
   ArrowLeft,
@@ -903,9 +903,9 @@ export default function ProjetFormPage() {
       <div
         className="rounded-2xl p-6"
         style={{
-          background:     "rgba(13,26,16,0.7)",
+          background:     "var(--glass-card-bg)",
           backdropFilter: "blur(12px)",
-          border:         "1px solid #1e3528",
+          border:         "1px solid var(--bg-border)",
         }}
       >
         <div className="flex items-center gap-2 mb-6">
@@ -973,7 +973,7 @@ export default function ProjetFormPage() {
             className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-150"
             style={{
               background: "linear-gradient(135deg, #f0a500, #ffc235)",
-              color:      "#080f0b",
+              color:      "var(--bg-base)",
               border:     "none",
               fontFamily: "'Syne', sans-serif",
             }}

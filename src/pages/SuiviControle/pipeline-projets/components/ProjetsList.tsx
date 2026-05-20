@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react"
+﻿import { useState, useMemo } from "react"
 import { useNavigate } from "react-router-dom"
 import {
   Search,
@@ -183,8 +183,8 @@ function Th({ label, col, sortCol, sortDir, onSort, align = "left", minWidth }: 
         fontSize:        "0.75rem",
         fontWeight:      600,
         color:           isActive ? "#f0a500" : "var(--text-secondary)",
-        background:      "rgba(13,26,16,0.8)",
-        borderBottom:    "1px solid #1e3528",
+        background:      "var(--bg-elevated)",
+        borderBottom:    "1px solid var(--bg-border)",
         minWidth:        minWidth,
         userSelect:      "none",
         transition:      "color 150ms",
@@ -361,7 +361,7 @@ export default function ProjetsList() {
     return (
       <div
         className="flex flex-col items-center justify-center py-24 rounded-2xl"
-        style={{ background: "rgba(13,26,16,0.5)", border: "1px dashed #1e3528" }}
+        style={{ background: "var(--bg-surface)", border: "1px dashed var(--bg-border)" }}
       >
         <div
           className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4"
@@ -394,9 +394,9 @@ export default function ProjetsList() {
       <div
         className="rounded-2xl p-4 space-y-3"
         style={{
-          background:     "rgba(13,26,16,0.7)",
+          background:     "var(--glass-card-bg)",
           backdropFilter: "blur(12px)",
-          border:         "1px solid #1e3528",
+          border:         "1px solid var(--bg-border)",
         }}
       >
         {/* Recherche */}
@@ -506,7 +506,7 @@ export default function ProjetsList() {
       {/* ── Table ─────────────────────────────────────────────────────────── */}
       <div
         className="rounded-2xl overflow-hidden"
-        style={{ border: "1px solid #1e3528" }}
+        style={{ border: "1px solid var(--bg-border)" }}
       >
         <div className="overflow-x-auto">
           <table className="w-full border-collapse">
@@ -525,8 +525,8 @@ export default function ProjetsList() {
                 <th
                   style={{
                     padding:      "10px 14px",
-                    background:   "rgba(13,26,16,0.8)",
-                    borderBottom: "1px solid #1e3528",
+                    background:   "var(--bg-elevated)",
+                    borderBottom: "1px solid var(--bg-border)",
                     minWidth:     60,
                   }}
                 />
@@ -557,8 +557,8 @@ export default function ProjetsList() {
                       key={p.id}
                       style={{
                         background:  isEven
-                          ? "rgba(13,26,16,0.4)"
-                          : "rgba(13,26,16,0.2)",
+                          ? "var(--bg-surface)"
+                          : "var(--bg-elevated)",
                         transition:  "background 150ms",
                       }}
                       onMouseEnter={(e) => {
@@ -567,8 +567,8 @@ export default function ProjetsList() {
                       }}
                       onMouseLeave={(e) => {
                         e.currentTarget.style.background = isEven
-                          ? "rgba(13,26,16,0.4)"
-                          : "rgba(13,26,16,0.2)"
+                          ? "var(--bg-surface)"
+                          : "var(--bg-elevated)"
                       }}
                     >
                       {/* Code */}

@@ -1,4 +1,4 @@
-import { useState } from "react"
+﻿import { useState } from "react"
 import { useNavigate } from "react-router-dom"
 import {
   ArrowLeft,
@@ -141,7 +141,7 @@ export default function PipelineProjetsPage() {
           className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold flex-shrink-0 transition-all duration-150"
           style={{
             background: "linear-gradient(135deg, #f0a500, #ffc235)",
-            color:      "#080f0b",
+            color:      "var(--bg-base)",
             fontFamily: "'Syne', sans-serif",
           }}
           onMouseEnter={(e) => { e.currentTarget.style.opacity = "0.88" }}
@@ -155,7 +155,7 @@ export default function PipelineProjetsPage() {
       {/* ── Navigation onglets ─────────────────────────────────────────────── */}
       <div
         className="flex gap-1 overflow-x-auto p-1 rounded-xl"
-        style={{ background: "rgba(13,26,16,0.6)", border: "1px solid #1e3528" }}
+        style={{ background: "var(--bg-elevated)", border: "1px solid var(--bg-border)" }}
       >
         {TABS.map((tab) => {
           const Icon     = tab.icon

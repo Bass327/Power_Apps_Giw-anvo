@@ -1,4 +1,4 @@
-/* ═══════════════════════════════════════════════════════════════════════════
+﻿/* ═══════════════════════════════════════════════════════════════════════════
    DocumentsView — Gestion des pièces jointes du pipeline
    Stockage : Drive SharePoint → Pipeline_Documents/{projetCode}/
    ═══════════════════════════════════════════════════════════════════════════ */
@@ -97,7 +97,7 @@ function DocCard({ doc, onDelete, isDeleting }: DocCardProps) {
     <div
       className="flex items-center gap-3 rounded-xl overflow-hidden transition-all duration-150"
       style={{
-        background: "rgba(13,26,16,0.65)",
+        background: "var(--bg-elevated)",
         border:     "1px solid var(--bg-border)",
         opacity:    isDeleting ? 0.5 : 1,
       }}
@@ -223,7 +223,7 @@ function UploadZone({ projetCode, isUploading, onFiles }: UploadZoneProps) {
       className="rounded-xl p-5 flex flex-col items-center justify-center gap-3 transition-all duration-150"
       style={{
         border:     `2px dashed ${isDragging ? "#2d9e5f" : "rgba(30,53,40,0.6)"}`,
-        background: isDragging ? "rgba(45,158,95,0.05)" : "rgba(13,26,16,0.3)",
+        background: isDragging ? "rgba(45,158,95,0.05)" : "var(--bg-elevated)",
         cursor:     isUploading ? "not-allowed" : "pointer",
       }}
       onClick={() => !isUploading && inputRef.current?.click()}
@@ -386,7 +386,7 @@ export default function DocumentsView() {
       {/* ── Barre de stats ───────────────────────────────────────────────── */}
       <div
         className="flex items-center gap-5 flex-wrap p-4 rounded-2xl"
-        style={{ background: "rgba(13,26,16,0.6)", border: "1px solid var(--bg-border)" }}
+        style={{ background: "var(--bg-elevated)", border: "1px solid var(--bg-border)" }}
       >
         <div className="flex items-center gap-2">
           <div
@@ -429,7 +429,7 @@ export default function DocumentsView() {
       {/* ── Barre de contrôles ────────────────────────────────────────────── */}
       <div
         className="flex flex-wrap items-center gap-3 p-4 rounded-2xl"
-        style={{ background: "rgba(13,26,16,0.7)", border: "1px solid #1e3528" }}
+        style={{ background: "var(--glass-card-bg)", border: "1px solid var(--bg-border)" }}
       >
         <Filter size={14} style={{ color: "var(--text-muted)", flexShrink: 0 }} />
 
@@ -499,7 +499,7 @@ export default function DocumentsView() {
       {docs.length === 0 ? (
         <div
           className="flex flex-col items-center justify-center py-24 rounded-2xl"
-          style={{ background: "rgba(13,26,16,0.4)", border: "1px dashed #1e3528" }}
+          style={{ background: "var(--bg-surface)", border: "1px dashed var(--bg-border)" }}
         >
           <FolderOpen size={36} style={{ color: "#2d9e5f", opacity: 0.4 }} />
           <p
@@ -515,7 +515,7 @@ export default function DocumentsView() {
       ) : groups.length === 0 ? (
         <div
           className="flex flex-col items-center justify-center py-16 rounded-2xl"
-          style={{ background: "rgba(13,26,16,0.4)", border: "1px dashed #1e3528" }}
+          style={{ background: "var(--bg-surface)", border: "1px dashed var(--bg-border)" }}
         >
           <FolderOpen size={28} style={{ color: "#2d9e5f", opacity: 0.4 }} />
           <p className="mt-3 text-sm" style={{ color: "var(--text-secondary)" }}>

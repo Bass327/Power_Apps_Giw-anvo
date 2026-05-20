@@ -1,4 +1,4 @@
-import { LineChart, BarChart3, TrendingUp, ClipboardCheck, FileText, ArrowRight, ArrowLeft } from "lucide-react"
+import { LineChart, BarChart3, TrendingUp, ClipboardCheck, FileText, ArrowRight, ArrowLeft, Zap } from "lucide-react"
 import { useNavigate } from "react-router-dom"
 import { AccessDenied } from "@/components/shared/AccessDenied"
 import { useCurrentUser } from "@/hooks/useCurrentUser"
@@ -17,6 +17,16 @@ interface SubModule {
 }
 
 const SUB_MODULES: SubModule[] = [
+  {
+    id:          "pipeline-projets",
+    label:       "Pipeline Projets Sénégal",
+    description: "Suivi du portefeuille de projets solaires — du prospect à l'exploitation. KPIs, phases, priorités, financement, tâches et historique.",
+    route:       "/suivi/pipeline-projets",
+    icon:        Zap,
+    badge:       "Nouveau",
+    badgeColor:  "#f0a500",
+    roles:       ["full", "partial", "read"],
+  },
   {
     id:          "reporting-erd",
     label:       "Reporting Clients ERD",
@@ -54,9 +64,9 @@ const SUB_MODULES: SubModule[] = [
 ]
 
 export default function SuiviControlePage() {
-  const { role }  = useCurrentUser()
-  const navigate  = useNavigate()
-  const access    = role ? getModuleAccess(role, "suivi") : "none"
+  const { role, user } = useCurrentUser()
+  const navigate       = useNavigate()
+  const access         = role ? getModuleAccess(role, "suivi", user?.email) : "none"
 
   if (access === "none") {
     return <AccessDenied message={ACCESS_DENIED_MESSAGES.suivi ?? "Accès réservé au RAF et à la direction."} />

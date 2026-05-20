@@ -114,7 +114,7 @@ async function sendMany(
 
 // ─── Contexte de notification passé par les hooks ────────────────────────────
 export interface NotificationContext {
-  module:         "DEMANDE_ACHAT" | "DECAISSEMENT" | "ORDRE_MISSION"
+  module:         "DEMANDE_ACHAT" | "DECAISSEMENT" | "ORDRE_MISSION" | "DEMANDE_ABSENCE"
   newStatut:      string
   submitterEmail: string
   montant?:       number
@@ -183,6 +183,41 @@ export function sendNotificationsAsync(token: string, ctx: NotificationContext):
           case "REJETE": {
             await sendMany(token, [submitterEmail], "requestRejected",
               `Votre ordre de mission a été rejeté : ${titre}`)
+            break
+          }
+        }
+      } else if (module === "DEMANDE_ABSENCE") {
+        switch (newStatut) {
+          case "SOUMIS": {
+            /* Notifie le Chef du département ET la Directrice dès la soumission */
+            const recipients = [
+              ...chefByDept(users, submitterDept),
+              ...byRole(users, "Directrice"),
+            ]
+            await sendMany(token, recipients, "newValidationRequest",
+              `Demande d'autorisation d'absence à valider : ${titre}`)
+            break
+          }
+          case "VALIDE_CHEF": {
+            /* Chef a validé → notifie la Directrice pour approbation finale */
+            await sendMany(token, byRole(users, "Directrice"), "newValidationRequest",
+              `Demande d'absence validée par le chef de département — approbation DG requise : ${titre}`)
+            break
+          }
+          case "REJETE_CHEF": {
+            /* Chef a rejeté → notifie le demandeur */
+            await sendMany(token, [submitterEmail], "requestRejected",
+              `Votre demande d'autorisation d'absence a été rejetée par le chef de département : ${titre}`)
+            break
+          }
+          case "APPROUVE_DG": {
+            await sendMany(token, [submitterEmail], "requestApproved",
+              `Votre demande d'autorisation d'absence a été approuvée par la Direction Générale : ${titre}`)
+            break
+          }
+          case "REFUSE_DG": {
+            await sendMany(token, [submitterEmail], "requestRejected",
+              `Votre demande d'autorisation d'absence a été refusée par la Direction Générale : ${titre}`)
             break
           }
         }

@@ -48,8 +48,11 @@ const RHCourrierPage         = lazy(() => import("@/pages/RH/courrier"))
 const AchatsPage             = lazy(() => import("@/pages/Achats"))
 const ComptabilitePage       = lazy(() => import("@/pages/Comptabilite"))
 const TresoreriePage         = lazy(() => import("@/pages/Tresorerie"))
-const SuiviControlePage      = lazy(() => import("@/pages/SuiviControle"))
-const ReportingClientsERDPage = lazy(() => import("@/pages/SuiviControle/reporting-clients-erd"))
+const SuiviControlePage        = lazy(() => import("@/pages/SuiviControle"))
+const ReportingClientsERDPage  = lazy(() => import("@/pages/SuiviControle/reporting-clients-erd"))
+const PipelineProjetsPage      = lazy(() => import("@/pages/SuiviControle/pipeline-projets"))
+const ProjetFormPage           = lazy(() => import("@/pages/SuiviControle/pipeline-projets/components/ProjetForm"))
+const ProjetDetailsPage        = lazy(() => import("@/pages/SuiviControle/pipeline-projets/components/ProjetDetails"))
 
 // Fallback de chargement — JSX statique hissé hors de la configuration (rendering-hoist-jsx)
 const pageLoader = (
@@ -102,8 +105,12 @@ export const router = createBrowserRouter(
         { path: "achats",            element: withSuspense(<AchatsPage />) },
         { path: "comptabilite", element: withSuspense(<ComptabilitePage />) },
         { path: "tresorerie",   element: withSuspense(<TresoreriePage />) },
-        { path: "suivi",            element: withSuspense(<SuiviControlePage />) },
-        { path: "suivi/reporting-erd", element: withSuspense(<ReportingClientsERDPage />) },
+        { path: "suivi",                                          element: withSuspense(<SuiviControlePage />) },
+        { path: "suivi/reporting-erd",                        element: withSuspense(<ReportingClientsERDPage />) },
+        { path: "suivi/pipeline-projets",                     element: withSuspense(<PipelineProjetsPage />) },
+        { path: "suivi/pipeline-projets/projets/nouveau",     element: withSuspense(<ProjetFormPage />) },
+        { path: "suivi/pipeline-projets/projets/:id/edit",    element: withSuspense(<ProjetFormPage />) },
+        { path: "suivi/pipeline-projets/projets/:id",         element: withSuspense(<ProjetDetailsPage />) },
       ],
     },
   ],

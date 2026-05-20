@@ -482,3 +482,98 @@ export const LABEL_PRIORITE_COURRIER: Record<PrioriteCourrier, string> = {
   URGENT:       "Urgent",
   CONFIDENTIEL: "Confidentiel",
 }
+
+/* ════════════════════════════════════════════════
+   Demandes d'autorisation d'absence
+   ════════════════════════════════════════════════ */
+
+export type StatutDemandeAbsence =
+  | "SOUMIS"           // soumis par l'employé — en attente Chef + DG
+  | "VALIDE_CHEF"      // validé par le Chef de département
+  | "REJETE_CHEF"      // rejeté par le Chef de département
+  | "APPROUVE_DG"      // approuvé par la Direction Générale (dernier mot)
+  | "REFUSE_DG"        // refusé par la Direction Générale
+  | "DOCUMENT_GENERE"  // document d'autorisation généré
+
+export type TypeDemandeAbsence =
+  | "AUTORISATION_SIMPLE"
+  | "PERMISSION_EXCEPTIONNELLE"
+  | "EVENEMENT_FAMILIAL"
+  | "AUTRE"
+
+export type EvenementFamilial =
+  | "MARIAGE_MEMBRE_PERSONNEL"
+  | "MARIAGE_ENFANT"
+  | "MARIAGE_FRERE_SOEUR"
+  | "NAISSANCE_ENFANT"
+  | "DECES_CONJOINT"
+  | "DECES_ASCENDANT_FRERE_SOEUR"
+  | "DECES_ENFANT"
+
+export interface DemandeAbsence {
+  id:                  string
+  codeDemande:         string
+  demandeur:           string          // email
+  nomDemandeur:        string
+  departement:         string
+  poste?:              string
+  dateDemande:         string          // ISO date
+  typeDemande:         TypeDemandeAbsence
+  typeAbsenceAutre?:   string
+  evenementFamilial?:  EvenementFamilial
+  motifAbsence:        string
+  dateDebut:           string          // ISO date
+  dateFin:             string          // ISO date
+  nbJoursDemandes:     number
+  nbJoursAutorises?:   number
+  statut:              StatutDemandeAbsence
+  /* Validation Chef de département */
+  commentaireChef?:    string
+  dateValidationChef?: string
+  valideParChef?:      string
+  /* Décision Direction Générale */
+  commentaireDG?:      string
+  dateDecisionDG?:     string
+  validePar?:          string
+  documentGenere:      boolean
+}
+
+export const STATUT_DEMANDE_ABSENCE_CONFIG: Record<
+  StatutDemandeAbsence,
+  { label: string; color: string; bg: string; border: string }
+> = {
+  SOUMIS:          { label: "Soumis",          color: "#60a5fa", bg: "rgba(59,130,246,0.10)",  border: "rgba(59,130,246,0.30)" },
+  VALIDE_CHEF:     { label: "Validé Chef",      color: "#f0a500", bg: "rgba(240,165,0,0.12)",   border: "rgba(240,165,0,0.35)" },
+  REJETE_CHEF:     { label: "Rejeté Chef",      color: "#ef4444", bg: "rgba(239,68,68,0.10)",   border: "rgba(239,68,68,0.30)" },
+  APPROUVE_DG:     { label: "Approuvé DG",      color: "#22c55e", bg: "rgba(34,197,94,0.10)",   border: "rgba(34,197,94,0.30)" },
+  REFUSE_DG:       { label: "Refusé DG",        color: "#ef4444", bg: "rgba(239,68,68,0.10)",   border: "rgba(239,68,68,0.30)" },
+  DOCUMENT_GENERE: { label: "Document généré",  color: "#34d399", bg: "rgba(52,211,153,0.10)",  border: "rgba(52,211,153,0.30)" },
+}
+
+export const LABEL_TYPE_DEMANDE_ABSENCE: Record<TypeDemandeAbsence, string> = {
+  AUTORISATION_SIMPLE:       "Autorisation d'absence simple",
+  PERMISSION_EXCEPTIONNELLE: "Permission exceptionnelle",
+  EVENEMENT_FAMILIAL:        "Événement familial",
+  AUTRE:                     "Autre",
+}
+
+export const LABEL_EVENEMENT_FAMILIAL: Record<EvenementFamilial, string> = {
+  MARIAGE_MEMBRE_PERSONNEL:    "Mariage d'un membre du personnel",
+  MARIAGE_ENFANT:              "Mariage d'un enfant",
+  MARIAGE_FRERE_SOEUR:         "Mariage d'un frère ou d'une sœur",
+  NAISSANCE_ENFANT:            "Naissance d'un enfant",
+  DECES_CONJOINT:              "Décès du conjoint",
+  DECES_ASCENDANT_FRERE_SOEUR: "Décès d'un ascendant / frère / sœur",
+  DECES_ENFANT:                "Décès d'un enfant",
+}
+
+/* Jours autorisés par événement familial (convention interne GIW'ANVO) */
+export const JOURS_EVENEMENT_FAMILIAL: Record<EvenementFamilial, number> = {
+  MARIAGE_MEMBRE_PERSONNEL:    4,
+  MARIAGE_ENFANT:              2,
+  MARIAGE_FRERE_SOEUR:         1,
+  NAISSANCE_ENFANT:            3,
+  DECES_CONJOINT:              3,
+  DECES_ASCENDANT_FRERE_SOEUR: 3,
+  DECES_ENFANT:                5,
+}

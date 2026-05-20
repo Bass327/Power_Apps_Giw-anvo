@@ -66,14 +66,31 @@ const MODULE_ACCESS: Record<UserRole, Record<Module, AccessLevel>> = {
   },
 }
 
+/* ════════════════════════════════════════════════
+   Accès spéciaux par email (exceptions individuelles)
+   Permet d'accorder un accès à un module précis
+   sans changer le rôle de l'utilisateur dans SP.
+   ════════════════════════════════════════════════ */
+
+const EMAIL_ACCESS: Record<string, Partial<Record<Module, AccessLevel>>> = {
+  /* Astou Dième — accès Reporting Clients ERD sans changer son rôle */
+  "astou.dieme@giwa-anvo.energy": { suivi: "read" },
+}
+
+/* Niveaux ordonnés du plus faible au plus fort */
+const LEVEL_ORDER: AccessLevel[] = ["none", "read", "partial", "full"]
+
 /** Retourne le niveau d'accès d'un rôle pour un module donné */
-export function getModuleAccess(role: UserRole, module: Module): AccessLevel {
-  return MODULE_ACCESS[role]?.[module] ?? "none"
+export function getModuleAccess(role: UserRole, module: Module, email?: string): AccessLevel {
+  const roleLevel  = MODULE_ACCESS[role]?.[module] ?? "none"
+  const emailLevel = email ? (EMAIL_ACCESS[email.toLowerCase()]?.[module] ?? "none") : "none"
+  /* Prendre le niveau le plus élevé entre le rôle et l'exception email */
+  return LEVEL_ORDER[Math.max(LEVEL_ORDER.indexOf(roleLevel), LEVEL_ORDER.indexOf(emailLevel))]
 }
 
 /** Vérifie si un rôle peut accéder à un module (access != none) */
-export function canAccessModule(role: UserRole, module: Module): boolean {
-  return getModuleAccess(role, module) !== "none"
+export function canAccessModule(role: UserRole, module: Module, email?: string): boolean {
+  return getModuleAccess(role, module, email) !== "none"
 }
 
 /* ════════════════════════════════════════════════
@@ -240,9 +257,9 @@ export const hasPermission = (
    ════════════════════════════════════════════════ */
 
 /** Retourne les modules accessibles pour un rôle (dans l'ordre de la sidebar) */
-export function getVisibleModules(role: UserRole): Module[] {
+export function getVisibleModules(role: UserRole, email?: string): Module[] {
   return (["budget", "rh", "achats", "comptabilite", "tresorerie", "suivi"] as Module[])
-    .filter((mod) => canAccessModule(role, mod))
+    .filter((mod) => canAccessModule(role, mod, email))
 }
 
 /* ════════════════════════════════════════════════

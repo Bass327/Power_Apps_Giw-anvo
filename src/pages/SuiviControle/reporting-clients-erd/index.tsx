@@ -4,7 +4,6 @@ import {
   BarChart3,
   RefreshCw,
   Wallet,
-  CalendarCheck,
   Users,
   UserCheck,
   UserX,
@@ -428,20 +427,7 @@ export default function ReportingClientsERDPage() {
     [clientsFiltres, moisActifs],
   )
 
-  /* ── KPI 2 — Montant encaissé ce mois (via Modified) ────────────────────── */
-  const now             = new Date()
-  const currentMonthISO = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`
-  const moisCourantLabel = now.toLocaleDateString("fr-FR", { month: "long", year: "numeric" })
-
-  const montantEncaisseMoisCourant = useMemo(
-    () =>
-      clientsFiltres
-        .filter((c) => c.modified.slice(0, 7) === currentMonthISO)
-        .reduce((sum, c) => sum + MOIS_KEYS.reduce((s, k) => s + c.paiements[k], 0), 0),
-    [clientsFiltres, currentMonthISO],
-  )
-
-  /* ── KPI 3 — Nombre total de clients ────────────────────────────────────── */
+  /* ── KPI 2 — Nombre total de clients ────────────────────────────────────── */
   const nombreTotalClients = clientsFiltres.length
 
   /* ── KPI 4 — Clients ayant payé (≥ 1 paiement sur les mois actifs) ──────── */
@@ -654,18 +640,12 @@ export default function ReportingClientsERDPage() {
       </div>
 
       {/* ── KPIs ligne 1 — financiers ────────────────────────────────────── */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <KpiCard
           icon={Wallet}
           accent="gold"
           label="Montant total encaissé"
           value={formatFCFAFull(montantTotalEncaisse)}
-        />
-        <KpiCard
-          icon={CalendarCheck}
-          accent="green"
-          label={`Encaissé en ${moisCourantLabel}`}
-          value={formatFCFAFull(montantEncaisseMoisCourant)}
         />
         <KpiCard
           icon={Users}
@@ -697,8 +677,7 @@ export default function ReportingClientsERDPage() {
       {/* ── Note de bas de page ──────────────────────────────────────────── */}
       <p className="text-xs text-center" style={{ color: "var(--text-muted)", fontFamily: "'DM Sans', sans-serif" }}>
         Source : <code style={{ color: "var(--text-muted)" }}>Paiements_Clients_Kolda_ERD</code> — site DTO ·
-        Encaissé ce mois : lignes dont <code style={{ color: "var(--text-muted)" }}>Modified</code> ∈ {moisCourantLabel} ·
-        Payeurs : ≥ 1 paiement sur la période · Actualisation toutes les 5 min
+        Payeurs : ≥ 1 paiement sur la période sélectionnée · Actualisation toutes les 5 min
       </p>
 
     </div>

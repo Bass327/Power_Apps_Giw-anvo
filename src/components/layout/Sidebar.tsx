@@ -82,12 +82,12 @@ interface SidebarProps {
 }
 
 export const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
-  const { role }   = useCurrentUser()
-  const { logout } = useAuth()
+  const { role, user } = useCurrentUser()
+  const { logout }     = useAuth()
 
   /* Filtrage des modules selon le rôle — si rôle inconnu, tout visible (chargement) */
   const visibleModules = role
-    ? ALL_MODULES.filter((mod) => canAccessModule(role, mod.module))
+    ? ALL_MODULES.filter((mod) => canAccessModule(role, mod.module, user?.email))
     : ALL_MODULES
 
   return (

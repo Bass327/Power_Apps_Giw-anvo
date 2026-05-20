@@ -16,6 +16,8 @@ interface MsGraphUser {
 
 interface SPUserFields {
   Title:              string
+  NomComplet?:        string
+  Poste?:             string
   R_x00f4_le?:        string
   D_x00e9_partement?: string
   Actif?:             string
@@ -179,6 +181,8 @@ export const useCurrentUser = () => {
       let role:        UserRole = "Employé"
       let departement: string   = ""
       let actif:       boolean  = true
+      let nomComplet:  string   = ""
+      let poste:       string   = ""
 
       // Override de rôle via le sélecteur (réservé au compte propriétaire de l'app)
       const roleOverride = localStorage.getItem("role_override") as UserRole | null
@@ -196,7 +200,9 @@ export const useCurrentUser = () => {
             role        = parseRole(found.fields.R_x00f4_le)
             departement = found.fields.D_x00e9_partement ?? ""
             actif       = found.fields.Actif !== "Non"
-            console.info(`[GiwAnvo] ✅ Rôle SP : ${role} | Dép : ${departement}`)
+            nomComplet  = found.fields.NomComplet ?? ""
+            poste       = found.fields.Poste      ?? ""
+            console.info(`[GiwAnvo] ✅ Rôle SP : ${role} | Dép : ${departement} | Nom : ${nomComplet || displayName}`)
           } else {
             console.warn(
               `[GiwAnvo] ⚠️ Non trouvé dans Utilisateurs_Giwanvo (${items.length} items)\n` +
@@ -224,12 +230,14 @@ export const useCurrentUser = () => {
         id:          msUserId,
         displayName,
         email,
-        initials:    buildInitials(displayName || "?"),
+        initials:    buildInitials(nomComplet || displayName || "?"),
         role,
         departement,
         actif,
         jobTitle,
         photoUrl,
+        nomComplet,
+        poste,
       }
     },
   })

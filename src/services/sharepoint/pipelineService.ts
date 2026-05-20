@@ -173,7 +173,7 @@ export async function getProjets(token: string): Promise<ProjetPipeline[]> {
   const items = await getListItems<SPRawItem>(
     token,
     "Projets_Pipeline",
-    "&$orderby=fields/Created desc&$top=500",
+    "&$orderby=createdDateTime desc&$top=500",
   )
   return items.map(mapProjet)
 }
@@ -257,7 +257,7 @@ export async function getTasks(
   const items = await getListItems<SPRawItem>(
     token,
     "Pipeline_Tasks",
-    `${filter}&$orderby=fields/Created desc&$top=1000`,
+    `${filter}&$orderby=createdDateTime desc&$top=1000`,
   )
   return items.map(mapTask)
 }
@@ -307,9 +307,9 @@ export async function getMilestones(
   const items = await getListItems<SPRawItem>(
     token,
     "Pipeline_Milestones",
-    `${filter}&$orderby=fields/DatePrevue asc&$top=500`,
+    `${filter}&$top=500`,
   )
-  return items.map(mapMilestone)
+  return items.map(mapMilestone).sort((a, b) => a.datePrevue.localeCompare(b.datePrevue))
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -326,7 +326,7 @@ export async function getPipelineUpdates(
   const items = await getListItems<SPRawItem>(
     token,
     "Pipeline_Updates",
-    `${filter}&$orderby=fields/Created desc&$top=500`,
+    `${filter}&$orderby=createdDateTime desc&$top=500`,
   )
   return items.map(mapUpdate)
 }

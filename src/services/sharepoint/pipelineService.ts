@@ -162,6 +162,16 @@ function mapMilestone(item: SPRawItem): PipelineMilestone {
   }
 }
 
+// ─── Helper : supprime les clés null / undefined / "" du payload SP ──────────
+// Évite les 500 "generalException" quand SP reçoit null sur un champ non-nullable.
+// Les booléens false et les nombres 0 sont conservés intentionnellement.
+
+function buildPayload(fields: Record<string, unknown>): Record<string, unknown> {
+  return Object.fromEntries(
+    Object.entries(fields).filter(([, v]) => v !== null && v !== undefined && v !== ""),
+  )
+}
+
 // ─── Mapping Pipeline_Updates ─────────────────────────────────────────────────
 
 function mapUpdate(item: SPRawItem): PipelineUpdate {
@@ -211,33 +221,34 @@ export async function createProjet(
   token: string,
   data:  Omit<ProjetPipeline, "id" | "created" | "modified">,
 ): Promise<ProjetPipeline> {
-  const result = await createListItem<SPRawItem>(token, "Projets_Pipeline", {
+  const result = await createListItem<SPRawItem>(token, "Projets_Pipeline", buildPayload({
     Title:                 data.titre,
-    CodeProjet:            data.codeProjet,
-    R_x00e9_gion:          data.region             || null,
-    DescriptionProjet:     data.description         || null,
+    CodeProjet:            data.codeProjet             || null,
+    // Région : nom interne encodé confirmé par diagnostic
+    "R_x00e9_gion":        data.region                 || null,
+    DescriptionProjet:     data.description            || null,
     PhaseProjet:           data.phase,
     StatutProjet:          data.statut,
     Priorite:              data.priorite,
-    ChefProjet:            data.chefProjet,
+    ChefProjet:            data.chefProjet             || null,
     BusinessModel:         data.businessModel,
-    Division:              data.division            || null,
-    BusinessUnit:          data.businessUnit        || null,
-    SecteurActivite:       data.secteurActivite     || null,
-    CommercialLead:        data.responsableCommercial || null,
-    FinanceLead:           data.responsableFinance  || null,
-    TechniqueLead:         data.responsableTechnique || null,
-    Puissance_kWp:         data.puissanceKwp        || null,
-    BatterieIncluse:       data.batterieIncluse,
-    CapaciteBatterie_kWh:  data.capaciteBatterieKwh || null,
-    FinancementNecessaire: data.financementNecessaire,
-    MontantFinancement:    data.montantFinancement  || null,
-    SourceFinancement:     data.sourceFinancement,
-    DateProchaineEtape:    data.dateProchaineEtape  || null,
-    ProchaineAction:       data.prochaineEtapeLabel  || null,
-    DateSignatureContrat:  data.dateSignatureContrat || null,
-    CommentaireManagement: data.notes               || null,
-  })
+    Division:              data.division               || null,
+    BusinessUnit:          data.businessUnit           || null,
+    SecteurActivite:       data.secteurActivite        || null,
+    CommercialLead:        data.responsableCommercial  || null,
+    FinanceLead:           data.responsableFinance     || null,
+    TechniqueLead:         data.responsableTechnique   || null,
+    Puissance_kWp:         data.puissanceKwp           || null,
+    BatterieIncluse:       data.batterieIncluse        || null,
+    CapaciteBatterie_kWh:  data.capaciteBatterieKwh    || null,
+    FinancementNecessaire: data.financementNecessaire  || null,
+    MontantFinancement:    data.montantFinancement     || null,
+    SourceFinancement:     data.sourceFinancement      || null,
+    DateProchaineEtape:    data.dateProchaineEtape     || null,
+    ProchaineAction:       data.prochaineEtapeLabel    || null,
+    DateSignatureContrat:  data.dateSignatureContrat   || null,
+    CommentaireManagement: data.notes                  || null,
+  }))
   return mapProjet(result)
 }
 

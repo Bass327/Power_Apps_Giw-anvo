@@ -310,6 +310,7 @@ export async function getTasks(
   const filter = projetId
     ? `&$filter=fields/ProjetId eq '${encodeURIComponent(projetId)}'`
     : ""
+  void logListFields(token, "Pipeline_Tasks")
   const items = await getListItems<SPRawItem>(
     token,
     "Pipeline_Tasks",

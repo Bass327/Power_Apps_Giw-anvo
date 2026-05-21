@@ -224,8 +224,8 @@ export async function createProjet(
   const payload = buildPayload({
     Title:                 data.titre,
     CodeProjet:            data.codeProjet             || null,
-    // Région : nom interne encodé confirmé par diagnostic
-    "R_x00e9_gion":        data.region                 || null,
+    // R_x00e9_gion (Région) : SP accepte ce nom en lecture mais le rejette en écriture POST
+    // → à écrire via un PATCH séparé après création si nécessaire
     DescriptionProjet:     data.description            || null,
     PhaseProjet:           data.phase,
     StatutProjet:          data.statut,
@@ -264,7 +264,7 @@ export async function updateProjet(
   const sp: Record<string, unknown> = {}
   if (fields.titre                !== undefined) sp["Title"]                 = fields.titre
   if (fields.codeProjet           !== undefined) sp["CodeProjet"]            = fields.codeProjet
-  if (fields.region               !== undefined) sp["R_x00e9_gion"]          = fields.region || null
+  // R_x00e9_gion ignoré en écriture (voir commentaire createProjet)
   if (fields.description          !== undefined) sp["DescriptionProjet"]      = fields.description || null
   if (fields.phase                !== undefined) sp["PhaseProjet"]            = fields.phase
   if (fields.statut               !== undefined) sp["StatutProjet"]           = fields.statut

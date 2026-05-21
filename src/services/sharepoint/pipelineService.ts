@@ -60,6 +60,14 @@ function toDate(raw: unknown): string {
   return s.length >= 10 ? s.slice(0, 10) : ""
 }
 
+// Convertit "YYYY-MM-DD" en "YYYY-MM-DDTHH:mm:ssZ" pour les écritures SP.
+// SP DateTime accepte uniquement l'ISO 8601 complet en POST/PATCH.
+function toSpDate(dateStr: string | undefined | null): string | null {
+  if (!dateStr) return null
+  if (dateStr.length === 10) return `${dateStr}T00:00:00Z`
+  return dateStr
+}
+
 // ─── Mapping Projets_Pipeline ─────────────────────────────────────────────────
 // Noms internes confirmés :
 //   Region          → R_x00e9_gion
@@ -244,9 +252,9 @@ export async function createProjet(
     FinancementNecessaire: data.financementNecessaire  || null,
     MontantFinancement:    data.montantFinancement     || null,
     SourceFinancement:     data.sourceFinancement      || null,
-    DateProchaineEtape:    data.dateProchaineEtape     || null,
+    DateProchaineEtape:    toSpDate(data.dateProchaineEtape),
     ProchaineAction:       data.prochaineEtapeLabel    || null,
-    DateSignatureContrat:  data.dateSignatureContrat   || null,
+    DateSignatureContrat:  toSpDate(data.dateSignatureContrat),
     CommentaireManagement: data.notes                  || null,
   })
   console.group("📤 createProjet — payload envoyé à SharePoint")
@@ -283,9 +291,9 @@ export async function updateProjet(
   if (fields.financementNecessaire !== undefined) sp["FinancementNecessaire"] = fields.financementNecessaire
   if (fields.montantFinancement   !== undefined) sp["MontantFinancement"]     = fields.montantFinancement || null
   if (fields.sourceFinancement    !== undefined) sp["SourceFinancement"]      = fields.sourceFinancement
-  if (fields.dateProchaineEtape   !== undefined) sp["DateProchaineEtape"]     = fields.dateProchaineEtape || null
+  if (fields.dateProchaineEtape   !== undefined) sp["DateProchaineEtape"]     = toSpDate(fields.dateProchaineEtape)
   if (fields.prochaineEtapeLabel  !== undefined) sp["ProchaineAction"]        = fields.prochaineEtapeLabel || null
-  if (fields.dateSignatureContrat !== undefined) sp["DateSignatureContrat"]   = fields.dateSignatureContrat || null
+  if (fields.dateSignatureContrat !== undefined) sp["DateSignatureContrat"]   = toSpDate(fields.dateSignatureContrat)
   if (fields.notes                !== undefined) sp["CommentaireManagement"]  = fields.notes || null
 
   await updateListItem(token, "Projets_Pipeline", id, sp)
@@ -320,7 +328,7 @@ export async function createTask(
     Responsable: data.assignee,
     Priorite:    data.priorite,
     StatutTache: data.statut,
-    DateLimite:  data.dateLimite  || null,
+    DateLimite:  toSpDate(data.dateLimite),
     Description: data.description || null,
   })
   return mapTask(result)
@@ -334,7 +342,7 @@ export async function updateTask(
   const sp: Record<string, unknown> = {}
   if (fields.statut      !== undefined) sp["StatutTache"]  = fields.statut
   if (fields.assignee    !== undefined) sp["Responsable"]  = fields.assignee
-  if (fields.dateLimite  !== undefined) sp["DateLimite"]   = fields.dateLimite || null
+  if (fields.dateLimite  !== undefined) sp["DateLimite"]   = toSpDate(fields.dateLimite)
   if (fields.description !== undefined) sp["Description"]  = fields.description
   if (fields.priorite    !== undefined) sp["Priorite"]     = fields.priorite
   await updateListItem(token, "Pipeline_Tasks", id, sp)

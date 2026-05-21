@@ -232,9 +232,10 @@ export async function createProjet(
     BusinessUnit:          data.businessUnit          || null,
     SecteurActivite:       data.secteurActivite       || null,
     CasUtilisation:        data.casUtilisation        || null,
-    // ⚠️ Ces colonnes existent sur Pipeline_Tasks, pas sur Projets_Pipeline
-    // ResponsableCommercial, ResponsableFinance, ResponsableTechnique, AutresIntervenants
-    // → À créer sur Projets_Pipeline pour les activer ici
+    ResponsableCommercial: data.responsableCommercial || null,
+    ResponsableFinance:    data.responsableFinance    || null,
+    ResponsableTechnique:  data.responsableTechnique  || null,
+    AutresIntervenants:    data.autresIntervenants    || null,
     // Technique
     Puissance_kWp:         data.puissanceKwp        || null,
     BatterieIncluse:       data.batterieIncluse,
@@ -278,8 +279,10 @@ export async function updateProjet(
   if (fields.businessUnit         !== undefined) sp["BusinessUnit"]         = fields.businessUnit || null
   if (fields.secteurActivite      !== undefined) sp["SecteurActivite"]      = fields.secteurActivite || null
   if (fields.casUtilisation       !== undefined) sp["CasUtilisation"]       = fields.casUtilisation || null
-  // ⚠️ ResponsableCommercial, ResponsableFinance, ResponsableTechnique, AutresIntervenants
-  // sont sur Pipeline_Tasks, pas Projets_Pipeline → désactivés jusqu'à création sur la bonne liste
+  if (fields.responsableCommercial !== undefined) sp["ResponsableCommercial"] = fields.responsableCommercial || null
+  if (fields.responsableFinance   !== undefined) sp["ResponsableFinance"]   = fields.responsableFinance    || null
+  if (fields.responsableTechnique !== undefined) sp["ResponsableTechnique"] = fields.responsableTechnique  || null
+  if (fields.autresIntervenants   !== undefined) sp["AutresIntervenants"]   = fields.autresIntervenants    || null
   // Technique
   if (fields.puissanceKwp         !== undefined) sp["Puissance_kWp"]        = fields.puissanceKwp || null
   if (fields.batterieIncluse      !== undefined) sp["BatterieIncluse"]      = fields.batterieIncluse

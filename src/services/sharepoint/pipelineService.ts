@@ -12,6 +12,7 @@ import {
   getListItems,
   createListItem,
   updateListItem,
+  logListFields,
 } from "@/lib/graphClient"
 import type {
   ProjetPipeline,
@@ -195,20 +196,14 @@ function mapContact(item: SPRawItem): PipelineContact {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 export async function getProjets(token: string): Promise<ProjetPipeline[]> {
+  // Diagnostic — affiche TOUS les vrais noms internes de la liste dans la console (F12)
+  void logListFields(token, "Projets_Pipeline")
+
   const items = await getListItems<SPRawItem>(
     token,
     "Projets_Pipeline",
     "&$orderby=createdDateTime desc&$top=500",
   )
-
-  // Diagnostic — affiche les vrais noms internes si des items existent
-  if (items.length > 0) {
-    console.log(
-      "[Pipeline] Noms internes des champs disponibles :",
-      Object.keys(items[0].fields),
-    )
-  }
-
   return items.map(mapProjet)
 }
 
@@ -219,9 +214,8 @@ export async function createProjet(
   const result = await createListItem<SPRawItem>(token, "Projets_Pipeline", {
     Title:                 data.titre,
     CodeProjet:            data.codeProjet,
-    // ⚠️ Champ Description désactivé — nom interne SP non confirmé (ni "Description" ni "Description0")
-    // À réactiver une fois le vrai nom interne identifié via logListFieldsFromSite()
-    Region:                data.region,
+    // ⚠️ Region et Description désactivés — noms internes SP à confirmer via diagnostic console (F12)
+    // Region:             data.region,
     PhaseProjet:           data.phase,
     StatutProjet:          data.statut,
     Priorite:              data.priorite,
@@ -266,9 +260,9 @@ export async function updateProjet(
   const sp: Record<string, unknown> = {}
   if (fields.titre                !== undefined) sp["Title"]                = fields.titre
   if (fields.codeProjet           !== undefined) sp["CodeProjet"]           = fields.codeProjet
-  // ⚠️ Champ Description désactivé — nom interne SP non confirmé
-  // if (fields.description !== undefined) sp["Description0"] = fields.description
-  if (fields.region               !== undefined) sp["Region"]               = fields.region
+  // ⚠️ Region et Description désactivés — noms internes à confirmer
+  // if (fields.region      !== undefined) sp["Region"]      = fields.region
+  // if (fields.description !== undefined) sp["Description"] = fields.description
   if (fields.phase                !== undefined) sp["PhaseProjet"]          = fields.phase
   if (fields.statut               !== undefined) sp["StatutProjet"]         = fields.statut
   if (fields.priorite             !== undefined) sp["Priorite"]             = fields.priorite

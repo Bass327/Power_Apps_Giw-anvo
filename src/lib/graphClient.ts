@@ -194,6 +194,30 @@ export async function logListFieldsFromSite(
   }
 }
 
+/**
+ * Affiche dans la console tous les champs du site principal (diagnostic).
+ * Même chose que logListFieldsFromSite() mais utilise getSiteId() au lieu d'un chemin arbitraire.
+ */
+export async function logListFields(token: string, listName: string): Promise<void> {
+  try {
+    const siteId = await getSiteId(token)
+    const listId = await resolveListId(token, siteId, listName)
+    const result = await graphFetch<{ value: { name: string; displayName: string }[] }>(
+      token,
+      `/sites/${siteId}/lists/${listId}/columns?$select=name,displayName`,
+    )
+    console.group(`🗂️ Colonnes SharePoint — liste "${listName}"`)
+    console.table(
+      result.value
+        .filter((f) => !f.name.startsWith("_") && f.name !== "ID")
+        .map((f) => ({ "Nom interne": f.name, "Nom affiché": f.displayName })),
+    )
+    console.groupEnd()
+  } catch (err) {
+    console.error(`[logListFields] Erreur pour "${listName}":`, err)
+  }
+}
+
 /** Crée un élément dans une liste SharePoint */
 export async function createListItem<T>(
   token:    string,

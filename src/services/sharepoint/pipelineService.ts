@@ -221,7 +221,7 @@ export async function createProjet(
   token: string,
   data:  Omit<ProjetPipeline, "id" | "created" | "modified">,
 ): Promise<ProjetPipeline> {
-  const result = await createListItem<SPRawItem>(token, "Projets_Pipeline", buildPayload({
+  const payload = buildPayload({
     Title:                 data.titre,
     CodeProjet:            data.codeProjet             || null,
     // Région : nom interne encodé confirmé par diagnostic
@@ -248,7 +248,11 @@ export async function createProjet(
     ProchaineAction:       data.prochaineEtapeLabel    || null,
     DateSignatureContrat:  data.dateSignatureContrat   || null,
     CommentaireManagement: data.notes                  || null,
-  }))
+  })
+  console.group("📤 createProjet — payload envoyé à SharePoint")
+  console.table(Object.entries(payload).map(([k, v]) => ({ Champ: k, Valeur: String(v) })))
+  console.groupEnd()
+  const result = await createListItem<SPRawItem>(token, "Projets_Pipeline", payload)
   return mapProjet(result)
 }
 

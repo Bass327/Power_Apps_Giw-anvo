@@ -200,6 +200,15 @@ export async function getProjets(token: string): Promise<ProjetPipeline[]> {
     "Projets_Pipeline",
     "&$orderby=createdDateTime desc&$top=500",
   )
+
+  // Diagnostic — affiche les vrais noms internes si des items existent
+  if (items.length > 0) {
+    console.log(
+      "[Pipeline] Noms internes des champs disponibles :",
+      Object.keys(items[0].fields),
+    )
+  }
+
   return items.map(mapProjet)
 }
 
@@ -210,8 +219,8 @@ export async function createProjet(
   const result = await createListItem<SPRawItem>(token, "Projets_Pipeline", {
     Title:                 data.titre,
     CodeProjet:            data.codeProjet,
-    // "Description" est un nom réservé SP — le nom interne réel est "Description0"
-    Description0:          data.description,
+    // ⚠️ Champ Description désactivé — nom interne SP non confirmé (ni "Description" ni "Description0")
+    // À réactiver une fois le vrai nom interne identifié via logListFieldsFromSite()
     Region:                data.region,
     PhaseProjet:           data.phase,
     StatutProjet:          data.statut,
@@ -257,8 +266,8 @@ export async function updateProjet(
   const sp: Record<string, unknown> = {}
   if (fields.titre                !== undefined) sp["Title"]                = fields.titre
   if (fields.codeProjet           !== undefined) sp["CodeProjet"]           = fields.codeProjet
-  // "Description" est un nom réservé SP — le nom interne réel est "Description0"
-  if (fields.description          !== undefined) sp["Description0"]         = fields.description
+  // ⚠️ Champ Description désactivé — nom interne SP non confirmé
+  // if (fields.description !== undefined) sp["Description0"] = fields.description
   if (fields.region               !== undefined) sp["Region"]               = fields.region
   if (fields.phase                !== undefined) sp["PhaseProjet"]          = fields.phase
   if (fields.statut               !== undefined) sp["StatutProjet"]         = fields.statut

@@ -31,6 +31,7 @@ import { useProjets } from "@/hooks/usePipeline"
 import {
   PHASE_COLORS,
   PHASES_PIPELINE,
+  PHASES_CANCELLED,
   formatFCFA,
   formatKwp,
 } from "@/types/pipeline"
@@ -39,25 +40,25 @@ import type { PhaseProjet, BusinessModel } from "@/types/pipeline"
 // ─── Labels courts pour l'axe X du graphique phases ──────────────────────────
 
 const PHASE_SHORT: Record<PhaseProjet, string> = {
-  "Prospect":             "Prospect",
-  "Étude de faisabilité": "Étude",
-  "Offre soumise":        "Offre",
-  "Négociation":          "Négo.",
-  "Contrat signé":        "Contrat",
-  "En développement":     "Dév.",
-  "Construction":         "Const.",
-  "En exploitation":      "Exploit.",
-  "Abandonné":            "Abandonné",
+  "01 - Préparation de la proposition":      "01-Prép.",
+  "02 - Proposition commerciale soumise":    "02-Offre",
+  "03 - Proposition de financement soumise": "03-Fin.",
+  "04 - Contrat signé":                      "04-Contrat",
+  "05 - Développement du projet & EPC":      "05-Dev.",
+  "06 - En exploitation":                    "06-Exploit.",
+  "07 - Projet terminé":                     "07-Terminé",
+  "08 - En attente":                         "08-Attente",
+  "09 - Annulé par AGT":                     "09-Annulé",
+  "10 - Annulé par le client":               "10-Annulé",
 }
 
 // ─── Couleurs par business model ──────────────────────────────────────────────
 
 const BM_COLORS: Record<BusinessModel, string> = {
-  "ERD":            "#2d9e5f",
-  "Client direct":  "#f0a500",
-  "Institutionnel": "#60a5fa",
-  "PPP":            "#a78bfa",
-  "Autre":          "#9ca3af",
+  "Service à la demande (As a Service)":              "#2d9e5f",
+  "EPC (Ingénierie, Approvisionnement & Construction)": "#f0a500",
+  "Consulting / Conseil":                             "#60a5fa",
+  "O&M (Exploitation & Maintenance)":                 "#a78bfa",
 }
 
 // ─── Tooltip recharts personnalisé ────────────────────────────────────────────
@@ -192,23 +193,23 @@ export default function PipelineDashboard() {
     const critiques    = projets.filter(
       (p) => p.priorite === "Critique" || p.statut === "Critique",
     ).length
-    const exploitation = projets.filter((p) => p.phase === "En exploitation").length
+    const exploitation = projets.filter((p) => p.phase === "06 - En exploitation").length
     const totalKwp     = projets.reduce((s, p) => s + (p.puissanceKwp ?? 0), 0)
     const enRetard     = projets.filter(
       (p) =>
         p.dateProchaineEtape &&
         p.dateProchaineEtape < today &&
         p.statut !== "Terminé" &&
-        p.phase  !== "Abandonné",
+        !PHASES_CANCELLED.includes(p.phase),
     ).length
     const totalFinancement = projets
       .filter((p) => p.financementNecessaire)
       .reduce((s, p) => s + (p.montantFinancement ?? 0), 0)
     const totalRevenus = projets.reduce((s, p) => s + (p.revenusAnnuelsPrevus ?? 0), 0)
 
-    // Données graphique phases
+    // Données graphique phases (sans les phases d'annulation)
     const phasesData = PHASES_PIPELINE
-      .filter((ph) => ph !== "Abandonné")
+      .filter((ph) => !PHASES_CANCELLED.includes(ph))
       .map((ph) => ({
         phase: ph,
         label: PHASE_SHORT[ph],
@@ -258,7 +259,7 @@ export default function PipelineDashboard() {
         const retard = p.dateProchaineEtape && p.dateProchaineEtape < today
         return (
           (p.priorite === "Critique" || p.statut === "Critique" || retard) &&
-          p.phase  !== "Abandonné" &&
+          !PHASES_CANCELLED.includes(p.phase) &&
           p.statut !== "Terminé"
         )
       })

@@ -32,6 +32,7 @@ import {
 } from "@/hooks/usePipeline"
 import {
   PHASES_PIPELINE,
+  PHASES_CANCELLED,
   PHASE_COLORS,
   PRIORITE_COLORS,
   STATUT_PROJET_COLORS,
@@ -46,10 +47,10 @@ import {
   type PipelineUpdate,
 } from "@/types/pipeline"
 
-// ─── Phases actives (sans "Abandonné") pour la barre de progression ───────────
+// ─── Phases actives (sans phases annulées) pour la barre de progression ───────
 
 const ACTIVE_PHASES = PHASES_PIPELINE.filter(
-  (p): p is Exclude<PhaseProjet, "Abandonné"> => p !== "Abandonné",
+  (p) => !PHASES_CANCELLED.includes(p) && p !== "08 - En attente",
 )
 
 // ─── Couleurs des statuts de jalons ───────────────────────────────────────────
@@ -80,14 +81,14 @@ function PipelineProgressBar({ phase }: { phase: PhaseProjet }) {
   const currentIndex = ACTIVE_PHASES.indexOf(
     phase as (typeof ACTIVE_PHASES)[number],
   )
-  const isAbandonne = phase === "Abandonné"
+  const isAnnule = PHASES_CANCELLED.includes(phase)
 
   return (
     <div className="space-y-3">
       <div className="flex gap-1 items-end">
         {ACTIVE_PHASES.map((p, i) => {
           const isActive = p === phase
-          const isPast   = !isAbandonne && i < currentIndex
+          const isPast   = !isAnnule && i < currentIndex
           const c        = PHASE_COLORS[p]
           return (
             <div key={p} className="flex-1 flex flex-col items-center gap-1.5">
@@ -110,7 +111,7 @@ function PipelineProgressBar({ phase }: { phase: PhaseProjet }) {
       {/* Légende : première phase, phase active, dernière phase */}
       <div className="flex justify-between text-xs" style={{ color: "var(--text-muted)" }}>
         <span style={{ fontFamily: "'Syne', sans-serif" }}>{ACTIVE_PHASES[0]}</span>
-        {!isAbandonne && currentIndex > 0 && currentIndex < ACTIVE_PHASES.length - 1 && (
+        {!isAnnule && currentIndex > 0 && currentIndex < ACTIVE_PHASES.length - 1 && (
           <span
             className="font-semibold"
             style={{ color: PHASE_COLORS[phase].text, fontFamily: "'Syne', sans-serif" }}
@@ -747,7 +748,7 @@ export default function ProjetDetailsPage() {
                 border:     "1px solid rgba(45,158,95,0.25)",
               }}
             >
-              {projet.phase === "Abandonné" ? "Abandonné" : `${getPhaseProgress(projet.phase)}% pipeline`}
+              {PHASES_CANCELLED.includes(projet.phase) ? "Annulé" : `${getPhaseProgress(projet.phase)}% pipeline`}
             </span>
             <span
               className="text-xs font-semibold px-2.5 py-0.5 rounded-full"

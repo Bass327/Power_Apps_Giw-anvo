@@ -12,8 +12,11 @@ import { toast } from "sonner"
 import { useProjets, useCreateProjet, useUpdateProjet } from "@/hooks/usePipeline"
 import {
   PHASES_PIPELINE, STATUTS_PROJET, PRIORITES,
-  BUSINESS_MODELS, REGIONS_SENEGAL,
+  BUSINESS_MODELS, BUSINESS_UNITS, DIVISIONS,
+  SECTEURS_ACTIVITE, CAS_UTILISATION,
+  REGIONS_SENEGAL,
   PHASE_COLORS, PRIORITE_COLORS,
+  PHASES_CANCELLED,
   formatFCFA, formatKwp,
 } from "@/types/pipeline"
 import type { PhaseProjet, StatutProjet, Priorite, BusinessModel, ProjetPipeline } from "@/types/pipeline"
@@ -23,27 +26,43 @@ import type { PhaseProjet, StatutProjet, Priorite, BusinessModel, ProjetPipeline
    ═══════════════════════════════════════════════════════════════════ */
 
 interface FormData {
+  // Étape 1 — Général
   titre:                 string
   codeProjet:            string
   region:                string
   description:           string
   partenaire:            string
+  // Étape 2 — Business
   phase:                 PhaseProjet | ""
   statut:                StatutProjet | ""
   priorite:              Priorite | ""
   businessModel:         BusinessModel | ""
+  division:              string
+  businessUnit:          string
+  secteurActivite:       string
+  casUtilisation:        string
+  // Étape 3 — Technique
   puissanceKwp:          string
   batterieIncluse:       boolean
   capaciteBatterieKwh:   string
+  // Étape 4 — Financement
   financementNecessaire: boolean
   montantFinancement:    string
   sourceFinancement:     string
   revenusAnnuelsPrevus:  string
+  // Étape 5 — Responsables
   chefProjet:            string
+  responsableCommercial: string
+  responsableFinance:    string
+  responsableTechnique:  string
+  autresIntervenants:    string
   notes:                 string
+  // Étape 6 — Échéances
   dateDebutPrevu:        string
   dateFinPrevu:          string
   dateProchaineEtape:    string
+  prochaineEtapeLabel:   string
+  commentaireEcheance:   string
   dateSignatureContrat:  string
   progression:           number
 }
@@ -66,10 +85,14 @@ const STEPS = [
 const EMPTY_FORM: FormData = {
   titre: "", codeProjet: "", region: "", description: "", partenaire: "",
   phase: "", statut: "Actif", priorite: "", businessModel: "",
+  division: "", businessUnit: "", secteurActivite: "", casUtilisation: "",
   puissanceKwp: "", batterieIncluse: false, capaciteBatterieKwh: "",
   financementNecessaire: false, montantFinancement: "", sourceFinancement: "",
-  revenusAnnuelsPrevus: "", chefProjet: "", notes: "",
+  revenusAnnuelsPrevus: "",
+  chefProjet: "", responsableCommercial: "", responsableFinance: "",
+  responsableTechnique: "", autresIntervenants: "", notes: "",
   dateDebutPrevu: "", dateFinPrevu: "", dateProchaineEtape: "",
+  prochaineEtapeLabel: "", commentaireEcheance: "",
   dateSignatureContrat: "", progression: 0,
 }
 
@@ -83,6 +106,10 @@ function projetToForm(p: ProjetPipeline): FormData {
     description: p.description, partenaire: p.partenaire,
     phase: p.phase, statut: p.statut, priorite: p.priorite,
     businessModel: p.businessModel,
+    division:        p.division        ?? "",
+    businessUnit:    p.businessUnit    ?? "",
+    secteurActivite: p.secteurActivite ?? "",
+    casUtilisation:  p.casUtilisation  ?? "",
     puissanceKwp:        p.puissanceKwp        ? String(p.puissanceKwp)        : "",
     batterieIncluse:     p.batterieIncluse,
     capaciteBatterieKwh: p.capaciteBatterieKwh ? String(p.capaciteBatterieKwh) : "",
@@ -90,9 +117,17 @@ function projetToForm(p: ProjetPipeline): FormData {
     montantFinancement:  p.montantFinancement   ? String(p.montantFinancement)   : "",
     sourceFinancement:   p.sourceFinancement,
     revenusAnnuelsPrevus:p.revenusAnnuelsPrevus ? String(p.revenusAnnuelsPrevus) : "",
-    chefProjet: p.chefProjet, notes: p.notes,
-    dateDebutPrevu: p.dateDebutPrevu, dateFinPrevu: p.dateFinPrevu,
-    dateProchaineEtape: p.dateProchaineEtape,
+    chefProjet:            p.chefProjet,
+    responsableCommercial: p.responsableCommercial ?? "",
+    responsableFinance:    p.responsableFinance    ?? "",
+    responsableTechnique:  p.responsableTechnique  ?? "",
+    autresIntervenants:    p.autresIntervenants    ?? "",
+    notes:                 p.notes,
+    dateDebutPrevu:      p.dateDebutPrevu,
+    dateFinPrevu:        p.dateFinPrevu,
+    dateProchaineEtape:  p.dateProchaineEtape,
+    prochaineEtapeLabel: p.prochaineEtapeLabel  ?? "",
+    commentaireEcheance: p.commentaireEcheance  ?? "",
     dateSignatureContrat: p.dateSignatureContrat,
     progression: p.progression,
   }
@@ -134,10 +169,9 @@ function isPastDate(iso: string): boolean {
 
 function getKwpCategory(kwp: number): { label: string; color: string } | null {
   if (!kwp) return null
-  if (kwp < 10)  return { label: "Mini-réseau (< 10 kWp)",   color: "#60a5fa" }
-  if (kwp < 100) return { label: "Petite centrale (10–100 kWp)", color: "#34d399" }
-  if (kwp < 500) return { label: "Moyenne centrale (100–500 kWp)", color: "#f0a500" }
-  return { label: "Grande centrale (> 500 kWp)", color: "#f472b6" }
+  if (kwp < 50)  return { label: "Petite installation (< 50 kWp)",    color: "#60a5fa" }
+  if (kwp <= 500) return { label: "Installation moyenne (50–500 kWp)", color: "#f0a500" }
+  return { label: "Grande installation (> 500 kWp)", color: "#34d399" }
 }
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -325,10 +359,10 @@ function PipelineTimeline({ currentPhase, onSelect }:
   return (
     <div className="space-y-1.5">
       {PHASES_PIPELINE.map((phase, idx) => {
-        const isActive  = phase === currentPhase
-        const isDone    = currentIdx > -1 && idx < currentIdx
-        const colors    = PHASE_COLORS[phase as PhaseProjet]
-        const isAbandoned = phase === "Abandonné"
+        const isActive    = phase === currentPhase
+        const isDone      = currentIdx > -1 && idx < currentIdx && !PHASES_CANCELLED.includes(phase)
+        const isCancelled = PHASES_CANCELLED.includes(phase)
+        const colors      = PHASE_COLORS[phase as PhaseProjet]
 
         return (
           <button
@@ -351,18 +385,14 @@ function PipelineTimeline({ currentPhase, onSelect }:
               }}>
               {isDone
                 ? <Check size={10} style={{ color: "#2d9e5f" }} />
-                : isAbandoned
+                : isCancelled
                   ? <span style={{ fontSize: 9, color: isActive ? colors.text : "var(--text-muted)" }}>✕</span>
                   : <CircleDot size={8} style={{ color: isActive ? colors.text : "var(--text-muted)" }} />
               }
             </div>
 
-            {/* Numéro + label */}
-            <div className="flex items-center gap-2 min-w-0 flex-1">
-              <span className="text-xs font-bold flex-shrink-0"
-                style={{ color: isActive ? colors.text : isDone ? "#2d9e5f" : "var(--text-muted)", fontFamily: "'Syne', sans-serif" }}>
-                {String(idx + 1).padStart(2, "0")}
-              </span>
+            {/* Numéro + label (affiché tel quel — il contient déjà le numéro dans le nom) */}
+            <div className="flex items-center min-w-0 flex-1">
               <span className="text-sm truncate"
                 style={{ color: isActive ? colors.text : isDone ? "var(--text-secondary)" : "var(--text-muted)", fontFamily: "'DM Sans', sans-serif" }}>
                 {phase}
@@ -674,7 +704,11 @@ export default function ProjetFormPage() {
       phase:                 formData.phase as PhaseProjet,
       statut:                (formData.statut as StatutProjet) || "Actif",
       priorite:              formData.priorite as Priorite,
-      businessModel:         (formData.businessModel as BusinessModel) || "Autre",
+      businessModel:         (formData.businessModel as BusinessModel) || "Consulting / Conseil",
+      division:              formData.division  || undefined,
+      businessUnit:          formData.businessUnit || undefined,
+      secteurActivite:       formData.secteurActivite || undefined,
+      casUtilisation:        formData.casUtilisation || undefined,
       puissanceKwp:          parseFloat(formData.puissanceKwp)         || 0,
       batterieIncluse:       formData.batterieIncluse,
       capaciteBatterieKwh:   parseFloat(formData.capaciteBatterieKwh)  || 0,
@@ -683,10 +717,16 @@ export default function ProjetFormPage() {
       sourceFinancement:     formData.sourceFinancement,
       revenusAnnuelsPrevus:  parseFloat(formData.revenusAnnuelsPrevus) || 0,
       chefProjet:            formData.chefProjet,
+      responsableCommercial: formData.responsableCommercial || undefined,
+      responsableFinance:    formData.responsableFinance    || undefined,
+      responsableTechnique:  formData.responsableTechnique  || undefined,
+      autresIntervenants:    formData.autresIntervenants    || undefined,
       notes:                 formData.notes,
       dateDebutPrevu:        formData.dateDebutPrevu,
       dateFinPrevu:          formData.dateFinPrevu,
       dateProchaineEtape:    formData.dateProchaineEtape,
+      prochaineEtapeLabel:   formData.prochaineEtapeLabel   || undefined,
+      commentaireEcheance:   formData.commentaireEcheance   || undefined,
       dateSignatureContrat:  formData.dateSignatureContrat,
       progression:           formData.progression,
     }
@@ -784,6 +824,40 @@ export default function ProjetFormPage() {
               options={BUSINESS_MODELS.map((b) => ({ label: b, value: b }))} />
           </div>
 
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <Label>Division</Label>
+              <SelectInput value={formData.division}
+                onChange={(v) => update("division", v)}
+                placeholder="Sélectionner"
+                options={DIVISIONS.map((d) => ({ label: d, value: d }))} />
+            </div>
+            <div>
+              <Label>Business Unit</Label>
+              <SelectInput value={formData.businessUnit}
+                onChange={(v) => update("businessUnit", v)}
+                placeholder="Sélectionner"
+                options={BUSINESS_UNITS.map((b) => ({ label: b, value: b }))} />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <Label>Secteur d'activité</Label>
+              <SelectInput value={formData.secteurActivite}
+                onChange={(v) => update("secteurActivite", v)}
+                placeholder="Sélectionner"
+                options={SECTEURS_ACTIVITE.map((s) => ({ label: s, value: s }))} />
+            </div>
+            <div>
+              <Label>Cas d'utilisation</Label>
+              <SelectInput value={formData.casUtilisation}
+                onChange={(v) => update("casUtilisation", v)}
+                placeholder="Sélectionner"
+                options={CAS_UTILISATION.map((c) => ({ label: c, value: c }))} />
+            </div>
+          </div>
+
           {/* Timeline phases */}
           <div>
             <Label required>Phase du pipeline</Label>
@@ -831,26 +905,17 @@ export default function ProjetFormPage() {
               </div>
             )}
 
-            {/* Aperçu dimensionnement */}
+            {/* Indicateur surface nécessaire */}
             {kwp > 0 && (
-              <div className="rounded-xl p-4 grid grid-cols-3 gap-4"
+              <div className="rounded-xl p-4 flex items-center gap-4"
                 style={{ background: "rgba(45,158,95,0.06)", border: "1px solid rgba(45,158,95,0.2)" }}>
-                <div className="text-center">
-                  <p className="text-xs mb-1" style={{ color: "var(--text-muted)", fontFamily: "'DM Sans', sans-serif" }}>Production ~</p>
-                  <p className="text-sm font-bold" style={{ color: "#3dbf72", fontFamily: "'Syne', sans-serif" }}>
-                    {Math.round(kwp * 4.5).toLocaleString("fr-FR")} kWh/j
+                <div>
+                  <p className="text-xs mb-0.5" style={{ color: "var(--text-muted)", fontFamily: "'DM Sans', sans-serif" }}>Surface approximative requise</p>
+                  <p className="text-lg font-bold" style={{ color: "#3dbf72", fontFamily: "'Syne', sans-serif" }}>
+                    ~{Math.round(kwp * 6).toLocaleString("fr-FR")} m²
                   </p>
-                </div>
-                <div className="text-center">
-                  <p className="text-xs mb-1" style={{ color: "var(--text-muted)", fontFamily: "'DM Sans', sans-serif" }}>Surfaces ~</p>
-                  <p className="text-sm font-bold" style={{ color: "#3dbf72", fontFamily: "'Syne', sans-serif" }}>
-                    {Math.round(kwp * 6)} m²
-                  </p>
-                </div>
-                <div className="text-center">
-                  <p className="text-xs mb-1" style={{ color: "var(--text-muted)", fontFamily: "'DM Sans', sans-serif" }}>CO₂ évité ~</p>
-                  <p className="text-sm font-bold" style={{ color: "#3dbf72", fontFamily: "'Syne', sans-serif" }}>
-                    {Math.round(kwp * 1.2)} t/an
+                  <p className="text-xs mt-0.5" style={{ color: "var(--text-muted)", fontFamily: "'DM Sans', sans-serif" }}>
+                    Estimation basée sur 6 m² par kWp installé
                   </p>
                 </div>
               </div>
@@ -901,16 +966,6 @@ export default function ProjetFormPage() {
             <FieldHint>Estimation des revenus en année pleine d'exploitation</FieldHint>
           </div>
 
-          {/* Ratio ROI */}
-          {parseFloat(formData.montantFinancement) > 0 && parseFloat(formData.revenusAnnuelsPrevus) > 0 && (
-            <div className="rounded-xl p-4"
-              style={{ background: "rgba(59,130,246,0.06)", border: "1px solid rgba(59,130,246,0.2)" }}>
-              <p className="text-xs mb-1" style={{ color: "var(--text-muted)", fontFamily: "'DM Sans', sans-serif" }}>Retour sur investissement estimé</p>
-              <p className="text-lg font-bold" style={{ color: "#60a5fa", fontFamily: "'Syne', sans-serif" }}>
-                {(parseFloat(formData.montantFinancement) / parseFloat(formData.revenusAnnuelsPrevus)).toFixed(1)} ans
-              </p>
-            </div>
-          )}
         </div>
       )
 
@@ -923,11 +978,37 @@ export default function ProjetFormPage() {
               onChange={(v) => update("chefProjet", v)}
               placeholder="Prénom Nom" icon={User} />
           </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <Label>Responsable commercial</Label>
+              <TextInput value={formData.responsableCommercial}
+                onChange={(v) => update("responsableCommercial", v)}
+                placeholder="Prénom Nom" icon={User} />
+            </div>
+            <div>
+              <Label>Responsable finance</Label>
+              <TextInput value={formData.responsableFinance}
+                onChange={(v) => update("responsableFinance", v)}
+                placeholder="Prénom Nom" icon={User} />
+            </div>
+          </div>
+          <div>
+            <Label>Responsable technique</Label>
+            <TextInput value={formData.responsableTechnique}
+              onChange={(v) => update("responsableTechnique", v)}
+              placeholder="Prénom Nom" icon={User} />
+          </div>
+          <div>
+            <Label>Autres intervenants</Label>
+            <TextareaInput value={formData.autresIntervenants}
+              onChange={(v) => update("autresIntervenants", v)}
+              placeholder="Sous-traitants, consultants, partenaires techniques…" rows={2} />
+          </div>
           <div>
             <Label>Notes internes</Label>
             <TextareaInput value={formData.notes}
               onChange={(v) => update("notes", v)}
-              placeholder="Remarques, contraintes, risques, points d'attention…" rows={4} />
+              placeholder="Remarques, contraintes, risques, points d'attention…" rows={3} />
             {formData.notes.length > 0 && (
               <p className="text-xs mt-1 text-right" style={{ color: "var(--text-muted)", fontFamily: "'DM Sans', sans-serif" }}>
                 {formData.notes.length} caractères
@@ -969,7 +1050,7 @@ export default function ProjetFormPage() {
                     type="date" icon={Calendar} />
                 </div>
                 <div>
-                  <Label>Prochaine étape</Label>
+                  <Label>Date de la prochaine étape</Label>
                   <TextInput value={formData.dateProchaineEtape}
                     onChange={(v) => update("dateProchaineEtape", v)}
                     type="date" icon={Clock} />
@@ -979,7 +1060,7 @@ export default function ProjetFormPage() {
                     </p>
                   )}
                 </div>
-                {formData.phase === "Contrat signé" && (
+                {formData.phase === "04 - Contrat signé" && (
                   <div>
                     <Label>Date signature contrat</Label>
                     <TextInput value={formData.dateSignatureContrat}
@@ -987,6 +1068,20 @@ export default function ProjetFormPage() {
                       type="date" icon={FileText} />
                   </div>
                 )}
+              </div>
+              <div>
+                <Label>Libellé prochaine étape</Label>
+                <TextInput value={formData.prochaineEtapeLabel}
+                  onChange={(v) => update("prochaineEtapeLabel", v)}
+                  placeholder="ex : Signature contrat, Réunion kick-off, Livraison rapport…"
+                  icon={StickyNote} />
+                <FieldHint>Décrivez brièvement ce qui est attendu à la prochaine échéance</FieldHint>
+              </div>
+              <div>
+                <Label>Commentaire sur les délais</Label>
+                <TextareaInput value={formData.commentaireEcheance}
+                  onChange={(v) => update("commentaireEcheance", v)}
+                  placeholder="Risques sur les délais, dépendances, conditions particulières…" rows={2} />
               </div>
               <div className="mt-4">
                 <div className="flex items-center justify-between mb-2">
@@ -1023,6 +1118,10 @@ export default function ProjetFormPage() {
                 <RecapField label="Code"      value={formData.codeProjet} color="#f0a500" />
                 <RecapField label="Région"    value={formData.region}    />
                 <RecapField label="Partenaire" value={formData.partenaire} />
+                {formData.businessModel && <RecapField label="Business model" value={formData.businessModel} />}
+                {formData.division     && <RecapField label="Division"        value={formData.division} />}
+                {formData.businessUnit && <RecapField label="Business unit"   value={formData.businessUnit} />}
+                {formData.secteurActivite && <RecapField label="Secteur"      value={formData.secteurActivite} />}
                 <div>
                   <p className="text-xs uppercase tracking-wide mb-1" style={{ color: "var(--text-muted)", fontFamily: "'Syne', sans-serif", fontSize: 10 }}>Phase</p>
                   {phaseCol && formData.phase
@@ -1047,8 +1146,11 @@ export default function ProjetFormPage() {
                 {montant > 0 && <RecapField label="Financement" value={formatFCFA(montant)} color="#f0a500" />}
                 {revenus > 0 && <RecapField label="Revenus / an" value={formatFCFA(revenus)} color="#22c55e" />}
                 <RecapField label="Chef de projet"  value={formData.chefProjet} />
-                <RecapField label="Début prévu"     value={formatDate(formData.dateDebutPrevu)} />
-                <RecapField label="Fin prévue"      value={formatDate(formData.dateFinPrevu)} />
+                {formData.responsableCommercial && <RecapField label="Commercial" value={formData.responsableCommercial} />}
+                {formData.responsableTechnique  && <RecapField label="Technique"  value={formData.responsableTechnique} />}
+                <RecapField label="Début prévu" value={formatDate(formData.dateDebutPrevu)} />
+                <RecapField label="Fin prévue"  value={formatDate(formData.dateFinPrevu)} />
+                {formData.prochaineEtapeLabel && <RecapField label="Prochaine étape" value={formData.prochaineEtapeLabel} />}
               </div>
             </div>
 

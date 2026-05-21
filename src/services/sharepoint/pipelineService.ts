@@ -27,6 +27,18 @@ import type {
   BusinessModel,
 } from "@/types/pipeline"
 
+// ⚠️ Colonnes SharePoint à créer manuellement dans la liste Projets_Pipeline :
+//   Division            (type: Choice ou Text)
+//   BusinessUnit        (type: Choice ou Text)
+//   SecteurActivite     (type: Text)
+//   CasUtilisation      (type: Text)
+//   ResponsableCommercial (type: Text)
+//   ResponsableFinance    (type: Text)
+//   ResponsableTechnique  (type: Text)
+//   AutresIntervenants    (type: Text — note multiligne)
+//   ProchaineEtapeLabel   (type: Text)
+//   CommentaireEcheance   (type: Note)
+
 // ─── Types bruts retournés par Graph API ─────────────────────────────────────
 
 interface SPRawItem {
@@ -73,11 +85,21 @@ function mapProjet(item: SPRawItem): ProjetPipeline {
     // "Description" peut être encodé "Description0" selon la config du site
     description:           str(f["Description"] ?? f["Description0"]),
     region:                str(f["Region"]),
-    phase:                 str(f["PhaseProjet"], "Prospect")      as PhaseProjet,
+    phase:                 str(f["PhaseProjet"], "01 - Préparation de la proposition") as PhaseProjet,
     statut:                str(f["StatutProjet"], "Actif")        as StatutProjet,
     priorite:              str(f["Priorite"], "Moyenne")          as Priorite,
     chefProjet:            str(f["ChefProjet"]),
-    businessModel:         str(f["BusinessModel"], "Autre")       as BusinessModel,
+    businessModel:         str(f["BusinessModel"], "Consulting / Conseil") as BusinessModel,
+    // Champs étendus (colonnes optionnelles — retournent "" si absentes)
+    division:              str(f["Division"])              || undefined,
+    businessUnit:          str(f["BusinessUnit"])          || undefined,
+    secteurActivite:       str(f["SecteurActivite"])       || undefined,
+    casUtilisation:        str(f["CasUtilisation"])        || undefined,
+    responsableCommercial: str(f["ResponsableCommercial"]) || undefined,
+    responsableFinance:    str(f["ResponsableFinance"])    || undefined,
+    responsableTechnique:  str(f["ResponsableTechnique"])  || undefined,
+    autresIntervenants:    str(f["AutresIntervenants"])    || undefined,
+    // Technique
     puissanceKwp:          num(f["Puissance_kWp"]),
     batterieIncluse:       bool(f["BatterieIncluse"]),
     capaciteBatterieKwh:   num(f["CapaciteBatterie_kWh"]),
@@ -85,9 +107,12 @@ function mapProjet(item: SPRawItem): ProjetPipeline {
     montantFinancement:    num(f["MontantFinancement"]),
     sourceFinancement:     str(f["SourceFinancement"]),
     revenusAnnuelsPrevus:  num(f["RevenusAnnuelsPrevus"]),
+    // Échéances
     dateDebutPrevu:        toDate(f["DateDebutPrevu"]),
     dateFinPrevu:          toDate(f["DateFinPrevu"]),
     dateProchaineEtape:    toDate(f["DateProchaineEtape"]),
+    prochaineEtapeLabel:   str(f["ProchaineEtapeLabel"])   || undefined,
+    commentaireEcheance:   str(f["CommentaireEcheance"])   || undefined,
     dateSignatureContrat:  toDate(f["DateSignatureContrat"]),
     partenaire:            str(f["Partenaire"]),
     notes:                 str(f["Notes"]),
@@ -192,6 +217,16 @@ export async function createProjet(
     Priorite:              data.priorite,
     ChefProjet:            data.chefProjet,
     BusinessModel:         data.businessModel,
+    // Champs étendus (colonnes à créer dans SP si absentes)
+    Division:              data.division              || null,
+    BusinessUnit:          data.businessUnit          || null,
+    SecteurActivite:       data.secteurActivite       || null,
+    CasUtilisation:        data.casUtilisation        || null,
+    ResponsableCommercial: data.responsableCommercial || null,
+    ResponsableFinance:    data.responsableFinance    || null,
+    ResponsableTechnique:  data.responsableTechnique  || null,
+    AutresIntervenants:    data.autresIntervenants    || null,
+    // Technique
     Puissance_kWp:         data.puissanceKwp        || null,
     BatterieIncluse:       data.batterieIncluse,
     CapaciteBatterie_kWh:  data.capaciteBatterieKwh || null,
@@ -199,9 +234,12 @@ export async function createProjet(
     MontantFinancement:    data.montantFinancement   || null,
     SourceFinancement:     data.sourceFinancement,
     RevenusAnnuelsPrevus:  data.revenusAnnuelsPrevus || null,
+    // Échéances
     DateDebutPrevu:        data.dateDebutPrevu        || null,
     DateFinPrevu:          data.dateFinPrevu          || null,
     DateProchaineEtape:    data.dateProchaineEtape    || null,
+    ProchaineEtapeLabel:   data.prochaineEtapeLabel   || null,
+    CommentaireEcheance:   data.commentaireEcheance   || null,
     DateSignatureContrat:  data.dateSignatureContrat  || null,
     Partenaire:            data.partenaire,
     Notes:                 data.notes,
@@ -225,6 +263,16 @@ export async function updateProjet(
   if (fields.priorite             !== undefined) sp["Priorite"]             = fields.priorite
   if (fields.chefProjet           !== undefined) sp["ChefProjet"]           = fields.chefProjet
   if (fields.businessModel        !== undefined) sp["BusinessModel"]        = fields.businessModel
+  // Champs étendus
+  if (fields.division             !== undefined) sp["Division"]             = fields.division || null
+  if (fields.businessUnit         !== undefined) sp["BusinessUnit"]         = fields.businessUnit || null
+  if (fields.secteurActivite      !== undefined) sp["SecteurActivite"]      = fields.secteurActivite || null
+  if (fields.casUtilisation       !== undefined) sp["CasUtilisation"]       = fields.casUtilisation || null
+  if (fields.responsableCommercial !== undefined) sp["ResponsableCommercial"] = fields.responsableCommercial || null
+  if (fields.responsableFinance   !== undefined) sp["ResponsableFinance"]   = fields.responsableFinance || null
+  if (fields.responsableTechnique !== undefined) sp["ResponsableTechnique"] = fields.responsableTechnique || null
+  if (fields.autresIntervenants   !== undefined) sp["AutresIntervenants"]   = fields.autresIntervenants || null
+  // Technique
   if (fields.puissanceKwp         !== undefined) sp["Puissance_kWp"]        = fields.puissanceKwp || null
   if (fields.batterieIncluse      !== undefined) sp["BatterieIncluse"]      = fields.batterieIncluse
   if (fields.capaciteBatterieKwh  !== undefined) sp["CapaciteBatterie_kWh"] = fields.capaciteBatterieKwh || null
@@ -232,9 +280,12 @@ export async function updateProjet(
   if (fields.montantFinancement   !== undefined) sp["MontantFinancement"]   = fields.montantFinancement || null
   if (fields.sourceFinancement    !== undefined) sp["SourceFinancement"]    = fields.sourceFinancement
   if (fields.revenusAnnuelsPrevus !== undefined) sp["RevenusAnnuelsPrevus"] = fields.revenusAnnuelsPrevus || null
+  // Échéances
   if (fields.dateDebutPrevu       !== undefined) sp["DateDebutPrevu"]       = fields.dateDebutPrevu || null
   if (fields.dateFinPrevu         !== undefined) sp["DateFinPrevu"]         = fields.dateFinPrevu   || null
   if (fields.dateProchaineEtape   !== undefined) sp["DateProchaineEtape"]   = fields.dateProchaineEtape || null
+  if (fields.prochaineEtapeLabel  !== undefined) sp["ProchaineEtapeLabel"]  = fields.prochaineEtapeLabel || null
+  if (fields.commentaireEcheance  !== undefined) sp["CommentaireEcheance"]  = fields.commentaireEcheance || null
   if (fields.dateSignatureContrat !== undefined) sp["DateSignatureContrat"] = fields.dateSignatureContrat || null
   if (fields.partenaire           !== undefined) sp["Partenaire"]           = fields.partenaire
   if (fields.notes                !== undefined) sp["Notes"]                = fields.notes

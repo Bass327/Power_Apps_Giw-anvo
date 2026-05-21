@@ -210,7 +210,8 @@ export async function createProjet(
   const result = await createListItem<SPRawItem>(token, "Projets_Pipeline", {
     Title:                 data.titre,
     CodeProjet:            data.codeProjet,
-    Description:           data.description,
+    // "Description" est un nom réservé SP — le nom interne réel est "Description0"
+    Description0:          data.description,
     Region:                data.region,
     PhaseProjet:           data.phase,
     StatutProjet:          data.statut,
@@ -256,7 +257,8 @@ export async function updateProjet(
   const sp: Record<string, unknown> = {}
   if (fields.titre                !== undefined) sp["Title"]                = fields.titre
   if (fields.codeProjet           !== undefined) sp["CodeProjet"]           = fields.codeProjet
-  if (fields.description          !== undefined) sp["Description"]          = fields.description
+  // "Description" est un nom réservé SP — le nom interne réel est "Description0"
+  if (fields.description          !== undefined) sp["Description0"]         = fields.description
   if (fields.region               !== undefined) sp["Region"]               = fields.region
   if (fields.phase                !== undefined) sp["PhaseProjet"]          = fields.phase
   if (fields.statut               !== undefined) sp["StatutProjet"]         = fields.statut
@@ -324,8 +326,8 @@ export async function createTask(
     Assignee:    data.assignee,
     Priorite:    data.priorite,
     StatutTache: data.statut,
-    DateLimite:  data.dateLimite  || null,
-    Description: data.description,
+    DateLimite:   data.dateLimite  || null,
+    Description0: data.description,
   })
   return mapTask(result)
 }
@@ -336,10 +338,10 @@ export async function updateTask(
   fields: Partial<Pick<PipelineTask, "statut" | "assignee" | "dateLimite" | "description" | "priorite">>,
 ): Promise<void> {
   const sp: Record<string, unknown> = {}
-  if (fields.statut      !== undefined) sp["StatutTache"] = fields.statut
-  if (fields.assignee    !== undefined) sp["Assignee"]    = fields.assignee
-  if (fields.dateLimite  !== undefined) sp["DateLimite"]  = fields.dateLimite || null
-  if (fields.description !== undefined) sp["Description"] = fields.description
+  if (fields.statut      !== undefined) sp["StatutTache"]  = fields.statut
+  if (fields.assignee    !== undefined) sp["Assignee"]     = fields.assignee
+  if (fields.dateLimite  !== undefined) sp["DateLimite"]   = fields.dateLimite || null
+  if (fields.description !== undefined) sp["Description0"] = fields.description
   if (fields.priorite    !== undefined) sp["Priorite"]    = fields.priorite
   await updateListItem(token, "Pipeline_Tasks", id, sp)
 }

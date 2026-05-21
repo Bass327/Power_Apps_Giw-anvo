@@ -168,17 +168,22 @@ export interface ProjetPipeline {
 }
 
 export interface PipelineTask {
-  id:          string
-  titre:       string
-  projetId:    string
-  projetCode:  string
-  assignee:    string
-  priorite:    Priorite
-  statut:      StatutTache
-  dateLimite:  string
-  description: string
-  created:     string
-  modified:    string
+  id:                    string
+  titre:                 string
+  projetId:              string
+  projetCode:            string
+  assignee:              string
+  priorite:              Priorite
+  statut:                StatutTache
+  dateLimite:            string
+  description:           string
+  commentaire?:          string
+  responsableCommercial?: string
+  responsableFinance?:   string
+  responsableTechnique?: string
+  autresIntervenants?:   string
+  created:               string
+  modified:              string
 }
 
 export interface PipelineMilestone {

@@ -4,15 +4,13 @@
  *   Projets_Pipeline | Pipeline_Tasks | Pipeline_Milestones
  *   Pipeline_Updates | Pipeline_Contacts
  *
- * ⚠️  Si un champ retourne une valeur vide, vérifier le nom interne
- *     via logAllLists() + logListFieldsFromSite() depuis graphClient.ts.
+ * Noms internes SharePoint confirmés via diagnostic console (F12).
  */
 
 import {
   getListItems,
   createListItem,
   updateListItem,
-  logListFields,
 } from "@/lib/graphClient"
 import type {
   ProjetPipeline,
@@ -27,18 +25,6 @@ import type {
   StatutMilestone,
   BusinessModel,
 } from "@/types/pipeline"
-
-// ⚠️ Colonnes SharePoint à créer manuellement dans la liste Projets_Pipeline :
-//   Division            (type: Choice ou Text)
-//   BusinessUnit        (type: Choice ou Text)
-//   SecteurActivite     (type: Text)
-//   CasUtilisation      (type: Text)
-//   ResponsableCommercial (type: Text)
-//   ResponsableFinance    (type: Text)
-//   ResponsableTechnique  (type: Text)
-//   AutresIntervenants    (type: Text — note multiligne)
-//   ProchaineEtapeLabel   (type: Text)
-//   CommentaireEcheance   (type: Note)
 
 // ─── Types bruts retournés par Graph API ─────────────────────────────────────
 
@@ -71,11 +57,22 @@ function bool(raw: unknown): boolean {
 function toDate(raw: unknown): string {
   if (!raw) return ""
   const s = String(raw)
-  // Graph API renvoie "2026-05-20T10:00:00Z" — on garde YYYY-MM-DD
   return s.length >= 10 ? s.slice(0, 10) : ""
 }
 
 // ─── Mapping Projets_Pipeline ─────────────────────────────────────────────────
+// Noms internes confirmés :
+//   Region          → R_x00e9_gion
+//   Description     → DescriptionProjet
+//   ResponsableComm → CommercialLead
+//   ResponsableFin  → FinanceLead
+//   ResponsableTech → TechniqueLead
+//   Notes           → CommentaireManagement
+//   ProchaineEtap.  → ProchaineAction
+// Colonnes inexistantes sur SP (valeurs par défaut) :
+//   CasUtilisation, AutresIntervenants, Progression,
+//   DateDebutPrevu, DateFinPrevu, Partenaire,
+//   CommentaireEcheance, RevenusAnnuelsPrevus
 
 function mapProjet(item: SPRawItem): ProjetPipeline {
   const f = item.fields
@@ -83,62 +80,68 @@ function mapProjet(item: SPRawItem): ProjetPipeline {
     id:                    item.id,
     codeProjet:            str(f["CodeProjet"]),
     titre:                 str(f["Title"]),
-    // "Description" peut être encodé "Description0" selon la config du site
-    description:           str(f["Description"] ?? f["Description0"]),
-    region:                str(f["Region"]),
+    description:           str(f["DescriptionProjet"]),
+    region:                str(f["R_x00e9_gion"]),
     phase:                 str(f["PhaseProjet"], "01 - Préparation de la proposition") as PhaseProjet,
     statut:                str(f["StatutProjet"], "Actif")        as StatutProjet,
     priorite:              str(f["Priorite"], "Moyenne")          as Priorite,
     chefProjet:            str(f["ChefProjet"]),
     businessModel:         str(f["BusinessModel"], "Consulting / Conseil") as BusinessModel,
-    // Champs étendus (colonnes optionnelles — retournent "" si absentes)
-    division:              str(f["Division"])              || undefined,
-    businessUnit:          str(f["BusinessUnit"])          || undefined,
-    secteurActivite:       str(f["SecteurActivite"])       || undefined,
-    casUtilisation:        str(f["CasUtilisation"])        || undefined,
-    responsableCommercial: str(f["ResponsableCommercial"]) || undefined,
-    responsableFinance:    str(f["ResponsableFinance"])    || undefined,
-    responsableTechnique:  str(f["ResponsableTechnique"])  || undefined,
-    autresIntervenants:    str(f["AutresIntervenants"])    || undefined,
-    // Technique
+    division:              str(f["Division"])       || undefined,
+    businessUnit:          str(f["BusinessUnit"])   || undefined,
+    secteurActivite:       str(f["SecteurActivite"]) || undefined,
+    casUtilisation:        undefined,
+    responsableCommercial: str(f["CommercialLead"]) || undefined,
+    responsableFinance:    str(f["FinanceLead"])     || undefined,
+    responsableTechnique:  str(f["TechniqueLead"])   || undefined,
+    autresIntervenants:    undefined,
     puissanceKwp:          num(f["Puissance_kWp"]),
     batterieIncluse:       bool(f["BatterieIncluse"]),
     capaciteBatterieKwh:   num(f["CapaciteBatterie_kWh"]),
     financementNecessaire: bool(f["FinancementNecessaire"]),
     montantFinancement:    num(f["MontantFinancement"]),
     sourceFinancement:     str(f["SourceFinancement"]),
-    revenusAnnuelsPrevus:  num(f["RevenusAnnuelsPrevus"]),
-    // Échéances
-    dateDebutPrevu:        toDate(f["DateDebutPrevu"]),
-    dateFinPrevu:          toDate(f["DateFinPrevu"]),
+    revenusAnnuelsPrevus:  0,
+    dateDebutPrevu:        "",
+    dateFinPrevu:          "",
     dateProchaineEtape:    toDate(f["DateProchaineEtape"]),
-    prochaineEtapeLabel:   str(f["ProchaineEtapeLabel"])   || undefined,
-    commentaireEcheance:   str(f["CommentaireEcheance"])   || undefined,
+    prochaineEtapeLabel:   str(f["ProchaineAction"]) || undefined,
+    commentaireEcheance:   undefined,
     dateSignatureContrat:  toDate(f["DateSignatureContrat"]),
-    partenaire:            str(f["Partenaire"]),
-    notes:                 str(f["Notes"]),
-    progression:           num(f["Progression"]),
+    partenaire:            "",
+    notes:                 str(f["CommentaireManagement"]),
+    progression:           0,
     created:               toDate(f["Created"]),
     modified:              toDate(f["Modified"]),
   }
 }
 
 // ─── Mapping Pipeline_Tasks ───────────────────────────────────────────────────
+// Noms internes confirmés :
+//   ProjetId   → ProjetLie
+//   Assignee   → Responsable
+//   Description → Description (fonctionne sur Tasks, pas sur Projets_Pipeline)
+// ProjetCode n'existe pas sur SP — retourne toujours ""
 
 function mapTask(item: SPRawItem): PipelineTask {
   const f = item.fields
   return {
-    id:          item.id,
-    titre:       str(f["Title"]),
-    projetId:    str(f["ProjetId"]),
-    projetCode:  str(f["ProjetCode"]),
-    assignee:    str(f["Assignee"]),
-    priorite:    str(f["Priorite"], "Moyenne")    as Priorite,
-    statut:      str(f["StatutTache"], "À faire") as StatutTache,
-    dateLimite:  toDate(f["DateLimite"]),
-    description: str(f["Description"] ?? f["Description0"]),
-    created:     toDate(f["Created"]),
-    modified:    toDate(f["Modified"]),
+    id:                    item.id,
+    titre:                 str(f["Title"]),
+    projetId:              str(f["ProjetLie"]),
+    projetCode:            "",
+    assignee:              str(f["Responsable"]),
+    priorite:              str(f["Priorite"], "Moyenne")    as Priorite,
+    statut:                str(f["StatutTache"], "À faire") as StatutTache,
+    dateLimite:            toDate(f["DateLimite"]),
+    description:           str(f["Description"]),
+    commentaire:           str(f["Commentaire"])            || undefined,
+    responsableCommercial: str(f["ResponsableCommercial"])  || undefined,
+    responsableFinance:    str(f["ResponsableFinance"])      || undefined,
+    responsableTechnique:  str(f["ResponsableTechnique"])   || undefined,
+    autresIntervenants:    str(f["AutresIntervenants"])      || undefined,
+    created:               toDate(f["Created"]),
+    modified:              toDate(f["Modified"]),
   }
 }
 
@@ -196,9 +199,6 @@ function mapContact(item: SPRawItem): PipelineContact {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 export async function getProjets(token: string): Promise<ProjetPipeline[]> {
-  // Diagnostic — affiche TOUS les vrais noms internes de la liste dans la console (F12)
-  void logListFields(token, "Projets_Pipeline")
-
   const items = await getListItems<SPRawItem>(
     token,
     "Projets_Pipeline",
@@ -214,40 +214,29 @@ export async function createProjet(
   const result = await createListItem<SPRawItem>(token, "Projets_Pipeline", {
     Title:                 data.titre,
     CodeProjet:            data.codeProjet,
-    // ⚠️ Region et Description désactivés — noms internes SP à confirmer via diagnostic console (F12)
-    // Region:             data.region,
+    R_x00e9_gion:          data.region             || null,
+    DescriptionProjet:     data.description         || null,
     PhaseProjet:           data.phase,
     StatutProjet:          data.statut,
     Priorite:              data.priorite,
     ChefProjet:            data.chefProjet,
     BusinessModel:         data.businessModel,
-    // Champs de classification (colonnes sur Projets_Pipeline)
-    Division:              data.division              || null,
-    BusinessUnit:          data.businessUnit          || null,
-    SecteurActivite:       data.secteurActivite       || null,
-    CasUtilisation:        data.casUtilisation        || null,
-    ResponsableCommercial: data.responsableCommercial || null,
-    ResponsableFinance:    data.responsableFinance    || null,
-    ResponsableTechnique:  data.responsableTechnique  || null,
-    AutresIntervenants:    data.autresIntervenants    || null,
-    // Technique
+    Division:              data.division            || null,
+    BusinessUnit:          data.businessUnit        || null,
+    SecteurActivite:       data.secteurActivite     || null,
+    CommercialLead:        data.responsableCommercial || null,
+    FinanceLead:           data.responsableFinance  || null,
+    TechniqueLead:         data.responsableTechnique || null,
     Puissance_kWp:         data.puissanceKwp        || null,
     BatterieIncluse:       data.batterieIncluse,
     CapaciteBatterie_kWh:  data.capaciteBatterieKwh || null,
     FinancementNecessaire: data.financementNecessaire,
-    MontantFinancement:    data.montantFinancement   || null,
+    MontantFinancement:    data.montantFinancement  || null,
     SourceFinancement:     data.sourceFinancement,
-    RevenusAnnuelsPrevus:  data.revenusAnnuelsPrevus || null,
-    // Échéances
-    DateDebutPrevu:        data.dateDebutPrevu        || null,
-    DateFinPrevu:          data.dateFinPrevu          || null,
-    DateProchaineEtape:    data.dateProchaineEtape    || null,
-    ProchaineEtapeLabel:   data.prochaineEtapeLabel   || null,
-    CommentaireEcheance:   data.commentaireEcheance   || null,
-    DateSignatureContrat:  data.dateSignatureContrat  || null,
-    Partenaire:            data.partenaire,
-    Notes:                 data.notes,
-    Progression:           data.progression          || 0,
+    DateProchaineEtape:    data.dateProchaineEtape  || null,
+    ProchaineAction:       data.prochaineEtapeLabel  || null,
+    DateSignatureContrat:  data.dateSignatureContrat || null,
+    CommentaireManagement: data.notes               || null,
   })
   return mapProjet(result)
 }
@@ -258,43 +247,31 @@ export async function updateProjet(
   fields: Partial<Omit<ProjetPipeline, "id" | "created" | "modified">>,
 ): Promise<void> {
   const sp: Record<string, unknown> = {}
-  if (fields.titre                !== undefined) sp["Title"]                = fields.titre
-  if (fields.codeProjet           !== undefined) sp["CodeProjet"]           = fields.codeProjet
-  // ⚠️ Region et Description désactivés — noms internes à confirmer
-  // if (fields.region      !== undefined) sp["Region"]      = fields.region
-  // if (fields.description !== undefined) sp["Description"] = fields.description
-  if (fields.phase                !== undefined) sp["PhaseProjet"]          = fields.phase
-  if (fields.statut               !== undefined) sp["StatutProjet"]         = fields.statut
-  if (fields.priorite             !== undefined) sp["Priorite"]             = fields.priorite
-  if (fields.chefProjet           !== undefined) sp["ChefProjet"]           = fields.chefProjet
-  if (fields.businessModel        !== undefined) sp["BusinessModel"]        = fields.businessModel
-  // Champs étendus
-  if (fields.division             !== undefined) sp["Division"]             = fields.division || null
-  if (fields.businessUnit         !== undefined) sp["BusinessUnit"]         = fields.businessUnit || null
-  if (fields.secteurActivite      !== undefined) sp["SecteurActivite"]      = fields.secteurActivite || null
-  if (fields.casUtilisation       !== undefined) sp["CasUtilisation"]       = fields.casUtilisation || null
-  if (fields.responsableCommercial !== undefined) sp["ResponsableCommercial"] = fields.responsableCommercial || null
-  if (fields.responsableFinance   !== undefined) sp["ResponsableFinance"]   = fields.responsableFinance    || null
-  if (fields.responsableTechnique !== undefined) sp["ResponsableTechnique"] = fields.responsableTechnique  || null
-  if (fields.autresIntervenants   !== undefined) sp["AutresIntervenants"]   = fields.autresIntervenants    || null
-  // Technique
-  if (fields.puissanceKwp         !== undefined) sp["Puissance_kWp"]        = fields.puissanceKwp || null
-  if (fields.batterieIncluse      !== undefined) sp["BatterieIncluse"]      = fields.batterieIncluse
-  if (fields.capaciteBatterieKwh  !== undefined) sp["CapaciteBatterie_kWh"] = fields.capaciteBatterieKwh || null
+  if (fields.titre                !== undefined) sp["Title"]                 = fields.titre
+  if (fields.codeProjet           !== undefined) sp["CodeProjet"]            = fields.codeProjet
+  if (fields.region               !== undefined) sp["R_x00e9_gion"]          = fields.region || null
+  if (fields.description          !== undefined) sp["DescriptionProjet"]      = fields.description || null
+  if (fields.phase                !== undefined) sp["PhaseProjet"]            = fields.phase
+  if (fields.statut               !== undefined) sp["StatutProjet"]           = fields.statut
+  if (fields.priorite             !== undefined) sp["Priorite"]               = fields.priorite
+  if (fields.chefProjet           !== undefined) sp["ChefProjet"]             = fields.chefProjet
+  if (fields.businessModel        !== undefined) sp["BusinessModel"]          = fields.businessModel
+  if (fields.division             !== undefined) sp["Division"]               = fields.division || null
+  if (fields.businessUnit         !== undefined) sp["BusinessUnit"]           = fields.businessUnit || null
+  if (fields.secteurActivite      !== undefined) sp["SecteurActivite"]        = fields.secteurActivite || null
+  if (fields.responsableCommercial !== undefined) sp["CommercialLead"]        = fields.responsableCommercial || null
+  if (fields.responsableFinance   !== undefined) sp["FinanceLead"]            = fields.responsableFinance || null
+  if (fields.responsableTechnique !== undefined) sp["TechniqueLead"]          = fields.responsableTechnique || null
+  if (fields.puissanceKwp         !== undefined) sp["Puissance_kWp"]          = fields.puissanceKwp || null
+  if (fields.batterieIncluse      !== undefined) sp["BatterieIncluse"]        = fields.batterieIncluse
+  if (fields.capaciteBatterieKwh  !== undefined) sp["CapaciteBatterie_kWh"]   = fields.capaciteBatterieKwh || null
   if (fields.financementNecessaire !== undefined) sp["FinancementNecessaire"] = fields.financementNecessaire
-  if (fields.montantFinancement   !== undefined) sp["MontantFinancement"]   = fields.montantFinancement || null
-  if (fields.sourceFinancement    !== undefined) sp["SourceFinancement"]    = fields.sourceFinancement
-  if (fields.revenusAnnuelsPrevus !== undefined) sp["RevenusAnnuelsPrevus"] = fields.revenusAnnuelsPrevus || null
-  // Échéances
-  if (fields.dateDebutPrevu       !== undefined) sp["DateDebutPrevu"]       = fields.dateDebutPrevu || null
-  if (fields.dateFinPrevu         !== undefined) sp["DateFinPrevu"]         = fields.dateFinPrevu   || null
-  if (fields.dateProchaineEtape   !== undefined) sp["DateProchaineEtape"]   = fields.dateProchaineEtape || null
-  if (fields.prochaineEtapeLabel  !== undefined) sp["ProchaineEtapeLabel"]  = fields.prochaineEtapeLabel || null
-  if (fields.commentaireEcheance  !== undefined) sp["CommentaireEcheance"]  = fields.commentaireEcheance || null
-  if (fields.dateSignatureContrat !== undefined) sp["DateSignatureContrat"] = fields.dateSignatureContrat || null
-  if (fields.partenaire           !== undefined) sp["Partenaire"]           = fields.partenaire
-  if (fields.notes                !== undefined) sp["Notes"]                = fields.notes
-  if (fields.progression          !== undefined) sp["Progression"]          = fields.progression
+  if (fields.montantFinancement   !== undefined) sp["MontantFinancement"]     = fields.montantFinancement || null
+  if (fields.sourceFinancement    !== undefined) sp["SourceFinancement"]      = fields.sourceFinancement
+  if (fields.dateProchaineEtape   !== undefined) sp["DateProchaineEtape"]     = fields.dateProchaineEtape || null
+  if (fields.prochaineEtapeLabel  !== undefined) sp["ProchaineAction"]        = fields.prochaineEtapeLabel || null
+  if (fields.dateSignatureContrat !== undefined) sp["DateSignatureContrat"]   = fields.dateSignatureContrat || null
+  if (fields.notes                !== undefined) sp["CommentaireManagement"]  = fields.notes || null
 
   await updateListItem(token, "Projets_Pipeline", id, sp)
 }
@@ -308,9 +285,8 @@ export async function getTasks(
   projetId?: string,
 ): Promise<PipelineTask[]> {
   const filter = projetId
-    ? `&$filter=fields/ProjetId eq '${encodeURIComponent(projetId)}'`
+    ? `&$filter=fields/ProjetLie eq '${encodeURIComponent(projetId)}'`
     : ""
-  void logListFields(token, "Pipeline_Tasks")
   const items = await getListItems<SPRawItem>(
     token,
     "Pipeline_Tasks",
@@ -325,13 +301,12 @@ export async function createTask(
 ): Promise<PipelineTask> {
   const result = await createListItem<SPRawItem>(token, "Pipeline_Tasks", {
     Title:       data.titre,
-    ProjetId:    data.projetId,
-    ProjetCode:  data.projetCode,
-    Assignee:    data.assignee,
+    ProjetLie:   data.projetId,
+    Responsable: data.assignee,
     Priorite:    data.priorite,
     StatutTache: data.statut,
-    DateLimite:   data.dateLimite  || null,
-    Description0: data.description,
+    DateLimite:  data.dateLimite  || null,
+    Description: data.description || null,
   })
   return mapTask(result)
 }
@@ -343,10 +318,10 @@ export async function updateTask(
 ): Promise<void> {
   const sp: Record<string, unknown> = {}
   if (fields.statut      !== undefined) sp["StatutTache"]  = fields.statut
-  if (fields.assignee    !== undefined) sp["Assignee"]     = fields.assignee
+  if (fields.assignee    !== undefined) sp["Responsable"]  = fields.assignee
   if (fields.dateLimite  !== undefined) sp["DateLimite"]   = fields.dateLimite || null
-  if (fields.description !== undefined) sp["Description0"] = fields.description
-  if (fields.priorite    !== undefined) sp["Priorite"]    = fields.priorite
+  if (fields.description !== undefined) sp["Description"]  = fields.description
+  if (fields.priorite    !== undefined) sp["Priorite"]     = fields.priorite
   await updateListItem(token, "Pipeline_Tasks", id, sp)
 }
 
@@ -389,11 +364,11 @@ export async function getPipelineUpdates(
 }
 
 export async function createPipelineUpdate(
-  token:          string,
-  projetId:       string,
-  description:    string,
-  auteur:         string,
-  champModifie?:  string,
+  token:           string,
+  projetId:        string,
+  description:     string,
+  auteur:          string,
+  champModifie?:   string,
   ancienneValeur?: string,
   nouvelleValeur?: string,
 ): Promise<void> {

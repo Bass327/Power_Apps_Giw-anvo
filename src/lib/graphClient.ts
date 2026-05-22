@@ -303,7 +303,10 @@ export async function attachFileToListItem(
   file:     File,
 ): Promise<void> {
   const siteUrl    = `https://${SP_HOSTNAME}${SP_SITE_PATH}`
-  const encodedName = encodeURIComponent(file.name)
+  // OData exige que les apostrophes dans les chaînes soient doublées ('→'')
+  // encodeURIComponent ne le fait pas car ' n'est pas un caractère réservé d'URL
+  const odataSafe   = file.name.replace(/'/g, "''")
+  const encodedName = encodeURIComponent(odataSafe)
   const arrayBuffer = await file.arrayBuffer()
 
   const response = await fetch(

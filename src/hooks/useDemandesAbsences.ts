@@ -39,18 +39,22 @@ export function useCreateDemandeAbsence() {
       return createDemandeAbsence(token, data)
     },
 
-    onSuccess: (created) => {
+    onSuccess: (created, variables) => {
       void queryClient.invalidateQueries({ queryKey: QUERY_KEY })
       toast.success(
         "Votre demande d'autorisation d'absence a été transmise au chef de département et à la Direction Générale.",
       )
-      /* Notification Teams fire-and-forget → Chef Dept. + Directrice */
+      /* Notification Teams fire-and-forget → Chef Dept. + Directrice
+         On utilise `variables` (données originales) car SP POST ne retourne
+         pas les champs personnalisés dans la réponse. */
+      const email = variables.demandeur || created.demandeur
+      const nom   = variables.nomDemandeur || created.nomDemandeur
       void getToken().then((token) => {
         sendNotificationsAsync(token, {
           module:         "DEMANDE_ABSENCE",
           newStatut:      "SOUMIS",
-          submitterEmail: created.demandeur,
-          titre:          `Demande d'autorisation d'absence — ${created.nomDemandeur} (${created.codeDemande})`,
+          submitterEmail: email,
+          titre:          `Demande d'autorisation d'absence — ${nom} (${created.codeDemande})`,
         })
       })
     },

@@ -37,7 +37,6 @@ function spVersStatut(sp: string | undefined): StatutDemandeAbsence {
     "Approuvé DG":     "APPROUVE_DG",
     "Refusé DG":       "REFUSE_DG",
     "Document généré": "DOCUMENT_GENERE",
-    /* rétrocompatibilité anciens enregistrements */
     "En attente DG":   "SOUMIS",
   }
   return MAP[sp ?? ""] ?? "SOUMIS"
@@ -61,8 +60,8 @@ function spVersType(sp: string | undefined): TypeDemandeAbsence {
   return MAP[sp ?? ""] ?? "AUTORISATION_SIMPLE"
 }
 
-/* ── Mapping événements familiaux ── */
-const EVENEMENT_VERS_SP: Record<EvenementFamilial, string> = {
+/* ── Mapping événements familiaux (conservé pour usage futur quand la colonne SP sera ajoutée) ── */
+export const EVENEMENT_VERS_SP: Record<EvenementFamilial, string> = {
   MARIAGE_MEMBRE_PERSONNEL:    "Mariage d'un membre du personnel",
   MARIAGE_ENFANT:              "Mariage d'un enfant",
   MARIAGE_FRERE_SOEUR:         "Mariage d'un frère ou d'une sœur",
@@ -72,41 +71,32 @@ const EVENEMENT_VERS_SP: Record<EvenementFamilial, string> = {
   DECES_ENFANT:                "Décès d'un enfant",
 }
 
-const SP_VERS_EVENEMENT: Record<string, EvenementFamilial> = Object.fromEntries(
-  Object.entries(EVENEMENT_VERS_SP).map(([k, v]) => [v, k as EvenementFamilial]),
-)
-
 /* ════════════════════════════════════════════════
-   Interface brute SharePoint
-   Noms internes à vérifier via logDemandesAbsencesColumns()
-   si les données n'apparaissent pas en console.
+   Interface brute SharePoint — noms internes confirmés
+   via logDemandesAbsencesColumns() le 2026-05-21.
+
+   Colonnes ABSENTES de la liste SP (à ajouter si besoin) :
+   - Poste, EvenementFamilial, TypeAbsenceAutre
+   - CommentaireChef, DateValidationChef, ValideParChef
    ════════════════════════════════════════════════ */
 interface DemandeAbsenceSPFields {
-  Title?:               string
-  Code_Demande?:        string
-  Demandeur?:           string
-  NomDemandeur?:        string
-  Departement?:         string
-  Poste?:               string
-  Type_Demande?:        string
-  Evenement_Familial?:  string
-  Type_Absence_Autre?:  string
-  Motif_Absence?:       string
-  Date_Debut?:          string
-  Date_Fin?:            string
-  Nb_Jours_Demandes?:   number
-  Nb_Jours_Autorises?:  number
-  Statut?:              string
-  /* Validation Chef de département */
-  CommentaireChef?:     string
-  DateValidationChef?:  string
-  ValideParChef?:       string
+  Title?:                           string   // Code demande (ex: ABS-202605-7423)
+  Demandeur?:                       string   // Email demandeur
+  NomDemandeur?:                    string   // Nom complet du demandeur
+  D_x00e9_partement?:               string   // Département
+  Typed_x2019_absence?:             string   // Type d'absence
+  Motif?:                           string   // Motif
+  Dated_x00e9_but?:                 string   // Date début
+  Datefin?:                         string   // Date fin
+  Nombrejoursdemand_x00e9_s?:       number   // Nombre jours demandés
+  Nombrejoursautoris_x00e9_s?:      number   // Nombre jours autorisés
+  Statut?:                          string
   /* Décision Direction Générale */
-  Commentaire_DG?:      string
-  Date_Decision_DG?:    string
-  Valide_Par_DG?:       string
-  Document_Genere?:     boolean | string
-  Created?:             string
+  CommentaireDG?:                   string
+  Dated_x00e9_cisionDG?:            string   // Date décision DG
+  Valid_x00e9_parDG?:               string   // Validé par DG
+  Documentg_x00e9_n_x00e9_r_x00e9_?: boolean | string  // Document généré
+  Created?:                         string
 }
 
 interface DemandeAbsenceSPItem {
@@ -119,48 +109,58 @@ function mapSPItem(item: DemandeAbsenceSPItem): DemandeAbsence {
   const f = item.fields
   return {
     id:               item.id,
-    codeDemande:      f.Code_Demande    ?? "",
-    demandeur:        f.Demandeur       ?? "",
-    nomDemandeur:     f.NomDemandeur    ?? (f.Demandeur?.split("@")[0] ?? ""),
-    departement:      f.Departement     ?? "",
-    poste:            f.Poste           ?? undefined,
-    dateDemande:      f.Created         ?? "",
-    typeDemande:      spVersType(f.Type_Demande),
-    typeAbsenceAutre: f.Type_Absence_Autre ?? undefined,
-    evenementFamilial: f.Evenement_Familial
-      ? SP_VERS_EVENEMENT[f.Evenement_Familial]
-      : undefined,
-    motifAbsence:     f.Motif_Absence   ?? "",
-    dateDebut:        f.Date_Debut      ?? "",
-    dateFin:          f.Date_Fin        ?? "",
-    nbJoursDemandes:  Number(f.Nb_Jours_Demandes)  || 0,
-    nbJoursAutorises: f.Nb_Jours_Autorises != null
-      ? Number(f.Nb_Jours_Autorises)
+    codeDemande:      f.Title                    ?? "",
+    demandeur:        f.Demandeur                ?? "",
+    nomDemandeur:     f.NomDemandeur ?? f.Demandeur?.split("@")[0] ?? "",
+    departement:      f.D_x00e9_partement        ?? "",
+    poste:            undefined,
+    dateDemande:      f.Created                  ?? "",
+    typeDemande:      spVersType(f.Typed_x2019_absence),
+    typeAbsenceAutre:  undefined,
+    evenementFamilial: undefined,
+    motifAbsence:     f.Motif                    ?? "",
+    dateDebut:        f.Dated_x00e9_but          ?? "",
+    dateFin:          f.Datefin                  ?? "",
+    nbJoursDemandes:  Number(f.Nombrejoursdemand_x00e9_s)  || 0,
+    nbJoursAutorises: f.Nombrejoursautoris_x00e9_s != null
+      ? Number(f.Nombrejoursautoris_x00e9_s)
       : undefined,
     statut:             spVersStatut(f.Statut),
-    commentaireChef:    f.CommentaireChef    ?? undefined,
-    dateValidationChef: f.DateValidationChef ?? undefined,
-    valideParChef:      f.ValideParChef      ?? undefined,
-    commentaireDG:      f.Commentaire_DG     ?? undefined,
-    dateDecisionDG:     f.Date_Decision_DG   ?? undefined,
-    validePar:          f.Valide_Par_DG      ?? undefined,
+    commentaireChef:    undefined,
+    dateValidationChef: undefined,
+    valideParChef:      undefined,
+    commentaireDG:      f.CommentaireDG                    ?? undefined,
+    dateDecisionDG:     f.Dated_x00e9_cisionDG             ?? undefined,
+    validePar:          f.Valid_x00e9_parDG                ?? undefined,
     documentGenere:
-      f.Document_Genere === true ||
-      f.Document_Genere === "true" ||
-      f.Document_Genere === "1",
+      f.Documentg_x00e9_n_x00e9_r_x00e9_ === true  ||
+      f.Documentg_x00e9_n_x00e9_r_x00e9_ === "true" ||
+      f.Documentg_x00e9_n_x00e9_r_x00e9_ === "1",
   }
 }
+
+/* Noms internes SP confirmés — seuls ceux-ci sont demandés dans le $select
+   pour éviter un 400 sur les colonnes système incompatibles. */
+const SP_FIELDS_SELECT = [
+  "Title", "Demandeur", "NomDemandeur", "D_x00e9_partement",
+  "Typed_x2019_absence", "Motif",
+  "Dated_x00e9_but", "Datefin",
+  "Nombrejoursdemand_x00e9_s", "Nombrejoursautoris_x00e9_s",
+  "Statut", "CommentaireDG", "Dated_x00e9_cisionDG",
+  "Valid_x00e9_parDG", "Documentg_x00e9_n_x00e9_r_x00e9_",
+  "Created",
+].join(",")
 
 /* ── Récupère toutes les demandes d'autorisation d'absence ── */
 let _columnsDiagDone = false
 
 export async function getDemandesAbsences(token: string): Promise<DemandeAbsence[]> {
-  if (import.meta.env.DEV && !_columnsDiagDone) {
+  if (!_columnsDiagDone) {
     _columnsDiagDone = true
     logDemandesAbsencesColumns(token).catch(() => {/* silencieux */})
   }
 
-  const items = await getListItems<DemandeAbsenceSPItem>(token, LIST_NAME)
+  const items = await getListItems<DemandeAbsenceSPItem>(token, LIST_NAME, `($select=${SP_FIELDS_SELECT})`)
   return items
     .map(mapSPItem)
     .sort((a, b) => new Date(b.dateDemande).getTime() - new Date(a.dateDemande).getTime())
@@ -174,24 +174,17 @@ export async function createDemandeAbsence(
   const code = genererCodeDemande()
 
   const rawFields: Record<string, unknown> = {
-    Title:               code,
-    Code_Demande:        code,
-    Demandeur:           data.demandeur          || undefined,
-    NomDemandeur:        data.nomDemandeur        || undefined,
-    Departement:         data.departement         || undefined,
-    Poste:               data.poste               || undefined,
-    Type_Demande:        TYPE_VERS_SP[data.typeDemande],
-    Evenement_Familial:  data.evenementFamilial
-      ? EVENEMENT_VERS_SP[data.evenementFamilial]
-      : undefined,
-    Type_Absence_Autre:  data.typeAbsenceAutre    || undefined,
-    Motif_Absence:       data.motifAbsence        || undefined,
-    Date_Debut:          data.dateDebut           || undefined,
-    Date_Fin:            data.dateFin             || undefined,
-    Nb_Jours_Demandes:   data.nbJoursDemandes     ?? undefined,
-    Nb_Jours_Autorises:  data.nbJoursAutorises    ?? undefined,
-    Statut:              "Soumis",
-    Document_Genere:     false,
+    Title:                      code,
+    Demandeur:                  data.demandeur       || undefined,
+    NomDemandeur:               data.nomDemandeur    || undefined,
+    D_x00e9_partement:          data.departement     || undefined,
+    Typed_x2019_absence:        TYPE_VERS_SP[data.typeDemande],
+    Motif:                      data.motifAbsence    || undefined,
+    Dated_x00e9_but:            data.dateDebut       || undefined,
+    Datefin:                    data.dateFin         || undefined,
+    Nombrejoursdemand_x00e9_s:  data.nbJoursDemandes ?? undefined,
+    Statut:                     "Soumis",
+    Documentg_x00e9_n_x00e9_r_x00e9_: false,
   }
 
   const fields = Object.fromEntries(
@@ -209,7 +202,7 @@ export async function updateStatutDemandeAbsence(
   statut:       StatutDemandeAbsence,
   commentaire?: string,
   validePar?:   string,
-  role?:        string,  // "Chef Dept." | "Directrice" | undefined
+  role?:        string,
 ): Promise<void> {
   const today = new Date().toISOString().split("T")[0]
 
@@ -217,17 +210,14 @@ export async function updateStatutDemandeAbsence(
     Statut: STATUT_VERS_SP[statut],
   }
 
-  /* Le Chef de département écrit ses propres champs */
   if (role === "Chef Dept." || statut === "VALIDE_CHEF" || statut === "REJETE_CHEF") {
-    rawFields.CommentaireChef    = commentaire || undefined
-    rawFields.ValideParChef      = validePar   || undefined
-    rawFields.DateValidationChef = today
+    /* Les colonnes Chef n'existent pas encore dans SP — seul le statut est mis à jour.
+       Ajouter CommentaireChef, ValideParChef, DateValidationChef dans SP pour activer. */
   } else {
-    /* La Directrice écrit les champs DG */
-    rawFields.Commentaire_DG = commentaire || undefined
-    rawFields.Valide_Par_DG  = validePar   || undefined
+    rawFields.CommentaireDG         = commentaire || undefined
+    rawFields.Valid_x00e9_parDG     = validePar   || undefined
     if (statut === "APPROUVE_DG" || statut === "REFUSE_DG") {
-      rawFields.Date_Decision_DG = today
+      rawFields.Dated_x00e9_cisionDG = today
     }
   }
 
@@ -238,7 +228,7 @@ export async function updateStatutDemandeAbsence(
   await updateListItem(token, LIST_NAME, id, fields)
 }
 
-/* ── Diagnostic colonnes SharePoint (dev uniquement) ── */
+/* ── Diagnostic colonnes SharePoint ── */
 interface SPColumn { displayName: string; name: string }
 
 export async function logDemandesAbsencesColumns(token: string): Promise<void> {

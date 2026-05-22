@@ -1,4 +1,4 @@
-import { graphFetch, getListItems, createListItem, updateListItem, getSiteId, attachFileToListItem } from "@/lib/graphClient"
+import { graphFetch, getListItems, createListItem, updateListItem, getSiteId } from "@/lib/graphClient"
 import type {
   DemandeAchat,
   DemandeAchatSPItem,
@@ -158,11 +158,9 @@ export async function getDemandeAchatById(token: string, id: string): Promise<De
 
 /* ── Crée une nouvelle demande ── */
 export async function createDemandeAchat(
-  token:    string,
-  payload:  CreateDemandeAchatPayload,
-  statut:   StatutDemande,
-  fichiers?: File[],
-  spToken?: string,
+  token:   string,
+  payload: CreateDemandeAchatPayload,
+  statut:  StatutDemande,
 ): Promise<DemandeAchat> {
 
   const rawFields: Record<string, unknown> = {
@@ -209,11 +207,6 @@ export async function createDemandeAchat(
   )
 
   const created = await createListItem<DemandeAchatSPItem>(token, LIST_NAME, fields)
-
-  /* Upload des pièces jointes après création de l'item */
-  if (fichiers && fichiers.length > 0 && spToken) {
-    await Promise.all(fichiers.map((f) => attachFileToListItem(spToken, created.id, f)))
-  }
 
   return mapSPItem(created)
 }

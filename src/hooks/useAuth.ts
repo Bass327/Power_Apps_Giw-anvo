@@ -124,9 +124,9 @@ export const useAuth = () => {
       return t
     }
 
-    // En Teams, le token Graph couvre aussi les appels SharePoint via Graph API
-    const stored = getStoredTeamsToken()
-    if (stored) return stored
+    // Le token Teams a l'audience graph.microsoft.com — incompatible avec
+    // l'API REST SharePoint (/_api/...) qui exige https://{spHostname}.
+    // On passe directement par MSAL pour obtenir le bon token SP.
 
     const spResource  = `https://${spHostname}`
     const msalAccount = account ?? msal.instance.getAllAccounts()[0]

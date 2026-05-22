@@ -6,7 +6,7 @@ import {
   createDemandeAchat,
   updateStatutDemande,
 } from "@/services/sharepoint/demandesAchatsService"
-import { getListItemAttachments, type SPAttachment } from "@/lib/graphClient"
+import { getListItemAttachments, attachFileToListItem, type SPAttachment } from "@/lib/graphClient"
 import { sendNotificationsAsync } from "@/services/notificationService"
 import type {
   CreateDemandeAchatPayload,
@@ -72,9 +72,21 @@ export function useCreateDemandeAchat() {
           ? "SOUMIS"
           : "BROUILLON"
 
-      const token   = await getToken()
-      const spToken = fichiers && fichiers.length > 0 ? await getSharePointToken() : undefined
-      const result  = await createDemandeAchat(token, payload, statutAuto, fichiers, spToken)
+      const token  = await getToken()
+      const result = await createDemandeAchat(token, payload, statutAuto)
+
+      // Upload des pièces jointes — séparé de la création pour ne pas bloquer en cas d'échec
+      if (fichiers && fichiers.length > 0) {
+        try {
+          // Requiert un token SharePoint (audience distincte du token Graph)
+          const spToken = await getSharePointToken()
+          await Promise.all(fichiers.map((f) => attachFileToListItem(spToken, result.id, f)))
+        } catch (uploadErr) {
+          const msg = uploadErr instanceof Error ? uploadErr.message : "Erreur inconnue"
+          // Avertissement non-bloquant : l'item est déjà créé dans SharePoint
+          toast.warning(`Demande créée, mais les pièces jointes n'ont pas pu être ajoutées : ${msg}`)
+        }
+      }
 
       // Notification fire-and-forget (ne bloque pas la mutation)
       if (soumettre && statutAuto !== "APPROUVE") {

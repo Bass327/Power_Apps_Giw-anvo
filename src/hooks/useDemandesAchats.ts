@@ -18,14 +18,17 @@ const QUERY_KEY = ["demandes-achats"]
 
 /* ── Pièces jointes d'une demande ── */
 export function useDemandeAttachments(demandeId: string | undefined) {
-  const { getSharePointToken } = useAuth()
+  const { tryGetSharePointToken } = useAuth()
 
   return useQuery<SPAttachment[]>({
     queryKey:  ["demande-attachments", demandeId],
     enabled:   !!demandeId,
     staleTime: 5 * 60 * 1000,
+    retry:     false,
     queryFn:   async () => {
-      const spToken = await getSharePointToken()
+      const spToken = await tryGetSharePointToken()
+      // Token SP indisponible (ex: mode Teams sans compte MSAL) → pas de pièces jointes
+      if (!spToken) return []
       return getListItemAttachments(spToken, demandeId!)
     },
   })

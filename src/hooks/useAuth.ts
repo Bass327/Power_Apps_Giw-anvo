@@ -130,7 +130,9 @@ export const useAuth = () => {
 
     const spResource  = `https://${spHostname}`
     const msalAccount = account ?? msal.instance.getAllAccounts()[0]
-    if (!msalAccount) { await login(); throw new Error("Reconnexion requise") }
+    // En mode Teams (token stocké mais pas de compte MSAL), on ne peut pas obtenir
+    // un token SP sans déclencher window.location.replace qui rechargerait la page.
+    if (!msalAccount) throw new Error("Token SharePoint indisponible (mode Teams sans compte MSAL)")
     const spRequest = { scopes: [`${spResource}/.default`], account: msalAccount }
     try {
       const r = await msal.instance.acquireTokenSilent(spRequest)

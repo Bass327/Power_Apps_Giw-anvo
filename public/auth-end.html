@@ -85,8 +85,11 @@
 
         if (data.access_token) {
           const payload = JSON.stringify({
-            accessToken: data.access_token,
-            expiresIn:   data.expires_in ?? 3600,
+            accessToken:  data.access_token,
+            expiresIn:    data.expires_in ?? 3600,
+            refreshToken: data.refresh_token ?? null,
+            clientId:     clientId,
+            tenantId:     tenantId,
           })
           // Stocke dans localStorage AVANT d'appeler finish() :
           // la fenêtre principale peut lire le résultat via l'événement storage

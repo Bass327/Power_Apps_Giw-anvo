@@ -1,7 +1,7 @@
 import { useMsal } from "@azure/msal-react"
 import { loginRequest } from "@/lib/msalConfig"
 import { isPowerAppsEnv, tryGetTokenFromBridge } from "@/lib/powerAppsBridge"
-import { detectTeams, teamsLogin, getStoredTeamsToken, clearTeamsToken, notifyTeamsReady } from "@/lib/teamsAuth"
+import { detectTeams, teamsLogin, getStoredTeamsToken, clearTeamsToken, notifyTeamsReady, hasTeamsRefreshToken, refreshTeamsToken } from "@/lib/teamsAuth"
 
 const MSAL_STUB = { instance: null as never, accounts: [] as never[] }
 
@@ -10,9 +10,11 @@ export const useAuth = () => {
   const msal    = isPowerAppsEnv() ? MSAL_STUB : useMsal()
   const account = msal.accounts[0]
 
-  // Token Teams (stocké en sessionStorage après connexion via Teams SDK)
-  const teamsToken     = getStoredTeamsToken()
-  const isAuthenticated = isPowerAppsEnv() || !!account || !!teamsToken
+  // Token Teams (stocké en localStorage après connexion via Teams SDK)
+  // hasTeamsRefreshToken() permet de maintenir l'état "connecté" même après expiration du
+  // access token (1 h) tant qu'un refresh token est disponible pour un renouvellement silencieux.
+  const teamsToken      = getStoredTeamsToken()
+  const isAuthenticated = isPowerAppsEnv() || !!account || !!teamsToken || hasTeamsRefreshToken()
 
   const redirectUri = window.location.origin + "/"
 
@@ -73,9 +75,16 @@ export const useAuth = () => {
       return t
     }
 
-    // Token issu du flux Teams SDK
+    // Token issu du flux Teams SDK encore valide
     const stored = getStoredTeamsToken()
     if (stored) return stored
+
+    // Token expiré mais refresh token présent → renouvellement silencieux sans login
+    if (hasTeamsRefreshToken()) {
+      const refreshed = await refreshTeamsToken()
+      if (refreshed) return refreshed
+      // Refresh échoué (token révoqué) → on tombe sur le flux MSAL ci-dessous
+    }
 
     const msalAccount = account ?? msal.instance.getAllAccounts()[0]
     if (!msalAccount) {

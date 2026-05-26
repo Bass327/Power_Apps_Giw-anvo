@@ -1,8 +1,11 @@
 import * as microsoftTeams from "@microsoft/teams-js"
 
 // localStorage : le token survit aux rechargements de l'iframe Teams et aux fermetures de session
-const TEAMS_TOKEN_KEY = "giwanvo.teams.token"
-const TEAMS_TOKEN_EXP = "giwanvo.teams.token.exp"
+const TEAMS_TOKEN_KEY         = "giwanvo.teams.token"
+const TEAMS_TOKEN_EXP         = "giwanvo.teams.token.exp"
+const TEAMS_REFRESH_TOKEN_KEY = "giwanvo.teams.refresh_token"
+const TEAMS_CLIENT_ID_KEY     = "giwanvo.teams.client_id"
+const TEAMS_TENANT_ID_KEY     = "giwanvo.teams.tenant_id"
 
 // Résultat mis en cache pour éviter de ré-initialiser le SDK à chaque appel
 let _teamsDetected: Promise<boolean> | null = null
@@ -13,7 +16,7 @@ let _teamsDetected: Promise<boolean> | null = null
  * Doit être appelé une seule fois au montage de l'app (useEffect dans App.tsx).
  * - Si dans Teams → notifyAppLoaded() masque le spinner de chargement Teams
  *   et affiche notre app. Sans cet appel, Teams déclenche un timeout.
- * - Timeout 3 s : hors Teams, initialize() ne reçoit jamais de réponse
+ * - Timeout 8 s : hors Teams, initialize() ne reçoit jamais de réponse
  *   et pend indéfiniment.
  */
 export function initTeams(): Promise<boolean> {
@@ -54,7 +57,8 @@ const LS_ERROR  = "giwanvo_pkce_error"
  *     Fiable même quand Teams Desktop ne route pas notifySuccess().
  */
 export function teamsLogin(clientId: string, tenantId: string): Promise<void> {
-  const scopes = "User.Read Sites.Read.All Sites.ReadWrite.All TeamsActivity.Send"
+  // offline_access : nécessaire pour obtenir un refresh token (session persistante)
+  const scopes = "User.Read Sites.Read.All Sites.ReadWrite.All TeamsActivity.Send offline_access"
   const url =
     window.location.origin +
     "/auth-start.html" +
@@ -71,12 +75,25 @@ export function teamsLogin(clientId: string, tenantId: string): Promise<void> {
     let pollTimer: ReturnType<typeof setInterval> | null = null
 
     const storeToken = (payload: string) => {
-      const { accessToken, expiresIn } = JSON.parse(payload) as {
-        accessToken: string
-        expiresIn:   number
+      const {
+        accessToken,
+        expiresIn,
+        refreshToken,
+        clientId:  cid,
+        tenantId:  tid,
+      } = JSON.parse(payload) as {
+        accessToken:   string
+        expiresIn:     number
+        refreshToken?: string | null
+        clientId?:     string
+        tenantId?:     string
       }
       localStorage.setItem(TEAMS_TOKEN_KEY, accessToken)
       localStorage.setItem(TEAMS_TOKEN_EXP, String(Date.now() + expiresIn * 1000))
+      // Stockage du refresh token pour la session persistante
+      if (refreshToken) localStorage.setItem(TEAMS_REFRESH_TOKEN_KEY, refreshToken)
+      if (cid)          localStorage.setItem(TEAMS_CLIENT_ID_KEY, cid)
+      if (tid)          localStorage.setItem(TEAMS_TENANT_ID_KEY, tid)
       localStorage.removeItem(LS_RESULT)
     }
 
@@ -148,8 +165,92 @@ export function getStoredTeamsToken(): string | null {
   } catch { return null }
 }
 
-/** Supprime le token Teams (déconnexion). */
+/** Vérifie si un refresh token Teams est disponible (session restaurable sans re-login). */
+export function hasTeamsRefreshToken(): boolean {
+  return !!localStorage.getItem(TEAMS_REFRESH_TOKEN_KEY)
+}
+
+/** Supprime le token Teams et toutes les données de session (déconnexion). */
 export function clearTeamsToken(): void {
   localStorage.removeItem(TEAMS_TOKEN_KEY)
   localStorage.removeItem(TEAMS_TOKEN_EXP)
+  localStorage.removeItem(TEAMS_REFRESH_TOKEN_KEY)
+  localStorage.removeItem(TEAMS_CLIENT_ID_KEY)
+  localStorage.removeItem(TEAMS_TENANT_ID_KEY)
+}
+
+// Mutex pour éviter deux appels parallèles au token endpoint (le refresh token est à usage unique)
+let _refreshInFlight: Promise<string | null> | null = null
+
+/**
+ * Rafraîchit silencieusement le token Teams à partir du refresh token stocké.
+ * Utilise un mutex pour éviter la consommation double du refresh token.
+ * Retourne le nouveau access token, ou null si le refresh échoue.
+ */
+export function refreshTeamsToken(): Promise<string | null> {
+  if (_refreshInFlight) return _refreshInFlight
+  _refreshInFlight = _doRefresh().finally(() => { _refreshInFlight = null })
+  return _refreshInFlight
+}
+
+async function _doRefresh(): Promise<string | null> {
+  try {
+    const refreshToken = localStorage.getItem(TEAMS_REFRESH_TOKEN_KEY)
+    const clientId     = localStorage.getItem(TEAMS_CLIENT_ID_KEY)
+    const tenantId     = localStorage.getItem(TEAMS_TENANT_ID_KEY)
+    if (!refreshToken || !clientId || !tenantId) return null
+
+    const resp = await fetch(
+      `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`,
+      {
+        method:  "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          client_id:     clientId,
+          grant_type:    "refresh_token",
+          refresh_token: refreshToken,
+          // offline_access requis pour recevoir un nouveau refresh token (rotation)
+          scope: "User.Read Sites.Read.All Sites.ReadWrite.All TeamsActivity.Send offline_access",
+        }),
+      }
+    )
+    const data = await resp.json() as {
+      access_token?:  string
+      refresh_token?: string
+      expires_in?:    number
+      error?:         string
+    }
+
+    if (!data.access_token) {
+      // Refresh token expiré ou révoqué → nettoie la session
+      clearTeamsToken()
+      return null
+    }
+
+    localStorage.setItem(TEAMS_TOKEN_KEY, data.access_token)
+    localStorage.setItem(TEAMS_TOKEN_EXP, String(Date.now() + (data.expires_in ?? 3600) * 1000))
+    // Microsoft émet un nouveau refresh token (rotation) — on le stocke pour la prochaine fois
+    if (data.refresh_token) {
+      localStorage.setItem(TEAMS_REFRESH_TOKEN_KEY, data.refresh_token)
+    }
+    return data.access_token
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Tente de restaurer silencieusement la session Teams au démarrage de l'app.
+ * Appelé dans App.tsx — ne bloque pas le rendu, s'exécute en arrière-plan.
+ * - Token encore valide → no-op
+ * - Token expiré + refresh token présent → rafraîchit silencieusement
+ * - Aucun token → no-op (l'utilisateur devra se reconnecter)
+ */
+export async function restoreTeamsSession(): Promise<void> {
+  // Token encore valide → rien à faire
+  if (getStoredTeamsToken()) return
+  // Refresh token disponible → tentative de refresh silencieux
+  if (hasTeamsRefreshToken()) {
+    await refreshTeamsToken()
+  }
 }

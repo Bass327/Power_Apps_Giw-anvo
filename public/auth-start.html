@@ -16,7 +16,7 @@
         const p        = new URLSearchParams(window.location.search)
         const clientId = p.get('c')
         const tenantId = p.get('t')
-        const scopes   = p.get('s') || 'User.Read Sites.Read.All Sites.ReadWrite.All'
+        const scopes   = p.get('s') || 'User.Read Sites.Read.All Sites.ReadWrite.All offline_access'
 
         // ── PKCE : génération code_verifier + code_challenge ────────────────
         function base64url(buffer) {

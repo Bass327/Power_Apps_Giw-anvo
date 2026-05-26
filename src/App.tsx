@@ -5,7 +5,7 @@ import { QueryProvider } from "./providers/query-provider"
 import { AuthProvider } from "@/providers/auth-provider"
 import { RouterProvider } from "react-router-dom"
 import { router } from "@/router"
-import { initTeams } from "@/lib/teamsAuth"
+import { initTeams, restoreTeamsSession } from "@/lib/teamsAuth"
 import { isPowerAppsEnv } from "@/lib/powerAppsBridge"
 
 export default function App() {
@@ -16,6 +16,9 @@ export default function App() {
     // Hors Teams → timeout de 3 s puis no-op.
     if (!isPowerAppsEnv()) {
       void initTeams()
+      // Renouvelle silencieusement le token Teams si l'access token est expiré
+      // mais qu'un refresh token est disponible — l'utilisateur reste connecté.
+      void restoreTeamsSession()
     }
   }, [])
 

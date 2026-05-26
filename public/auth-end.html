@@ -19,17 +19,13 @@
 
       // Ferme la popup dans tous les cas : notifySuccess/Failure pour Teams SDK,
       // puis window.close() en secours si Teams ne la ferme pas lui-même.
-      const finish = async (success, payload) => {
+      const finish = (success, payload) => {
         if (typeof microsoftTeams !== 'undefined') {
+          // notifySuccess immédiat : fonctionne dans Teams Desktop sans app.initialize()
+          // (le SDK ouvre le canal de communication au chargement du script)
           try {
-            // Attendre l'init du SDK avant d'appeler notifySuccess/Failure
-            // (requis pour Teams Web — sinon le signal est ignoré)
-            await microsoftTeams.app.initialize().catch(() => {})
-            if (success) {
-              microsoftTeams.authentication.notifySuccess(payload)
-            } else {
-              microsoftTeams.authentication.notifyFailure(payload)
-            }
+            if (success) microsoftTeams.authentication.notifySuccess(payload)
+            else         microsoftTeams.authentication.notifyFailure(payload)
           } catch (_) {}
         }
         // Fermeture de secours dans 1.5 s si Teams ne ferme pas la popup

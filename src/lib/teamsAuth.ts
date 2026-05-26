@@ -67,17 +67,8 @@ export function teamsLogin(clientId: string, tenantId: string): Promise<void> {
   localStorage.removeItem(LS_ERROR)
 
   return new Promise<void>((resolve, reject) => {
-    let settled = false
-
-    const timer = setTimeout(() => {
-      if (settled) return
-      settled = true
-      window.removeEventListener("storage", onStorage)
-      reject(new Error(
-        "Teams auth timeout — vérifiez que l'URI https://" +
-        window.location.host + "/auth-end.html est bien enregistrée dans Azure AD"
-      ))
-    }, 45_000)
+    let settled   = false
+    let pollTimer: ReturnType<typeof setInterval> | null = null
 
     const storeToken = (payload: string) => {
       const { accessToken, expiresIn } = JSON.parse(payload) as {
@@ -93,11 +84,19 @@ export function teamsLogin(clientId: string, tenantId: string): Promise<void> {
       if (settled) return
       settled = true
       clearTimeout(timer)
+      if (pollTimer) clearInterval(pollTimer)
       window.removeEventListener("storage", onStorage)
       action()
     }
 
-    // Canal 2 : storage event (popup → localStorage → fenêtre principale)
+    const timer = setTimeout(() => {
+      done(() => reject(new Error(
+        "Teams auth timeout — vérifiez que l'URI https://" +
+        window.location.host + "/auth-end.html est bien enregistrée dans Azure AD"
+      )))
+    }, 45_000)
+
+    // Canal 2 : storage event (Teams Web — popup et frame à la même origine)
     const onStorage = (e: StorageEvent) => {
       if (e.key === LS_RESULT && e.newValue) {
         done(() => { storeToken(e.newValue!); resolve() })
@@ -109,16 +108,23 @@ export function teamsLogin(clientId: string, tenantId: string): Promise<void> {
     }
     window.addEventListener("storage", onStorage)
 
-    // Canal 1 : authenticate() Promise (fonctionne si notifySuccess est routé)
+    // Canal 3 : polling localStorage (Teams Desktop ne propage pas les storage events
+    // entre webviews distincts — seul canal fiable avec notifySuccess)
+    pollTimer = setInterval(() => {
+      const result = localStorage.getItem(LS_RESULT)
+      if (result) { done(() => { storeToken(result); resolve() }); return }
+      const error = localStorage.getItem(LS_ERROR)
+      if (error) { localStorage.removeItem(LS_ERROR); done(() => reject(new Error(error))) }
+    }, 500)
+
+    // Canal 1 : authenticate() Promise — résolu par notifySuccess dans auth-end.html
     microsoftTeams.authentication.authenticate({ url, width: 600, height: 535 })
       .then((raw: unknown) => {
         done(() => { storeToken(raw as string); resolve() })
       })
       .catch((err: unknown) => {
         const msg = String(err instanceof Error ? err.message : err)
-        // user_cancelled = popup fermée par window.close() sans notifySuccess —
-        // cas normal avec notre fallback ; le storage event prend le relais.
-        // user_cancelled ou CancelledByUser = popup fermée normalement par l'utilisateur
+        // user_cancelled = popup fermée via window.close() — les canaux 2/3 prennent le relais
         if (!msg.includes("user_cancelled") && !msg.includes("CancelledByUser")) {
           done(() => reject(new Error(msg)))
         }

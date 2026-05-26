@@ -42,7 +42,11 @@ export default function LoginPage() {
         setPopupError("Les popups sont bloquées dans cet environnement. Ouvrez l'application directement dans Teams.")
         return
       }
-      setPopupError("Une erreur s'est produite lors de la connexion. Veuillez réessayer.")
+      if (msg.includes("Teams auth timeout")) {
+        setPopupError(msg)
+        return
+      }
+      setPopupError("Erreur de connexion : " + msg)
       console.error("[Auth] Erreur login :", error)
     } finally {
       setIsLoading(false)

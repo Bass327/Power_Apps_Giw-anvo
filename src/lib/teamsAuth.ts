@@ -73,8 +73,11 @@ export function teamsLogin(clientId: string, tenantId: string): Promise<void> {
       if (settled) return
       settled = true
       window.removeEventListener("storage", onStorage)
-      reject(new Error("Teams auth timeout"))
-    }, 90_000)
+      reject(new Error(
+        "Teams auth timeout — vérifiez que l'URI https://" +
+        window.location.host + "/auth-end.html est bien enregistrée dans Azure AD"
+      ))
+    }, 45_000)
 
     const storeToken = (payload: string) => {
       const { accessToken, expiresIn } = JSON.parse(payload) as {

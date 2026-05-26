@@ -115,6 +115,9 @@ export function DetailDemandeAchat({ demande, open, onClose }: Props) {
       <DialogContent
         className="max-w-2xl max-h-[90vh] overflow-y-auto p-0"
         showCloseButton={false}
+        // Radix UI fermerait la modale sur pointerdown hors contenu (fréquent dans iframe Power Apps)
+        onPointerDownOutside={(e) => e.preventDefault()}
+        onInteractOutside={(e) => e.preventDefault()}
         style={{
           background:   "var(--bg-surface)",
           border:       "1px solid var(--bg-border)",

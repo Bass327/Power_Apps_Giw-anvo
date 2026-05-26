@@ -505,7 +505,7 @@ export default function AchatsPage() {
                   return (
                     <tr
                       key={d.id}
-                      onClick={() => setDemande(d)}
+                      onClick={(e) => { e.stopPropagation(); setDemande(d) }}
                       style={{
                         background:   i % 2 === 0 ? "var(--bg-surface)" : "var(--bg-elevated)",
                         cursor:       "pointer",

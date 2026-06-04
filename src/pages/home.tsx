@@ -243,9 +243,11 @@ function DirectriceDashboard({ prenom }: { prenom: string }) {
   }
 
   // KPIs achats (SharePoint)
-  const achatsEnAttente = demandes.filter((d) => !STATUTS_FINAUX_ACHAT.includes(d.statut as typeof STATUTS_FINAUX_ACHAT[number]))
-  const approuvesMois   = demandes.filter((d) => d.statut === "APPROUVE" && duMois(d))
-  const montantMois     = approuvesMois.reduce((sum, d) => sum + d.montant, 0)
+  const achatsEnAttente        = demandes.filter((d) => !STATUTS_FINAUX_ACHAT.includes(d.statut as typeof STATUTS_FINAUX_ACHAT[number]))
+  const approuvesMois          = demandes.filter((d) => d.statut === "APPROUVE" && duMois(d))
+  const montantMois            = approuvesMois.reduce((sum, d) => sum + d.montant, 0)
+  const totalPiecesCaisse      = demandes.filter((d) => d.typeDemande === "PIECE_CAISSE").reduce((sum, d) => sum + d.montant, 0)
+  const totalAchatsPrestations = demandes.filter((d) => d.typeDemande === "ACHAT_PRESTATION").reduce((sum, d) => sum + d.montant, 0)
 
   // Missions en attente d'approbation DG
   const missionsEnAttente = missions.filter((m) => m.statut === "SOUMIS")
@@ -351,6 +353,22 @@ function DirectriceDashboard({ prenom }: { prenom: string }) {
       border: "rgba(34,197,94,0.20)",
       icon:   <CheckCircle className="w-5 h-5" style={{ color: "#22c55e" }} />,
     },
+    {
+      label:  "Total pièces de caisse",
+      value:  totalPiecesCaisse > 0 ? formatFCFA(totalPiecesCaisse) : "—",
+      color:  "#8b5cf6",
+      bg:     "rgba(139,92,246,0.08)",
+      border: "rgba(139,92,246,0.20)",
+      icon:   <Wallet className="w-5 h-5" style={{ color: "#8b5cf6" }} />,
+    },
+    {
+      label:  "Total achats & prestations",
+      value:  totalAchatsPrestations > 0 ? formatFCFA(totalAchatsPrestations) : "—",
+      color:  "var(--gold-warm)",
+      bg:     "rgba(240,165,0,0.08)",
+      border: "rgba(240,165,0,0.20)",
+      icon:   <Banknote className="w-5 h-5" style={{ color: "var(--gold-warm)" }} />,
+    },
   ]
 
   return (
@@ -412,7 +430,7 @@ function DirectriceDashboard({ prenom }: { prenom: string }) {
         <p className="text-[10px] font-semibold uppercase tracking-widest mb-4 font-display" style={{ color: "var(--green-mid)" }}>
           Indicateurs direction
         </p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
           {kpis.map((kpi) => (
             <DashboardKpiCard
               key={kpi.label}
@@ -1313,10 +1331,12 @@ function ComptableDashboard({ prenom }: { prenom: string }) {
   const { data: demandes = [], isLoading } = useDemandesAchats()
   const { mutate, isPending }              = useUpdateStatutDemande()
 
-  const aTraiter      = demandes.filter((d) => d.statut === "APPROUVE")
-  const enPaiement    = demandes.filter((d) => d.statut === "EN_PAIEMENT")
-  const soldees       = demandes.filter((d) => d.statut === "SOLDE")
-  const volumeATraiter = aTraiter.reduce((sum, d) => sum + d.montant, 0)
+  const aTraiter               = demandes.filter((d) => d.statut === "APPROUVE")
+  const enPaiement             = demandes.filter((d) => d.statut === "EN_PAIEMENT")
+  const soldees                = demandes.filter((d) => d.statut === "SOLDE")
+  const volumeATraiter         = aTraiter.reduce((sum, d) => sum + d.montant, 0)
+  const totalPiecesCaisse      = demandes.filter((d) => d.typeDemande === "PIECE_CAISSE").reduce((sum, d) => sum + d.montant, 0)
+  const totalAchatsPrestations = demandes.filter((d) => d.typeDemande === "ACHAT_PRESTATION").reduce((sum, d) => sum + d.montant, 0)
 
   const kpis = [
     {
@@ -1350,6 +1370,22 @@ function ComptableDashboard({ prenom }: { prenom: string }) {
       bg:     "rgba(34,197,94,0.08)",
       border: "rgba(34,197,94,0.20)",
       icon:   <CheckCircle className="w-5 h-5" style={{ color: "#22c55e" }} />,
+    },
+    {
+      label:  "Total pièces de caisse",
+      value:  totalPiecesCaisse > 0 ? formatFCFA(totalPiecesCaisse) : "—",
+      color:  "#8b5cf6",
+      bg:     "rgba(139,92,246,0.08)",
+      border: "rgba(139,92,246,0.20)",
+      icon:   <Wallet className="w-5 h-5" style={{ color: "#8b5cf6" }} />,
+    },
+    {
+      label:  "Total achats & prestations",
+      value:  totalAchatsPrestations > 0 ? formatFCFA(totalAchatsPrestations) : "—",
+      color:  "var(--gold-warm)",
+      bg:     "rgba(240,165,0,0.08)",
+      border: "rgba(240,165,0,0.20)",
+      icon:   <Banknote className="w-5 h-5" style={{ color: "var(--gold-warm)" }} />,
     },
   ]
 
@@ -1388,7 +1424,7 @@ function ComptableDashboard({ prenom }: { prenom: string }) {
         <p className="text-[10px] font-semibold uppercase tracking-widest mb-4 font-display" style={{ color: "var(--green-mid)" }}>
           Indicateurs paiements
         </p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
           {kpis.map((kpi) => (
             <DashboardKpiCard
               key={kpi.label}

@@ -78,6 +78,9 @@ export function useUpdateStatutDemandeAbsence() {
       commentaire,
       validePar,
       role,
+      demandeurEmail,
+      nomDemandeur,
+      codeDemande,
     }: {
       id:              string
       statut:          StatutDemandeAbsence
@@ -90,10 +93,19 @@ export function useUpdateStatutDemandeAbsence() {
     }) => {
       const token = await getToken()
       await updateStatutDemandeAbsence(token, id, statut, commentaire, validePar, role)
+
+      /* Notification Teams fire-and-forget — même pattern que les Achats_Prestations */
+      if (demandeurEmail) {
+        sendNotificationsAsync(token, {
+          module:         "DEMANDE_ABSENCE",
+          newStatut:      statut,
+          submitterEmail: demandeurEmail,
+          titre:          `Demande d'autorisation d'absence — ${nomDemandeur ?? demandeurEmail} (${codeDemande ?? ""})`,
+        })
+      }
     },
 
-    onSuccess: (_, ctx) => {
-      const { statut, demandeurEmail, nomDemandeur, codeDemande } = ctx
+    onSuccess: (_, { statut }) => {
       void queryClient.invalidateQueries({ queryKey: QUERY_KEY })
 
       const messages: Partial<Record<StatutDemandeAbsence, string>> = {
@@ -104,18 +116,6 @@ export function useUpdateStatutDemandeAbsence() {
         DOCUMENT_GENERE: "Document marqué comme généré",
       }
       toast.success(messages[statut] ?? "Statut mis à jour")
-
-      /* Notification Teams selon l'étape du circuit */
-      if (demandeurEmail) {
-        void getToken().then((token) => {
-          sendNotificationsAsync(token, {
-            module:         "DEMANDE_ABSENCE",
-            newStatut:      statut,
-            submitterEmail: demandeurEmail,
-            titre:          `Demande d'autorisation d'absence — ${nomDemandeur ?? demandeurEmail} (${codeDemande ?? ""})`,
-          })
-        })
-      }
     },
 
     onError: (error: unknown) => {

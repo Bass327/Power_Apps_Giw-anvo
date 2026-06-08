@@ -257,33 +257,30 @@ export function DetailDemandeAchat({ demande, open, onClose }: Props) {
               <p className="text-sm" style={{ color: "var(--text-muted)" }}>Aucune pièce jointe</p>
             ) : (
               <div className="space-y-2">
-                {attachments.map((att) => {
-                  const downloadUrl = `https://${import.meta.env.VITE_SHAREPOINT_HOSTNAME as string}${att.ServerRelativeUrl}`
-                  return (
-                    <a
-                      key={att.FileName}
-                      href={downloadUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center justify-between gap-3 px-3 py-2 rounded-lg transition-colors"
-                      style={{
-                        background: "var(--bg-elevated)",
-                        border:     "1px solid var(--bg-border)",
-                        textDecoration: "none",
-                      }}
-                      onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--green-vivid)" }}
-                      onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--bg-border)" }}
-                    >
-                      <div className="flex items-center gap-2 min-w-0">
-                        <Paperclip className="w-4 h-4 flex-shrink-0" style={{ color: "#60a5fa" }} />
-                        <span className="text-sm truncate font-display" style={{ color: "var(--text-primary)" }}>
-                          {att.FileName}
-                        </span>
-                      </div>
-                      <Download className="w-4 h-4 flex-shrink-0" style={{ color: "var(--text-muted)" }} />
-                    </a>
-                  )
-                })}
+                {attachments.map((att) => (
+                  <a
+                    key={att.name}
+                    href={att.webUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-between gap-3 px-3 py-2 rounded-lg transition-colors"
+                    style={{
+                      background: "var(--bg-elevated)",
+                      border:     "1px solid var(--bg-border)",
+                      textDecoration: "none",
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--green-vivid)" }}
+                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--bg-border)" }}
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Paperclip className="w-4 h-4 flex-shrink-0" style={{ color: "#60a5fa" }} />
+                      <span className="text-sm truncate font-display" style={{ color: "var(--text-primary)" }}>
+                        {att.name}
+                      </span>
+                    </div>
+                    <Download className="w-4 h-4 flex-shrink-0" style={{ color: "var(--text-muted)" }} />
+                  </a>
+                ))}
               </div>
             )}
           </Section>

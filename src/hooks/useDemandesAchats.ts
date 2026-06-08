@@ -6,7 +6,7 @@ import {
   createDemandeAchat,
   updateStatutDemande,
 } from "@/services/sharepoint/demandesAchatsService"
-import { getListItemAttachments, attachFileToListItem, type SPAttachment } from "@/lib/graphClient"
+import { uploadFileToDriveFolder, getDriveFolderFiles, type DriveAttachment } from "@/lib/graphClient"
 import { sendNotificationsAsync } from "@/services/notificationService"
 import type {
   CreateDemandeAchatPayload,
@@ -18,18 +18,16 @@ const QUERY_KEY = ["demandes-achats"]
 
 /* ── Pièces jointes d'une demande ── */
 export function useDemandeAttachments(demandeId: string | undefined) {
-  const { tryGetSharePointToken } = useAuth()
+  const { getToken } = useAuth()
 
-  return useQuery<SPAttachment[]>({
+  return useQuery<DriveAttachment[]>({
     queryKey:  ["demande-attachments", demandeId],
     enabled:   !!demandeId,
     staleTime: 5 * 60 * 1000,
     retry:     false,
     queryFn:   async () => {
-      const spToken = await tryGetSharePointToken()
-      // Token SP indisponible (ex: mode Teams sans compte MSAL) → pas de pièces jointes
-      if (!spToken) return []
-      return getListItemAttachments(spToken, demandeId!)
+      const token = await getToken()
+      return getDriveFolderFiles(token, "Demandes_Achats", demandeId!)
     },
   })
 }
@@ -52,7 +50,7 @@ export function useDemandesAchats() {
 
 /* ── Créer une demande (brouillon ou soumise) ── */
 export function useCreateDemandeAchat() {
-  const { getToken, getSharePointToken } = useAuth()
+  const { getToken } = useAuth()
   const queryClient                      = useQueryClient()
 
   return useMutation({
@@ -78,15 +76,14 @@ export function useCreateDemandeAchat() {
       const token  = await getToken()
       const result = await createDemandeAchat(token, payload, statutAuto)
 
-      // Upload des pièces jointes — séparé de la création pour ne pas bloquer en cas d'échec
+      // Upload des pièces jointes via Graph API — compatible mode Teams (pas de token SP requis)
       if (fichiers && fichiers.length > 0) {
         try {
-          // Requiert un token SharePoint (audience distincte du token Graph)
-          const spToken = await getSharePointToken()
-          await Promise.all(fichiers.map((f) => attachFileToListItem(spToken, result.id, f)))
+          await Promise.all(
+            fichiers.map((f) => uploadFileToDriveFolder(token, "Demandes_Achats", result.id, f)),
+          )
         } catch (uploadErr) {
           const msg = uploadErr instanceof Error ? uploadErr.message : "Erreur inconnue"
-          // Avertissement non-bloquant : l'item est déjà créé dans SharePoint
           toast.warning(`Demande créée, mais les pièces jointes n'ont pas pu être ajoutées : ${msg}`)
         }
       }

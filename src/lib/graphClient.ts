@@ -328,6 +328,85 @@ export async function attachFileToListItem(
   }
 }
 
+export interface DriveAttachment {
+  name:    string
+  webUrl:  string
+}
+
+// Dossier racine pour les pièces jointes dans la bibliothèque de documents
+const DRIVE_FOLDER_ROOT = "PiecesJointes"
+
+/**
+ * Upload un fichier dans la bibliothèque de documents SharePoint via Graph API.
+ * Compatible mode Teams (token Graph uniquement — pas de token SP requis).
+ * Les dossiers intermédiaires sont créés automatiquement par SharePoint.
+ * Chemin: PiecesJointes/{listName}/{itemId}/{filename}
+ */
+export async function uploadFileToDriveFolder(
+  token:    string,
+  listName: string,
+  itemId:   string,
+  file:     File,
+): Promise<DriveAttachment> {
+  const siteId = await getSiteId(token)
+  // Remplace les caractères interdits dans les noms de fichiers SharePoint
+  const safeName    = file.name.replace(/[*:<>?/\\|"#]/g, "_")
+  const encodedName = encodeURIComponent(safeName)
+  const path        = `${DRIVE_FOLDER_ROOT}/${listName}/${itemId}/${encodedName}`
+  const arrayBuffer = await file.arrayBuffer()
+
+  const response = await fetch(
+    `${GRAPH_BASE}/sites/${siteId}/drive/root:/${path}:/content`,
+    {
+      method:  "PUT",
+      headers: {
+        Authorization:  `Bearer ${token}`,
+        "Content-Type": file.type || "application/octet-stream",
+      },
+      body: arrayBuffer,
+    },
+  )
+
+  if (!response.ok) {
+    const details = await response.text()
+    throw new Error(`Erreur upload "${file.name}" (${response.status}): ${details}`)
+  }
+
+  const data = await response.json() as { name: string; webUrl: string }
+  return { name: data.name, webUrl: data.webUrl }
+}
+
+/**
+ * Liste les fichiers d'un dossier dans la bibliothèque de documents SharePoint via Graph API.
+ * Compatible mode Teams (token Graph uniquement).
+ * Retourne [] si le dossier n'existe pas encore (aucune pièce jointe).
+ */
+export async function getDriveFolderFiles(
+  token:    string,
+  listName: string,
+  itemId:   string,
+): Promise<DriveAttachment[]> {
+  const siteId = await getSiteId(token)
+  const path   = `${DRIVE_FOLDER_ROOT}/${listName}/${itemId}`
+
+  try {
+    const data = await graphFetch<{
+      value: { name: string; webUrl: string; file?: object }[]
+    }>(
+      token,
+      `/sites/${siteId}/drive/root:/${path}:/children?$select=name,webUrl,file`,
+    )
+    return data.value
+      .filter((item) => !!item.file) // exclure les éventuels sous-dossiers
+      .map((item) => ({ name: item.name, webUrl: item.webUrl }))
+  } catch (err) {
+    // 404 → dossier inexistant (aucune pièce jointe encore uploadée)
+    const msg = err instanceof Error ? err.message : ""
+    if (msg.includes("404") || msg.includes("itemNotFound")) return []
+    throw err
+  }
+}
+
 /** Met à jour un élément d'une liste SharePoint */
 export async function updateListItem(
   token:    string,

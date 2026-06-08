@@ -116,14 +116,19 @@ export default function RHAbsencesPage() {
     role === "RAF" || role === "Directrice" ? "global" :
     role === "Chef Dept."                   ? "department" : "own"
 
-  /* ── Filtrage — autorisations ── */
-  const demandesFiltrees = useMemo(() => {
+  /* ── Portée des données selon le rôle (insensible à la casse) ── */
+  const demandesScope = useMemo(() => {
+    const emailLower = email.toLowerCase()
     return demandes.filter((d) => {
-      /* Portée des données selon le rôle */
-      if (scope === "own" && d.demandeur !== email) return false
+      if (scope === "own" && d.demandeur.toLowerCase() !== emailLower) return false
       if (scope === "department" && d.departement !== user?.departement) return false
+      return true
+    })
+  }, [demandes, scope, email, user])
 
-      /* Filtre onglet */
+  /* ── Filtrage par onglet + recherche ── */
+  const demandesFiltrees = useMemo(() => {
+    return demandesScope.filter((d) => {
       if (ongletAuto === "en-attente" && !["SOUMIS", "VALIDE_CHEF"].includes(d.statut)) return false
       if (ongletAuto === "approuvees" && d.statut !== "APPROUVE_DG") return false
       if (ongletAuto === "refusees"   && d.statut !== "REFUSE_DG" && d.statut !== "REJETE_CHEF") return false
@@ -139,12 +144,13 @@ export default function RHAbsencesPage() {
       }
       return true
     })
-  }, [demandes, ongletAuto, rechercheAuto, scope, email, user])
+  }, [demandesScope, ongletAuto, rechercheAuto])
 
   /* ── Filtrage — signalements ── */
   const absencesFiltrees = useMemo(() => {
+    const emailLower = email.toLowerCase()
     return absences.filter((a) => {
-      if (scope === "own" && a.employe !== email) return false
+      if (scope === "own" && a.employe.toLowerCase() !== emailLower) return false
       if (ongletSignal === "en-attente"     && a.statut !== "EN_ATTENTE")    return false
       if (ongletSignal === "justifiees"     && a.statut !== "JUSTIFIEE")     return false
       if (ongletSignal === "non-justifiees" && a.statut !== "NON_JUSTIFIEE") return false
@@ -163,11 +169,11 @@ export default function RHAbsencesPage() {
   /* ── Compteurs badges ── */
   const nbEnAttenteAuto = useMemo(() => {
     if (peutApprouverDG)
-      return demandes.filter((d) => d.statut === "SOUMIS" || d.statut === "VALIDE_CHEF").length
+      return demandesScope.filter((d) => d.statut === "SOUMIS" || d.statut === "VALIDE_CHEF").length
     if (peutValiderChef)
-      return demandes.filter((d) => d.statut === "SOUMIS" && d.departement === user?.departement).length
+      return demandesScope.filter((d) => d.statut === "SOUMIS" && d.departement === user?.departement).length
     return 0
-  }, [demandes, peutApprouverDG, peutValiderChef, user])
+  }, [demandesScope, peutApprouverDG, peutValiderChef, user])
 
   const nbEnAttenteSignal = useMemo(() => absences.filter((a) => a.statut === "EN_ATTENTE").length, [absences])
 
@@ -332,10 +338,10 @@ export default function RHAbsencesPage() {
           {/* Stats */}
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12, marginBottom: 20 }}>
             {[
-              { label: "Total",       value: demandes.length,                                                                           color: "var(--text-primary)" },
-              { label: "En attente",  value: demandes.filter((d) => d.statut === "SOUMIS" || d.statut === "VALIDE_CHEF").length,        color: "#f59e0b" },
-              { label: "Approuvées",  value: demandes.filter((d) => d.statut === "APPROUVE_DG").length,                               color: "#22c55e" },
-              { label: "Refusées",    value: demandes.filter((d) => d.statut === "REFUSE_DG" || d.statut === "REJETE_CHEF").length,    color: "#ef4444" },
+              { label: "Total",       value: demandesScope.length,                                                                           color: "var(--text-primary)" },
+              { label: "En attente",  value: demandesScope.filter((d) => d.statut === "SOUMIS" || d.statut === "VALIDE_CHEF").length,        color: "#f59e0b" },
+              { label: "Approuvées",  value: demandesScope.filter((d) => d.statut === "APPROUVE_DG").length,                               color: "#22c55e" },
+              { label: "Refusées",    value: demandesScope.filter((d) => d.statut === "REFUSE_DG" || d.statut === "REJETE_CHEF").length,    color: "#ef4444" },
             ].map((s) => (
               <div key={s.label} style={{ padding: "14px 18px", background: "var(--glass-card-bg)", border: "1px solid var(--bg-border)", borderRadius: 12 }}>
                 <p style={{ margin: "0 0 4px", fontSize: 11, color: "var(--text-secondary)", fontFamily: "var(--font-body)", textTransform: "uppercase", letterSpacing: "0.06em" }}>{s.label}</p>

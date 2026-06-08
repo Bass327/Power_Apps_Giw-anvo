@@ -109,6 +109,25 @@ export const REGIONS_SENEGAL = [
   "Multiple régions",
 ] as const
 
+/** Préfixe de code projet par région — utilisé pour la génération automatique */
+export const REGION_PREFIX_MAP: Record<string, string> = {
+  "Dakar":           "DK",
+  "Thiès":           "THIS",
+  "Diourbel":        "DIB",
+  "Fatick":          "FAT",
+  "Kaolack":         "KLK",
+  "Kaffrine":        "KAF",
+  "Tambacounda":     "TBK",
+  "Kédougou":        "KDG",
+  "Kolda":           "KLD",
+  "Ziguinchor":      "ZIG",
+  "Sédhiou":         "SDH",
+  "Saint-Louis":     "SL",
+  "Louga":           "LGA",
+  "Matam":           "MTM",
+  "Multiple régions":"MULTI",
+}
+
 // ── Types dérivés des constantes ──────────────────────────────────────────────
 
 export type PhaseProjet      = (typeof PHASES_PIPELINE)[number]

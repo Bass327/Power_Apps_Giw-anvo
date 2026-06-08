@@ -4,10 +4,10 @@ import {
   BarChart3, Users, FileText, BookOpen, Wallet, LineChart,
   ArrowRight, Clock, XCircle, X,
   AlertTriangle, Banknote, CheckCircle, Loader2,
+  Paperclip, Download,
 } from "lucide-react"
 import { useCurrentUser } from "@/hooks/useCurrentUser"
-import { useDemandesAchats } from "@/hooks/useDemandesAchats"
-import { useUpdateStatutDemande } from "@/hooks/useDemandesAchats"
+import { useDemandesAchats, useUpdateStatutDemande, useDemandeAttachments } from "@/hooks/useDemandesAchats"
 import { useMissions, useUpdateStatutMission } from "@/hooks/useMissions"
 import type { DemandeAchat } from "@/types/DemandeAchat"
 import type { Mission } from "@/types/rh"
@@ -606,6 +606,8 @@ function DemandeDetailModal({
   const [commentaire, setCommentaire] = useState("")
   const [modeRejet,   setModeRejet]   = useState(false)
 
+  const { data: attachments = [], isLoading: loadingAttachments } = useDemandeAttachments(demande.id)
+
   // Fermeture sur touche Escape
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose() }
@@ -721,6 +723,49 @@ function DemandeDetailModal({
               </p>
             </div>
           )}
+
+          {/* Pièces jointes */}
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide mb-2"
+               style={{ color: "var(--text-muted)", fontFamily: "'Syne', sans-serif" }}>
+              Pièces jointes
+            </p>
+            {loadingAttachments ? (
+              <div className="flex items-center gap-2 py-2">
+                <Loader2 className="w-4 h-4 animate-spin" style={{ color: "var(--text-muted)" }} />
+                <span className="text-sm" style={{ color: "var(--text-muted)" }}>Chargement…</span>
+              </div>
+            ) : attachments.length === 0 ? (
+              <p className="text-sm" style={{ color: "var(--text-muted)" }}>Aucune pièce jointe</p>
+            ) : (
+              <div className="space-y-2">
+                {attachments.map((att) => (
+                  <a
+                    key={att.name}
+                    href={att.webUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-between gap-3 px-3 py-2 rounded-lg transition-colors"
+                    style={{
+                      background:     "var(--bg-elevated)",
+                      border:         "1px solid var(--bg-border)",
+                      textDecoration: "none",
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--green-vivid)" }}
+                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--bg-border)" }}
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Paperclip className="w-4 h-4 flex-shrink-0" style={{ color: "#60a5fa" }} />
+                      <span className="text-sm truncate font-display" style={{ color: "var(--text-primary)", fontFamily: "'DM Sans', sans-serif" }}>
+                        {att.name}
+                      </span>
+                    </div>
+                    <Download className="w-4 h-4 flex-shrink-0" style={{ color: "var(--text-muted)" }} />
+                  </a>
+                ))}
+              </div>
+            )}
+          </div>
 
           {/* Commentaire Chef existant si déjà traité */}
           {demande.commentaireChef && (

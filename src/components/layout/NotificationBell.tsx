@@ -78,7 +78,7 @@ export function NotificationBell() {
     if (role === "Directrice") {
       return [
         ...achats
-          .filter((d) => d.statut === "VALIDE_CHEF")
+          .filter((d) => !["APPROUVE", "EN_PAIEMENT", "SOLDE", "REJETE"].includes(d.statut))
           .map((d) => mk(d.id, "achat", d.titre, d.dateDemande, "/achats", d.montant)),
         ...absences
           .filter((a) => a.statut === "SOUMIS" || a.statut === "VALIDE_CHEF")

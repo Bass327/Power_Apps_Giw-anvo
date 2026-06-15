@@ -33,6 +33,7 @@ const MODULE_CONFIG: Record<NotifItem["module"], { color: string; bg: string; la
 export function NotificationBell() {
   const [ouvert, setOuvert]           = useState(false)
   const [dropdownPos, setDropdownPos] = useState({ top: 0, right: 0 })
+  const [isMobile, setIsMobile]       = useState(false)
   const buttonRef                     = useRef<HTMLButtonElement>(null)
   const dropdownRef                   = useRef<HTMLDivElement>(null)
   const navigate                      = useNavigate()
@@ -137,7 +138,9 @@ export function NotificationBell() {
 
   function handleToggle() {
     if (!ouvert && buttonRef.current) {
-      const rect = buttonRef.current.getBoundingClientRect()
+      const rect   = buttonRef.current.getBoundingClientRect()
+      const mobile = window.innerWidth < 640
+      setIsMobile(mobile)
       setDropdownPos({ top: rect.bottom + 8, right: window.innerWidth - rect.right })
     }
     setOuvert((o) => !o)
@@ -186,10 +189,20 @@ export function NotificationBell() {
         <div
           ref={dropdownRef}
           style={{
-            position: "fixed", top: dropdownPos.top, right: dropdownPos.right,
-            width: "390px", zIndex: 9999,
-            background: "var(--bg-surface)", border: "1px solid var(--bg-border)",
-            borderRadius: "16px", boxShadow: "0 16px 48px rgba(0,0,0,0.5)", overflow: "hidden",
+            position: "fixed",
+            top:      dropdownPos.top,
+            zIndex:   9999,
+            background:   "var(--bg-surface)",
+            border:       "1px solid var(--bg-border)",
+            borderRadius: "16px",
+            boxShadow:    "0 16px 48px rgba(0,0,0,0.5)",
+            overflow:     "hidden",
+            /* Mobile : pleine largeur avec 8px de marge de chaque côté.
+               Desktop : 390px aligné à droite du bouton. */
+            ...(isMobile
+              ? { left: 8, right: 8, width: "auto" }
+              : { right: dropdownPos.right, width: "390px" }
+            ),
           }}
         >
           {/* En-tête */}
@@ -221,7 +234,7 @@ export function NotificationBell() {
               </p>
             </div>
           ) : (
-            <div style={{ maxHeight: "380px", overflowY: "auto" }}>
+            <div style={{ maxHeight: `min(380px, calc(100vh - ${dropdownPos.top}px - 80px))`, overflowY: "auto" }}>
               {items.map((item, i) => {
                 const mcfg = MODULE_CONFIG[item.module]
                 const jours = joursAttente(item.date)

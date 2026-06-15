@@ -1,5 +1,5 @@
-import { useState, useMemo, useEffect } from "react"
-import { useNavigate } from "react-router-dom"
+import { useState, useMemo, useEffect, useRef } from "react"
+import { useNavigate, useLocation } from "react-router-dom"
 import {
   UserX, ChevronLeft, Plus, Search, Loader2, AlertCircle,
   FileCheck, Check, X, RotateCcw, Save, ShieldCheck,
@@ -55,6 +55,7 @@ export default function RHAbsencesPage() {
   const { role, user }  = useCurrentUser()
   const email           = user?.email ?? ""
   const navigate        = useNavigate()
+  const location        = useLocation()
   const access          = role ? getModuleAccess(role, "rh") : "none"
 
   const [ongletPrincipal, setOngletPrincipal] = useState<OngletPrincipal>("autorisations")
@@ -101,6 +102,15 @@ export default function RHAbsencesPage() {
   const { mutate: majStatutAuto,    isPending: enCoursAuto }    = useUpdateStatutDemandeAbsence()
   const { mutate: signalerAbsence,  isPending: creationSignal } = useCreateAbsence()
   const { mutate: mettreAJourAbsence, isPending: enCoursSignal } = useUpdateStatutAbsence()
+
+  /* Ouvre directement la modale si on arrive via la cloche de notifications */
+  const _openedIdRef = useRef<string | null>(null)
+  useEffect(() => {
+    const id = (location.state as { demandeId?: string } | null)?.demandeId
+    if (!id || loadingAuto || _openedIdRef.current === id) return
+    const d = demandes.find((dem) => dem.id === id)
+    if (d) { _openedIdRef.current = id; setDemandeActif(d); setCommentaireDecision("") }
+  }, [location.state, loadingAuto, demandes])
 
   if (access === "none") {
     return <AccessDenied message="Accès réservé aux RH et à la direction." />

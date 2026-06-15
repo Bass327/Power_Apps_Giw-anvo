@@ -1,5 +1,5 @@
-import { useState } from "react"
-import { useNavigate } from "react-router-dom"
+import { useState, useEffect, useRef } from "react"
+import { useNavigate, useLocation } from "react-router-dom"
 import {
   Briefcase, Plus, Search, ChevronLeft,
   MapPin, Calendar, Truck, Loader2, AlertCircle,
@@ -47,6 +47,7 @@ export default function RHMissionsPage() {
   const { role, user }      = useCurrentUser()
   const email               = user?.email
   const navigate             = useNavigate()
+  const location             = useLocation()
   const access               = role ? getModuleAccess(role, "rh") : "none"
 
   const [onglet, setOnglet]               = useState<Onglet>("toutes")
@@ -58,6 +59,15 @@ export default function RHMissionsPage() {
   const { data: missions = [], isLoading, isError } = useMissions()
   const { mutate: creer }                           = useCreateMission()
   const { mutate: majStatut }                       = useUpdateStatutMission()
+
+  /* Ouvre directement la modale si on arrive via la cloche de notifications */
+  const _openedIdRef = useRef<string | null>(null)
+  useEffect(() => {
+    const id = (location.state as { demandeId?: string } | null)?.demandeId
+    if (!id || isLoading || _openedIdRef.current === id) return
+    const m = missions.find((mis) => mis.id === id)
+    if (m) { _openedIdRef.current = id; setMission(m) }
+  }, [location.state, isLoading, missions])
 
   if (access === "none") {
     return <AccessDenied message="Accès réservé aux RH et à la direction." />

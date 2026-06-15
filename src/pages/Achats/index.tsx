@@ -1,10 +1,10 @@
-import { useState, useMemo, useEffect } from "react"
+import { useState, useMemo, useEffect, useRef } from "react"
 import {
   Plus, Search, ShoppingCart, FileText,
   ClipboardCheck, LayoutList, Loader2, AlertCircle,
   Wallet, CheckCircle2, ArrowLeft,
 } from "lucide-react"
-import { useNavigate } from "react-router-dom"
+import { useNavigate, useLocation } from "react-router-dom"
 import { useDemandesAchats } from "@/hooks/useDemandesAchats"
 import { useCurrentUser } from "@/hooks/useCurrentUser"
 import type { DemandeAchat, StatutDemande } from "@/types/DemandeAchat"
@@ -121,8 +121,18 @@ export default function AchatsPage() {
   const [demandeSelectee, setDemande]    = useState<DemandeAchat | null>(null)
 
   const navigate               = useNavigate()
+  const location               = useLocation()
   const { user: currentUser }  = useCurrentUser()
   const { data: demandes = [], isLoading, isError } = useDemandesAchats()
+
+  /* Ouvre directement la modale si on arrive via la cloche de notifications */
+  const _openedIdRef = useRef<string | null>(null)
+  useEffect(() => {
+    const id = (location.state as { demandeId?: string } | null)?.demandeId
+    if (!id || isLoading || _openedIdRef.current === id) return
+    const d = demandes.find((dem) => dem.id === id)
+    if (d) { _openedIdRef.current = id; setDemande(d) }
+  }, [location.state, isLoading, demandes])
 
   /* Onglets selon le rôle */
   const onglets = useMemo(

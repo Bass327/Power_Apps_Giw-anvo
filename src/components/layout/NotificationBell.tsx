@@ -39,9 +39,10 @@ export function NotificationBell() {
   const navigate                      = useNavigate()
 
   const { user: currentUser } = useCurrentUser()
-  const role      = currentUser?.role ?? ""
-  const userEmail = (currentUser?.email ?? "").toLowerCase()
-  const userDept  = currentUser?.departement ?? ""
+  const role          = currentUser?.role ?? ""
+  const userEmail     = (currentUser?.email ?? "").toLowerCase()
+  const userNomComplet = (currentUser?.nomComplet || currentUser?.displayName || "").toLowerCase()
+  const userDept      = currentUser?.departement ?? ""
 
   /* Toujours appelés — TanStack Query déduplique les requêtes si déjà en cache */
   const { data: achats = [],        isLoading: l1 } = useDemandesAchats()
@@ -110,10 +111,18 @@ export function NotificationBell() {
         .filter((d) => d.demandeur.toLowerCase() === userEmail && ["SOUMIS", "VALIDE_CHEF"].includes(d.statut))
         .map((d) => mk(d.id, "achat", d.titre, d.dateDemande, "/achats", d.montant)),
       ...absences
-        .filter((a) => a.demandeur.toLowerCase() === userEmail && ["SOUMIS", "VALIDE_CHEF"].includes(a.statut))
+        .filter((a) => {
+          /* Double critère : email OU nom complet (car certains items SP ont le champ Demandeur vide) */
+          const parEmail = userEmail && a.demandeur.toLowerCase() === userEmail
+          const parNom   = userNomComplet && a.nomDemandeur?.toLowerCase() === userNomComplet
+          return (parEmail || parNom) && ["SOUMIS", "VALIDE_CHEF"].includes(a.statut)
+        })
         .map((a) => mk(a.id, "absence", a.codeDemande || "Autorisation d'absence", a.dateDemande, "/rh/absences")),
+      ...missions
+        .filter((m) => m.demandeur.toLowerCase() === userEmail && m.statut === "SOUMIS")
+        .map((m) => mk(m.id, "mission", m.intitule, m.dateDemande, "/rh/missions")),
     ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-  }, [role, achats, absences, missions, decaissements, userEmail, userDept])
+  }, [role, achats, absences, missions, decaissements, userEmail, userNomComplet, userDept])
 
   /* Fermeture au clic extérieur */
   useEffect(() => {
@@ -241,7 +250,7 @@ export function NotificationBell() {
                 return (
                   <button
                     key={item.id}
-                    onClick={() => { setOuvert(false); navigate(item.route) }}
+                    onClick={() => { setOuvert(false); navigate(item.route, { state: { demandeId: item.id } }) }}
                     className="w-full text-left px-4 py-3 flex items-start gap-3 transition-colors"
                     style={{
                       background:   i % 2 === 0 ? "var(--bg-surface)" : "var(--bg-elevated)",

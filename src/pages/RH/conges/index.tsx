@@ -167,7 +167,7 @@ export default function RHCongesPage() {
 
   /* ── Rendu ── */
   return (
-    <div style={{ padding: "32px 32px 64px", maxWidth: 1000, margin: "0 auto" }}>
+    <div className="px-4 sm:px-8 pt-5 sm:pt-8 pb-12 sm:pb-16" style={{ maxWidth: 1000, margin: "0 auto" }}>
 
       {/* En-tête */}
       <div style={{ marginBottom: 28 }}>
@@ -267,7 +267,7 @@ export default function RHCongesPage() {
             )
           })}
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 14px", background: "var(--bg-elevated)", border: "1px solid var(--bg-border)", borderRadius: 10, flex: 1, minWidth: 200 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 14px", background: "var(--bg-elevated)", border: "1px solid var(--bg-border)", borderRadius: 10, flex: 1, minWidth: 0 }}>
           <Search size={14} style={{ color: "var(--text-muted)" }} />
           <input
             type="text"
@@ -388,7 +388,7 @@ export default function RHCongesPage() {
             </div>
             <div style={{ padding: "20px 28px", display: "flex", flexDirection: "column", gap: 16 }}>
               {/* Récapitulatif */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(200px, 100%), 1fr))", gap: 12 }}>
                 {[
                   { label: "Demandeur",  value: congeActif.demandeur.split("@")[0] },
                   { label: "Type",       value: LABEL_TYPE_CONGE[congeActif.typeConge] },
@@ -481,7 +481,7 @@ export default function RHCongesPage() {
                   ))}
                 </select>
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(200px, 100%), 1fr))", gap: 12 }}>
                 <div>
                   <label style={labelStyle}>Du *</label>
                   <input

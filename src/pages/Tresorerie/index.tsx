@@ -669,7 +669,7 @@ export default function TresoreriePage() {
         <Modal title={actionCourante.label} onClose={() => { setDecActif(null); setAction(null); setCommentaire(""); setReference("") }}>
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             {/* Récap */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(200px, 100%), 1fr))", gap: 10 }}>
               {[
                 { label: "Objet",        value: decActif.titre },
                 { label: "Montant",      value: formatFCFA(decActif.montant) },
@@ -733,7 +733,7 @@ export default function TresoreriePage() {
               <label style={labelStyle}>Objet *</label>
               <input type="text" required placeholder="Ex : Achat matériel informatique" value={decTitre} onChange={(e) => setDecTitre(e.target.value)} style={inputStyle} />
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(200px, 100%), 1fr))", gap: 12 }}>
               <div>
                 <label style={labelStyle}>Montant (FCFA) *</label>
                 <input type="number" required min="1" placeholder="0" value={decMontant} onChange={(e) => setDecMontant(e.target.value)} style={inputStyle} />
@@ -789,7 +789,7 @@ export default function TresoreriePage() {
                 ))}
               </select>
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(200px, 100%), 1fr))", gap: 12 }}>
               <div>
                 <label style={labelStyle}>Montant (FCFA) *</label>
                 <input type="number" required min="1" placeholder="0" value={caisseMontant} onChange={(e) => setCaisseMontant(e.target.value)} style={inputStyle} />

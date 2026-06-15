@@ -293,7 +293,7 @@ export function FormulaireDemandeAbsence({ user, onClose, restoreDraft = false }
               Informations demandeur
             </p>
             <div style={{ background: "rgba(45,158,95,0.06)", border: "1px solid rgba(45,158,95,0.18)", borderRadius: 10, padding: "14px 16px", display: "flex", flexDirection: "column", gap: 10 }}>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(200px, 100%), 1fr))", gap: 10 }}>
                 <div>
                   <label style={labelStyle}>Nom complet</label>
                   <input readOnly value={user?.nomComplet || user?.displayName || "—"} style={inputReadonlyStyle} />
@@ -303,7 +303,7 @@ export function FormulaireDemandeAbsence({ user, onClose, restoreDraft = false }
                   <input readOnly value={user?.departement || "—"} style={inputReadonlyStyle} />
                 </div>
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(200px, 100%), 1fr))", gap: 10 }}>
                 <div>
                   <label style={labelStyle}>Poste / Fonction</label>
                   <input readOnly value={user?.poste || user?.jobTitle || "—"} style={inputReadonlyStyle} />
@@ -411,7 +411,7 @@ export function FormulaireDemandeAbsence({ user, onClose, restoreDraft = false }
               <Calendar size={13} />
               Période d'absence
             </p>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(200px, 100%), 1fr))", gap: 12 }}>
               <div>
                 <label style={labelStyle}>Date de début *</label>
                 <input

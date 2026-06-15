@@ -156,7 +156,7 @@ export function FormulaireTransaction({ saisiPar, onClose }: Props) {
         <form onSubmit={handleSubmit} style={{ padding: "20px 28px 28px", display: "flex", flexDirection: "column", gap: 16 }}>
 
           {/* 1. Date + Type de flux */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(200px, 100%), 1fr))", gap: 12 }}>
             <div>
               <label style={labelStyle}>Date *</label>
               <input type="date" value={date} onChange={(e) => setDate(e.target.value)} required style={inputStyle} />
@@ -267,7 +267,7 @@ export function FormulaireTransaction({ saisiPar, onClose }: Props) {
           </div>
 
           {/* 7 & 8. Montant + Devise */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(200px, 100%), 1fr))", gap: 12 }}>
             <div>
               <label style={labelStyle}>Montant *</label>
               <input

@@ -400,9 +400,8 @@ function DirectriceDashboard({ prenom }: { prenom: string }) {
 
       {/* ── Hero Direction ── */}
       <div
-        className="relative overflow-hidden rounded-2xl animate-fade-in"
+        className="relative overflow-hidden rounded-2xl animate-fade-in px-5 sm:px-8 py-4 sm:py-5"
         style={{
-          padding:        "20px 32px",
           background:     "var(--glass-card-bg)",
           backdropFilter: "blur(12px)",
           border:         "1px solid var(--bg-border)",
@@ -416,7 +415,7 @@ function DirectriceDashboard({ prenom }: { prenom: string }) {
           <p className="text-xs font-semibold font-display uppercase tracking-widest mb-2" style={{ color: "var(--gold-warm)" }}>
             ◉ Vue Direction
           </p>
-          <h2 className="font-display font-bold leading-tight mb-1.5" style={{ fontSize: 30, color: "var(--text-primary)" }}>
+          <h2 className="font-display font-bold leading-tight mb-1.5" style={{ fontSize: "clamp(20px, 4vw, 30px)", color: "var(--text-primary)" }}>
             Bonjour, {prenom}
           </h2>
           <p className="text-sm leading-relaxed" style={{ color: "var(--text-secondary)", maxWidth: "480px" }}>
@@ -643,7 +642,7 @@ function DemandeDetailModal({
       >
         {/* Header modal */}
         <div
-          className="sticky top-0 flex items-start justify-between gap-3 px-6 py-4 flex-shrink-0"
+          className="sticky top-0 flex items-start justify-between gap-3 px-4 sm:px-6 py-4 flex-shrink-0"
           style={{ background: "var(--glass-header-bg)", borderBottom: "1px solid var(--bg-border)", backdropFilter: "blur(20px)" }}
         >
           <div className="min-w-0">
@@ -681,10 +680,10 @@ function DemandeDetailModal({
         </div>
 
         {/* Corps — détails de la demande */}
-        <div className="px-6 py-5 space-y-5 flex-1">
+        <div className="px-4 sm:px-6 py-5 space-y-5 flex-1">
 
           {/* Grille infos essentielles */}
-          <div className="grid grid-cols-2 gap-x-6 gap-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
             <Field label="Demandeur"       value={demande.demandeur.split("@")[0]} />
             <Field label="Date de demande" value={formatDateFr(demande.dateDemande)} />
             <Field label="Montant estimé"  value={formatFCFA(demande.montant)} />
@@ -785,7 +784,7 @@ function DemandeDetailModal({
         {/* Footer — actions de validation */}
         {(canAct ?? demande.statut === "SOUMIS") && (
           <div
-            className="sticky bottom-0 px-6 py-4 flex-shrink-0 space-y-3"
+            className="sticky bottom-0 px-4 sm:px-6 py-4 flex-shrink-0 space-y-3"
             style={{ background: "var(--glass-header-bg)", borderTop: "1px solid var(--bg-border)", backdropFilter: "blur(20px)" }}
           >
             {modeRejet ? (
@@ -917,7 +916,7 @@ function MissionDetailModal({
       >
         {/* Header */}
         <div
-          className="sticky top-0 flex items-start justify-between gap-3 px-6 py-4 flex-shrink-0"
+          className="sticky top-0 flex items-start justify-between gap-3 px-4 sm:px-6 py-4 flex-shrink-0"
           style={{ background: "var(--glass-header-bg)", borderBottom: "1px solid var(--bg-border)", backdropFilter: "blur(20px)" }}
         >
           <div className="min-w-0">
@@ -949,7 +948,7 @@ function MissionDetailModal({
         </div>
 
         {/* Corps */}
-        <div className="px-6 py-5 space-y-5 flex-1">
+        <div className="px-4 sm:px-6 py-5 space-y-5 flex-1">
 
           {/* Infos principales */}
           <div className="grid grid-cols-2 gap-x-6 gap-y-4">
@@ -1026,7 +1025,7 @@ function MissionDetailModal({
         {/* Footer — actions */}
         {mission.statut === "SOUMIS" && (
           <div
-            className="sticky bottom-0 px-6 py-4 flex-shrink-0 space-y-3"
+            className="sticky bottom-0 px-4 sm:px-6 py-4 flex-shrink-0 space-y-3"
             style={{ background: "var(--glass-header-bg)", borderTop: "1px solid var(--bg-border)", backdropFilter: "blur(20px)" }}
           >
             {modeRejet ? (
@@ -1202,9 +1201,8 @@ function ChefDeptDashboard({ prenom }: { prenom: string }) {
 
       {/* Hero Chef */}
       <div
-        className="relative overflow-hidden rounded-2xl animate-fade-in"
+        className="relative overflow-hidden rounded-2xl animate-fade-in px-5 sm:px-8 py-4 sm:py-5"
         style={{
-          padding:        "20px 32px",
           background:     "var(--glass-card-bg)",
           backdropFilter: "blur(12px)",
           border:         "1px solid var(--bg-border)",
@@ -1218,7 +1216,7 @@ function ChefDeptDashboard({ prenom }: { prenom: string }) {
           <p className="text-xs font-semibold font-display uppercase tracking-widest mb-2" style={{ color: "var(--gold-warm)" }}>
             ◉ Vue Chef de Département
           </p>
-          <h2 className="font-display font-bold leading-tight mb-1.5" style={{ fontSize: 30, color: "var(--text-primary)" }}>
+          <h2 className="font-display font-bold leading-tight mb-1.5" style={{ fontSize: "clamp(20px, 4vw, 30px)", color: "var(--text-primary)" }}>
             Bonjour, {prenom}
           </h2>
           <p className="text-sm leading-relaxed" style={{ color: "var(--text-secondary)", maxWidth: "480px" }}>
@@ -1439,9 +1437,8 @@ function ComptableDashboard({ prenom }: { prenom: string }) {
 
       {/* Hero */}
       <div
-        className="relative overflow-hidden rounded-2xl animate-fade-in"
+        className="relative overflow-hidden rounded-2xl animate-fade-in px-5 sm:px-8 py-4 sm:py-5"
         style={{
-          padding:        "20px 32px",
           background:     "var(--glass-card-bg)",
           backdropFilter: "blur(12px)",
           border:         "1px solid var(--bg-border)",
@@ -1455,7 +1452,7 @@ function ComptableDashboard({ prenom }: { prenom: string }) {
           <p className="text-xs font-semibold font-display uppercase tracking-widest mb-2" style={{ color: "var(--gold-warm)" }}>
             ◉ Vue Comptable
           </p>
-          <h2 className="font-display font-bold leading-tight mb-1.5" style={{ fontSize: 30, color: "var(--text-primary)" }}>
+          <h2 className="font-display font-bold leading-tight mb-1.5" style={{ fontSize: "clamp(20px, 4vw, 30px)", color: "var(--text-primary)" }}>
             Bonjour, {prenom}
           </h2>
           <p className="text-sm leading-relaxed" style={{ color: "var(--text-secondary)", maxWidth: "480px" }}>
@@ -1644,9 +1641,8 @@ export default function HomePage() {
 
       {/* ── Hero section ── */}
       <div
-        className="relative overflow-hidden rounded-2xl animate-fade-in"
+        className="relative overflow-hidden rounded-2xl animate-fade-in px-5 sm:px-8 py-4 sm:py-5"
         style={{
-          padding:        "20px 32px",
           background:     "var(--glass-card-bg)",
           backdropFilter: "blur(12px)",
           border:         "1px solid var(--bg-border)",
@@ -1665,7 +1661,7 @@ export default function HomePage() {
           <p className="text-xs font-semibold font-display uppercase tracking-widest mb-2" style={{ color: "var(--gold-warm)" }}>
             ◉ Solar Command Center
           </p>
-          <h2 className="font-display font-bold leading-tight mb-1.5" style={{ fontSize: 30, color: "var(--text-primary)" }}>
+          <h2 className="font-display font-bold leading-tight mb-1.5" style={{ fontSize: "clamp(20px, 4vw, 30px)", color: "var(--text-primary)" }}>
             Bonjour, {firstName}
           </h2>
           <p className="text-sm leading-relaxed" style={{ color: "var(--text-secondary)", maxWidth: "480px" }}>

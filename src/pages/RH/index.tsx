@@ -115,7 +115,7 @@ export default function RHPage() {
   })
 
   return (
-    <div style={{ padding: "32px 32px 64px", maxWidth: 1200, margin: "0 auto" }}>
+    <div className="px-4 sm:px-8 pt-5 sm:pt-8 pb-12 sm:pb-16" style={{ maxWidth: 1200, margin: "0 auto" }}>
 
       {/* ── Bouton retour tableau de bord ── */}
       <button
@@ -196,7 +196,7 @@ export default function RHPage() {
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(310px, 1fr))",
+          gridTemplateColumns: "repeat(auto-fill, minmax(min(310px, 100%), 1fr))",
           gap: 16,
         }}
       >

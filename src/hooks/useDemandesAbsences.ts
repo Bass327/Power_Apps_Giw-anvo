@@ -11,17 +11,24 @@ import type { DemandeAbsence, StatutDemandeAbsence } from "@/types/rh"
 
 const QUERY_KEY = ["demandes-absences"]
 
-/* ── Liste toutes les demandes d'autorisation d'absence ── */
-export function useDemandesAbsences() {
+/* ── Liste les demandes d'autorisation d'absence ──
+   filterEmail : email de l'utilisateur pour le scope "own".
+   Undefined → récupère toutes les demandes (DG, RAF, Chef Dept.).
+   La queryKey inclut l'email pour avoir un cache séparé par utilisateur. */
+export function useDemandesAbsences(filterEmail?: string) {
   const { isAuthenticated, getToken } = useAuth()
 
   return useQuery({
-    queryKey:  QUERY_KEY,
-    enabled:   isAuthenticated,
+    queryKey:  filterEmail ? [...QUERY_KEY, filterEmail] : QUERY_KEY,
+    /* Règle d'activation :
+       - filterEmail = undefined → scope global, toujours actif
+       - filterEmail = "x@y"    → scope "own" avec email, actif
+       - filterEmail = ""       → scope "own" SANS email (user pas encore chargé) → on attend */
+    enabled:   isAuthenticated && filterEmail !== "",
     staleTime: 2 * 60 * 1000,
     queryFn:   async () => {
       const token = await getToken()
-      return getDemandesAbsences(token)
+      return getDemandesAbsences(token, filterEmail || undefined)
     },
   })
 }

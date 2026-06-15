@@ -194,7 +194,8 @@ export function AccueilTransactions({
         )}
 
         {!isLoading && dernieres.length > 0 && (
-          <div style={{ borderRadius: 12, overflow: "hidden", border: "1px solid var(--bg-border)" }}>
+          <div style={{ borderRadius: 12, border: "1px solid var(--bg-border)", overflowX: "auto" }}>
+            <div style={{ minWidth: 480 }}>
             {dernieres.map((t, i) => {
               const fluxCfg   = TYPE_FLUX_CONFIG[t.typeFlux]
               const statutCfg = STATUT_TRANSACTION_CONFIG[t.statutTransaction]
@@ -258,6 +259,7 @@ export function AccueilTransactions({
                 </div>
               )
             })}
+            </div>
           </div>
         )}
       </div>

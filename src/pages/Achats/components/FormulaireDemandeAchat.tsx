@@ -491,7 +491,7 @@ export function FormulaireDemandeAchat({ open, onClose }: Props) {
         <p className="text-sm font-display font-semibold" style={{ color: "var(--text-secondary)" }}>
           Type de demande
         </p>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {(Object.entries(LABEL_TYPE_DEMANDE) as [TypeDemande, string][])
             /* Les missions sont désormais gérées dans le module RH */
             .filter(([key]) => key !== "DEPART_MISSION")
@@ -582,7 +582,7 @@ export function FormulaireDemandeAchat({ open, onClose }: Props) {
 
   function renderEtape3Achat() {
     return (
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <FormField label="Date de début *" error={errors.dateDebut}>
           <input type="date" value={form.dateDebut} onChange={set("dateDebut")} className="form-input" />
         </FormField>
@@ -609,7 +609,7 @@ export function FormulaireDemandeAchat({ open, onClose }: Props) {
           </SummaryLine>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <FormField label="Montant estimé (FCFA) *" error={errors.montant}>
             <input
               type="number" min={0} placeholder="Ex : 350000"
@@ -661,7 +661,7 @@ export function FormulaireDemandeAchat({ open, onClose }: Props) {
           </div>
         )}
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <FormField label="Mode de paiement *" error={errors.modePaiement}>
             <select value={form.modePaiement} onChange={set("modePaiement")} className="form-input">
               <option value="">Sélectionner…</option>
@@ -825,7 +825,7 @@ export function FormulaireDemandeAchat({ open, onClose }: Props) {
         </FormField>
 
         {/* Dates + Durée */}
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <FormField label="Date de départ *" error={errors.dateDepart}>
             <input type="date" value={form.dateDepart} onChange={set("dateDepart")} className="form-input" />
           </FormField>
@@ -1128,7 +1128,7 @@ export function FormulaireDemandeAchat({ open, onClose }: Props) {
         </FormField>
 
         {/* Champ 7 — Montant estimé */}
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <FormField label="Montant estimé (FCFA) *" error={errors.montantUrgence}>
             <input
               type="number"
@@ -1391,14 +1391,14 @@ export function FormulaireDemandeAchat({ open, onClose }: Props) {
         </div>
 
         {/* Contenu avec fade */}
-        <div className="px-6 py-5">
+        <div className="px-4 sm:px-6 py-5">
           <div key={`${etape}-${form.typeDemande}`} className="etape-content">
             {renderContenu()}
           </div>
         </div>
 
         {/* Navigation */}
-        <div className="px-6 py-4 flex items-center justify-between gap-3" style={{ borderTop: "1px solid var(--bg-border)" }}>
+        <div className="px-4 sm:px-6 py-4 flex items-center justify-between gap-3 flex-wrap" style={{ borderTop: "1px solid var(--bg-border)" }}>
           <button
             onClick={() => { setErrors({}); setEtape((n) => Math.max(n - 1, 1)) }}
             disabled={etape === 1 || isPending}

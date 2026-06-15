@@ -37,7 +37,7 @@ export default function Layout() {
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
         <Header onMenuToggle={() => setMobileOpen((o) => !o)} />
         <main
-          className="flex-1 overflow-y-auto p-8"
+          className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8"
           style={{ backgroundColor: "var(--bg-base)" }}
         >
           <Outlet />

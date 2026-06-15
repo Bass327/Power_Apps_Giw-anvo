@@ -510,7 +510,7 @@ export function FormulaireMission({ onClose, onSubmit, demandeur }: Props) {
               </div>
 
               {/* Dates */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 120px", gap: 12 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(160px, 100%), 1fr))", gap: 12 }}>
                 <div>
                   <label style={labelStyle}>Date de départ *</label>
                   <input

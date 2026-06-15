@@ -119,7 +119,7 @@ export default function RHSanctionsPage() {
 
   /* ── Rendu ── */
   return (
-    <div style={{ padding: "32px 32px 64px", maxWidth: 1000, margin: "0 auto" }}>
+    <div className="px-4 sm:px-8 pt-5 sm:pt-8 pb-12 sm:pb-16" style={{ maxWidth: 1000, margin: "0 auto" }}>
 
       {/* En-tête */}
       <div style={{ marginBottom: 28 }}>
@@ -383,7 +383,7 @@ export default function RHSanctionsPage() {
                   </p>
                 )}
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(200px, 100%), 1fr))", gap: 12 }}>
                 <div>
                   <label style={labelStyle}>Date de l'incident *</label>
                   <input type="date" value={fDate} onChange={(e) => setFDate(e.target.value)} style={fieldStyle} />

@@ -184,7 +184,7 @@ export function DetailDemandeAchat({ demande, open, onClose }: Props) {
           </div>
         </DialogHeader>
 
-        <div className="px-6 py-5 space-y-5">
+        <div className="px-4 sm:px-6 py-5 space-y-5">
 
           {/* ── Montant (mise en avant) ── */}
           <div
@@ -212,7 +212,7 @@ export function DetailDemandeAchat({ demande, open, onClose }: Props) {
           </div>
 
           {/* ── Informations principales ── */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <InfoLine icon={<User className="w-4 h-4" />} label="Demandeur">
               {demande.demandeur}
             </InfoLine>
@@ -515,7 +515,7 @@ export function DetailDemandeAchat({ demande, open, onClose }: Props) {
 
         {/* ── Pied de dialogue ── */}
         <div
-          className="px-6 py-4 flex justify-end"
+          className="px-4 sm:px-6 py-4 flex justify-end"
           style={{ borderTop: "1px solid var(--bg-border)" }}
         >
           <button

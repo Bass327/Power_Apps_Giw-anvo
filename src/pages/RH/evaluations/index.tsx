@@ -139,7 +139,7 @@ export default function RHEvaluationsPage() {
 
   /* ── Rendu ── */
   return (
-    <div style={{ padding: "32px 32px 64px", maxWidth: 1100, margin: "0 auto" }}>
+    <div className="px-4 sm:px-8 pt-5 sm:pt-8 pb-12 sm:pb-16" style={{ maxWidth: 1100, margin: "0 auto" }}>
 
       {/* En-tête */}
       <div style={{ marginBottom: 28 }}>
@@ -300,7 +300,7 @@ export default function RHEvaluationsPage() {
               </button>
             </div>
             <div style={{ padding: "20px 28px", display: "flex", flexDirection: "column", gap: 14 }}>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(200px, 100%), 1fr))", gap: 10 }}>
                 {[
                   { label: "Période",    value: `${LABEL_PERIODE_EVALUATION[selectionne.periode]} ${selectionne.annee}` },
                   { label: "Évaluateur", value: selectionne.evaluateur.split("@")[0] },
@@ -415,7 +415,7 @@ export default function RHEvaluationsPage() {
                   </p>
                 )}
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(200px, 100%), 1fr))", gap: 12 }}>
                 <div>
                   <label style={labelStyle}>Période</label>
                   <select value={fPeriode} onChange={(e) => setFPeriode(e.target.value as PeriodeEvaluation)} style={fieldStyle}>

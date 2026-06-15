@@ -151,16 +151,31 @@ const SP_FIELDS_SELECT = [
   "Created",
 ].join(",")
 
-/* ── Récupère toutes les demandes d'autorisation d'absence ── */
+/* ── Récupère les demandes d'autorisation d'absence ──
+   filterEmail : si fourni, filtre côté serveur sur le champ Demandeur.
+   Utilisé pour le scope "own" afin que chaque employé ne voit que ses demandes.
+   La DG et le RAF passent filterEmail = undefined → récupère tout. */
 let _columnsDiagDone = false
 
-export async function getDemandesAbsences(token: string): Promise<DemandeAbsence[]> {
+export async function getDemandesAbsences(
+  token:        string,
+  filterEmail?: string,
+): Promise<DemandeAbsence[]> {
   if (!_columnsDiagDone) {
     _columnsDiagDone = true
     logDemandesAbsencesColumns(token).catch(() => {/* silencieux */})
   }
 
-  const items = await getListItems<DemandeAbsenceSPItem>(token, LIST_NAME, `($select=${SP_FIELDS_SELECT})`)
+  /* Échapper les apostrophes OData avant d'injecter dans le $filter */
+  const filterClause = filterEmail
+    ? `&$filter=fields/Demandeur eq '${filterEmail.replace(/'/g, "''")}'`
+    : ""
+
+  const items = await getListItems<DemandeAbsenceSPItem>(
+    token,
+    LIST_NAME,
+    `($select=${SP_FIELDS_SELECT})${filterClause}`,
+  )
   return items
     .map(mapSPItem)
     .sort((a, b) => new Date(b.dateDemande).getTime() - new Date(a.dateDemande).getTime())

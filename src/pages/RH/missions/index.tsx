@@ -120,7 +120,7 @@ export default function RHMissionsPage() {
 
   /* ── Rendu ── */
   return (
-    <div style={{ padding: "32px 32px 64px", maxWidth: 1100, margin: "0 auto" }}>
+    <div className="px-4 sm:px-8 pt-5 sm:pt-8 pb-12 sm:pb-16" style={{ maxWidth: 1100, margin: "0 auto" }}>
 
       {/* ── En-tête avec breadcrumb ── */}
       <div style={{ marginBottom: 28 }}>
@@ -270,7 +270,7 @@ export default function RHMissionsPage() {
             padding: "8px 14px",
             background: "var(--bg-elevated)",
             border: "1px solid var(--bg-border)",
-            borderRadius: 10, flex: 1, minWidth: 200,
+            borderRadius: 10, flex: 1, minWidth: 0,
           }}
         >
           <Search size={14} style={{ color: "var(--text-muted)", flexShrink: 0 }} />

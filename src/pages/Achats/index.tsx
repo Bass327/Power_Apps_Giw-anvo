@@ -260,7 +260,7 @@ export default function AchatsPage() {
     <div className="min-h-screen" style={{ backgroundColor: "var(--bg-base)" }}>
 
       {/* ── En-tête de page ── */}
-      <div className="px-6 py-5" style={{ borderBottom: "1px solid var(--bg-border)" }}>
+      <div className="px-3 sm:px-6 py-4 sm:py-5" style={{ borderBottom: "1px solid var(--bg-border)" }}>
         {/* Bouton retour tableau de bord */}
         <button
           onClick={() => navigate("/")}
@@ -334,7 +334,7 @@ export default function AchatsPage() {
 
       {/* ── Onglets ── */}
       <div
-        className="px-6 flex items-center gap-1 pt-4 overflow-x-auto"
+        className="px-3 sm:px-6 flex items-center gap-1 pt-4 overflow-x-auto"
         style={{ borderBottom: "1px solid var(--bg-border)" }}
       >
         {onglets.map(({ id, label, icon }) => {
@@ -373,10 +373,10 @@ export default function AchatsPage() {
       </div>
 
       {/* ── Filtres ── */}
-      <div className="px-6 py-4 flex items-center gap-3 flex-wrap">
+      <div className="px-3 sm:px-6 py-3 sm:py-4 flex items-center gap-3 flex-wrap">
         {/* Barre de recherche */}
         <div
-          className="flex items-center gap-2 px-3 py-2 rounded-lg flex-1 min-w-[200px]"
+          className="flex items-center gap-2 px-3 py-2 rounded-lg flex-1 min-w-0"
           style={{ background: "var(--bg-surface)", border: "1px solid var(--bg-border)" }}
         >
           <Search className="w-4 h-4 flex-shrink-0" style={{ color: "var(--text-muted)" }} />
@@ -423,7 +423,7 @@ export default function AchatsPage() {
       </div>
 
       {/* ── Contenu principal ── */}
-      <div className="px-6 pb-6">
+      <div className="px-3 sm:px-6 pb-6">
         {isLoading && (
           <div className="flex items-center justify-center py-16">
             <Loader2 className="w-6 h-6 animate-spin" style={{ color: "var(--text-muted)" }} />

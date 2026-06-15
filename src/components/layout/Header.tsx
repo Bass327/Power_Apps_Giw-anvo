@@ -57,7 +57,7 @@ export const Header = ({ onMenuToggle }: HeaderProps) => {
   }
 
   return (
-    <header className="glass-header h-16 flex items-center justify-between px-6 flex-shrink-0">
+    <header className="glass-header h-16 flex items-center justify-between px-4 sm:px-6 flex-shrink-0">
 
       {/* ── Gauche ── */}
       <div className="flex items-center gap-4">

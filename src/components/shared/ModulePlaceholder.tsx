@@ -49,10 +49,10 @@ export const ModulePlaceholder = ({
       {/* En-tête du module */}
       <div className="flex items-start gap-5 mb-8">
         <div
-          className="w-16 h-16 rounded-2xl flex items-center justify-center flex-shrink-0"
+          className="w-12 h-12 sm:w-16 sm:h-16 rounded-2xl flex items-center justify-center flex-shrink-0"
           style={{ backgroundColor: bgColor }}
         >
-          <Icon className="w-8 h-8" style={{ color: iconColor }} />
+          <Icon className="w-6 h-6 sm:w-8 sm:h-8" style={{ color: iconColor }} />
         </div>
         <div>
           <div className="flex items-center gap-3 mb-2 flex-wrap">

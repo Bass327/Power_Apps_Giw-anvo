@@ -89,8 +89,18 @@ export default function RHAbsencesPage() {
   const [duree, setDuree]             = useState("1")
   const [motif, setMotif]             = useState("")
 
+  /* Scope calculé avant les hooks (règle React : pas de hook après un return conditionnel).
+     RAF et Directrice voient tout ; Chef Dept. voit son département ; sinon "own". */
+  const scope: "own" | "department" | "global" =
+    role === "RAF" || role === "Directrice" ? "global" :
+    role === "Chef Dept."                   ? "department" : "own"
+
+  /* Pour scope "own" : filtre côté serveur par email — chaque employé ne voit que ses propres demandes.
+     On passe l'email tel quel (même vide) ; le hook désactive la requête si email = "". */
+  const filterEmailParam: string | undefined = scope === "own" ? email : undefined
+
   /* ── Hooks données ── */
-  const { data: demandes  = [], isLoading: loadingAuto,   isError: errorAuto   } = useDemandesAbsences()
+  const { data: demandes  = [], isLoading: loadingAuto,   isError: errorAuto   } = useDemandesAbsences(filterEmailParam)
   const { data: absences  = [], isLoading: loadingSignal, isError: errorSignal } = useAbsences()
   const { mutate: majStatutAuto,    isPending: enCoursAuto }    = useUpdateStatutDemandeAbsence()
   const { mutate: signalerAbsence,  isPending: creationSignal } = useCreateAbsence()
@@ -109,12 +119,6 @@ export default function RHAbsencesPage() {
   const peutValiderChef   = role === "Chef Dept."
   /* Directrice a le dernier mot : approuve/refuse SOUMIS ou VALIDE_CHEF */
   const peutApprouverDG   = role === "Directrice"
-
-  /* Scope spécifique au module RH — le Comptable a un scope "global" en général
-     mais pour les absences il ne voit que les siennes (comme un employé) */
-  const scope: "own" | "department" | "global" =
-    role === "RAF" || role === "Directrice" ? "global" :
-    role === "Chef Dept."                   ? "department" : "own"
 
   /* ── Portée des données selon le rôle (insensible à la casse) ── */
   const demandesScope = useMemo(() => {
@@ -228,7 +232,7 @@ export default function RHAbsencesPage() {
 
   /* ════ RENDU ════ */
   return (
-    <div style={{ padding: "32px 32px 64px", maxWidth: 1100, margin: "0 auto" }}>
+    <div className="px-4 sm:px-8 pt-5 sm:pt-8 pb-12 sm:pb-16" style={{ maxWidth: 1100, margin: "0 auto" }}>
 
       {/* En-tête */}
       <div style={{ marginBottom: 28 }}>
@@ -368,7 +372,7 @@ export default function RHAbsencesPage() {
                 </button>
               ))}
             </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 14px", background: "var(--bg-elevated)", border: "1px solid var(--bg-border)", borderRadius: 10, flex: 1, minWidth: 200 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 14px", background: "var(--bg-elevated)", border: "1px solid var(--bg-border)", borderRadius: 10, flex: 1, minWidth: 0 }}>
               <Search size={14} style={{ color: "var(--text-muted)" }} />
               <input
                 type="text"
@@ -497,7 +501,7 @@ export default function RHAbsencesPage() {
                 </button>
               ))}
             </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 14px", background: "var(--bg-elevated)", border: "1px solid var(--bg-border)", borderRadius: 10, flex: 1, minWidth: 200 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 14px", background: "var(--bg-elevated)", border: "1px solid var(--bg-border)", borderRadius: 10, flex: 1, minWidth: 0 }}>
               <Search size={14} style={{ color: "var(--text-muted)" }} />
               <input
                 type="text"
@@ -629,7 +633,7 @@ export default function RHAbsencesPage() {
               )}
 
               {/* Récap de la demande */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(200px, 100%), 1fr))", gap: 10 }}>
                 {[
                   { label: "Demandeur",      value: demandeActif.nomDemandeur || demandeActif.demandeur.split("@")[0] },
                   { label: "Département",    value: demandeActif.departement  || "—" },
@@ -739,7 +743,7 @@ export default function RHAbsencesPage() {
               </button>
             </div>
             <div style={{ padding: "20px 28px", display: "flex", flexDirection: "column", gap: 16 }}>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(200px, 100%), 1fr))", gap: 12 }}>
                 {[
                   { label: "Employé", value: absenceActif.employe.split("@")[0] },
                   { label: "Type",    value: LABEL_TYPE_ABSENCE[absenceActif.typeAbsence] },
@@ -801,7 +805,7 @@ export default function RHAbsencesPage() {
                   ))}
                 </select>
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(200px, 100%), 1fr))", gap: 12 }}>
                 <div>
                   <label style={labelStyle}>Date *</label>
                   <input type="date" value={dateAbsence} onChange={(e) => setDateAbsence(e.target.value)} required style={inputStyle} />

@@ -139,7 +139,7 @@ export function FormulaireBudget({ moisDefaut, anneeDefaut, onClose }: Props) {
         <form onSubmit={handleSubmit} style={{ padding: "20px 28px 28px", display: "flex", flexDirection: "column", gap: 14 }}>
 
           {/* 1. Mois + 2. Année */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(200px, 100%), 1fr))", gap: 12 }}>
             <div>
               <label style={labelStyle}>Mois *</label>
               <select value={mois} onChange={(e) => setMois(Number(e.target.value))} style={inputStyle}>
@@ -234,7 +234,7 @@ export function FormulaireBudget({ moisDefaut, anneeDefaut, onClose }: Props) {
           </div>
 
           {/* 7. Version + 8. Statut */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(200px, 100%), 1fr))", gap: 12 }}>
             <div>
               <label style={labelStyle}>Version budget</label>
               <input

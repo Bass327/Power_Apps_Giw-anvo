@@ -161,7 +161,7 @@ export default function RHRecrutementPage() {
 
   /* ── Rendu ── */
   return (
-    <div style={{ padding: "32px 32px 64px", maxWidth: 1100, margin: "0 auto" }}>
+    <div className="px-4 sm:px-8 pt-5 sm:pt-8 pb-12 sm:pb-16" style={{ maxWidth: 1100, margin: "0 auto" }}>
 
       {/* Breadcrumb + En-tête */}
       <div style={{ marginBottom: 28 }}>
@@ -444,7 +444,7 @@ export default function RHRecrutementPage() {
                 <input type="text" placeholder="Ex : Ingénieur Électricien Solaire" value={fIntitule} onChange={(e) => setFIntitule(e.target.value)} style={fieldStyle} />
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(200px, 100%), 1fr))", gap: 12 }}>
                 <div>
                   <label style={labelStyle}>Département *</label>
                   <input type="text" placeholder="Ex : Technique, RH..." value={fDept} onChange={(e) => setFDept(e.target.value)} style={fieldStyle} />
@@ -459,7 +459,7 @@ export default function RHRecrutementPage() {
                 </div>
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(140px, 100%), 1fr))", gap: 12 }}>
                 <div>
                   <label style={labelStyle}>Nb. de postes</label>
                   <input type="number" min={1} value={fNb} onChange={(e) => setFNb(e.target.value)} style={fieldStyle} />

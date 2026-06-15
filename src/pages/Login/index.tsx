@@ -1,27 +1,27 @@
-import { useState } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import logoGiwanvo from "@/assets/logo-giwanvo.png"
 import { useMsal } from "@azure/msal-react"
 import { InteractionStatus } from "@azure/msal-browser"
 import { Navigate } from "react-router-dom"
 import { useAuth } from "@/hooks/useAuth"
+import { detectTeams } from "@/lib/teamsAuth"
 
 export default function LoginPage() {
   const { login, isAuthenticated } = useAuth()
   const { inProgress } = useMsal()
   const [isLoading, setIsLoading]   = useState(false)
   const [popupError, setPopupError] = useState<string | null>(null)
+  // Garde pour éviter de déclencher l'auto-login deux fois en cas de re-render
+  const autoLoginDone               = useRef(false)
 
-  // Déjà connecté → rediriger vers le dashboard
-  if (isAuthenticated) return <Navigate to="/" replace />
-
-  // Connexion en cours (popup, redirect aller ou redirect retour)
   const isInProgress =
     isLoading ||
     inProgress === InteractionStatus.Login ||
     inProgress === InteractionStatus.AcquireToken ||
     inProgress === InteractionStatus.HandleRedirect
 
-  const handleLogin = async () => {
+  const handleLogin = useCallback(async () => {
+    if (isInProgress) return
     setIsLoading(true)
     setPopupError(null)
     try {
@@ -51,7 +51,20 @@ export default function LoginPage() {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [login, isInProgress])
+
+  // Dans Teams, déclenche le SSO silencieusement dès le montage.
+  // Azure AD complète le flux PKCE sans intervention utilisateur si la session M365 est active.
+  useEffect(() => {
+    if (autoLoginDone.current) return
+    autoLoginDone.current = true
+    void detectTeams().then(inTeams => {
+      if (inTeams) void handleLogin()
+    })
+  }, [handleLogin])
+
+  // Déjà connecté → rediriger vers le dashboard
+  if (isAuthenticated) return <Navigate to="/" replace />
 
   return (
     <div

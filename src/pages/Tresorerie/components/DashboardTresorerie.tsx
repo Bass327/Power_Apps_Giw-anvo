@@ -310,7 +310,7 @@ export function DashboardTresorerie() {
       <div>
         <SectionHeader titre="Analyse des flux" soustitre="6 derniers mois · répartition par catégorie" />
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(280px, 100%), 1fr))", gap: 16 }}>
 
         {/* Tendance 6 mois */}
         <div style={{ background: "var(--bg-surface)", border: "1px solid var(--bg-border)", borderRadius: 14, padding: "20px 24px" }}>
@@ -409,7 +409,7 @@ export function DashboardTresorerie() {
       <div>
         <SectionHeader titre="Top consommateurs" soustitre={`année ${anneeCourante} — tous statuts`} />
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(280px, 100%), 1fr))", gap: 16 }}>
 
         {/* Top 5 projets */}
         <div style={{ background: "var(--bg-surface)", border: "1px solid var(--bg-border)", borderRadius: 14, padding: "20px 24px" }}>

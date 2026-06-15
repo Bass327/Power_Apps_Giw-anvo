@@ -12,24 +12,36 @@
 <body>
   <p id="status">Finalisation de la connexion…</p>
   <script>
-    (async function () {
+    // Initialise le SDK Teams immédiatement au chargement de la page.
+    // Sur Teams mobile, app.initialize() doit être résolu avant notifySuccess/Failure,
+    // sinon la popup ne se ferme pas automatiquement (le SDK n'a pas encore de canal
+    // de communication avec l'app parente).
+    // Timeout de 3 s : hors Teams, initialize() ne reçoit jamais de réponse.
+    const _sdkReady = typeof microsoftTeams !== 'undefined'
+      ? Promise.race([
+          microsoftTeams.app.initialize().catch(() => {}),
+          new Promise(r => setTimeout(r, 3000))
+        ])
+      : Promise.resolve()
+
+    ;(async function () {
       const KEY_RESULT = 'giwanvo_pkce_result'
       const KEY_ERROR  = 'giwanvo_pkce_error'
       const KEY_PKCE   = 'giwanvo_pkce_'
 
-      // Ferme la popup dans tous les cas : notifySuccess/Failure pour Teams SDK,
-      // puis window.close() en secours si Teams ne la ferme pas lui-même.
-      const finish = (success, payload) => {
+      // Ferme la popup dans tous les cas.
+      // Attend d'abord que le SDK soit prêt (requis sur Teams mobile),
+      // puis appelle notifySuccess/Failure, puis window.close() en secours.
+      const finish = async (success, payload) => {
+        await _sdkReady
         if (typeof microsoftTeams !== 'undefined') {
-          // notifySuccess immédiat : fonctionne dans Teams Desktop sans app.initialize()
-          // (le SDK ouvre le canal de communication au chargement du script)
           try {
             if (success) microsoftTeams.authentication.notifySuccess(payload)
             else         microsoftTeams.authentication.notifyFailure(payload)
           } catch (_) {}
         }
         // Fermeture de secours dans 1.5 s si Teams ne ferme pas la popup
-        setTimeout(() => { try { window.close() } catch(_) {} }, 1500)
+        setTimeout(() => { try { window.close() } catch (_) {} }, 1500)
       }
 
       // ── Paramètres OAuth ────────────────────────────────────────────────
@@ -41,7 +53,7 @@
       if (error) {
         const msg = error + ': ' + (params.get('error_description') || '')
         localStorage.setItem(KEY_ERROR, msg)
-        finish(false, msg)
+        await finish(false, msg)
         return
       }
 
@@ -59,9 +71,9 @@
 
       if (!savedState || state !== savedState) {
         document.getElementById('status').textContent = 'Erreur : state_mismatch'
-        const msg = 'state_mismatch'
-        localStorage.setItem(KEY_ERROR, msg)
-        finish(false, msg)
+        const errMsg = 'state_mismatch'
+        localStorage.setItem(KEY_ERROR, errMsg)
+        await finish(false, errMsg)
         return
       }
 
@@ -92,21 +104,21 @@
             tenantId:     tenantId,
           })
           // Stocke dans localStorage AVANT d'appeler finish() :
-          // la fenêtre principale peut lire le résultat via l'événement storage
-          // même si notifySuccess ne fonctionne pas dans ce contexte Teams.
+          // la fenêtre principale lit le résultat via polling ou storage event
+          // même si notifySuccess est lent sur certains contextes Teams.
           localStorage.setItem(KEY_RESULT, payload)
-          finish(true, payload)
+          await finish(true, payload)
         } else {
-          const msg = (data.error || 'no_access_token') + ': ' + (data.error_description || '')
-          document.getElementById('status').textContent = 'Erreur : ' + msg
-          localStorage.setItem(KEY_ERROR, msg)
-          finish(false, msg)
+          const errMsg = (data.error || 'no_access_token') + ': ' + (data.error_description || '')
+          document.getElementById('status').textContent = 'Erreur : ' + errMsg
+          localStorage.setItem(KEY_ERROR, errMsg)
+          await finish(false, errMsg)
         }
       } catch (err) {
-        const msg = 'fetch_failed: ' + err.message
-        document.getElementById('status').textContent = 'Erreur : ' + msg
-        localStorage.setItem(KEY_ERROR, msg)
-        finish(false, msg)
+        const errMsg = 'fetch_failed: ' + err.message
+        document.getElementById('status').textContent = 'Erreur : ' + errMsg
+        localStorage.setItem(KEY_ERROR, errMsg)
+        await finish(false, errMsg)
       }
     })()
   </script>

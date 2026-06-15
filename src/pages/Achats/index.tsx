@@ -511,7 +511,7 @@ export default function AchatsPage() {
               </thead>
               <tbody>
                 {demandesFiltrees.map((d, i) => {
-                  const cfg = STATUT_CONFIG[d.statut]
+                  const cfg = STATUT_CONFIG[d.statut] ?? STATUT_CONFIG.BROUILLON
                   return (
                     <tr
                       key={d.id}

@@ -39,7 +39,7 @@ export function DetailDemandeAchat({ demande, open, onClose }: Props) {
   if (!demande) return null
 
   const statut  = demande.statut
-  const config  = STATUT_CONFIG[statut]
+  const config  = STATUT_CONFIG[statut] ?? STATUT_CONFIG.BROUILLON
   const circuit = CIRCUIT_VALIDATION[demande.typeAchat]
   const role    = currentUser?.role
 

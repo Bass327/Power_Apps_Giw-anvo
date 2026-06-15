@@ -69,8 +69,28 @@ function statutVersSP(statut: StatutDemande): string {
 
 /** Convertit une valeur SharePoint vers le statut TypeScript applicatif */
 function spVersStatut(spStatut: string | undefined): StatutDemande {
-  if (spStatut === "Approuvé DG") return "APPROUVE"
-  return (spStatut as StatutDemande) ?? "BROUILLON"
+  const MAP: Record<string, StatutDemande> = {
+    /* Valeurs UPPER_SNAKE_CASE stockées par l'app */
+    BROUILLON:   "BROUILLON",
+    SOUMIS:      "SOUMIS",
+    VALIDE_CHEF: "VALIDE_CHEF",
+    VALIDE_RAF:  "VALIDE_RAF",
+    APPROUVE:    "APPROUVE",
+    EN_PAIEMENT: "EN_PAIEMENT",
+    SOLDE:       "SOLDE",
+    REJETE:      "REJETE",
+    /* Variantes françaises (anciens items ou saisie manuelle dans SP) */
+    "Brouillon":    "BROUILLON",
+    "Soumis":       "SOUMIS",
+    "Validé Chef":  "VALIDE_CHEF",
+    "Validé RAF":   "VALIDE_RAF",
+    "Approuvé":     "APPROUVE",
+    "Approuvé DG":  "APPROUVE",
+    "En paiement":  "EN_PAIEMENT",
+    "Soldé":        "SOLDE",
+    "Rejeté":       "REJETE",
+  }
+  return MAP[spStatut ?? ""] ?? "BROUILLON"
 }
 
 /* ════════════════════════════════════════════════

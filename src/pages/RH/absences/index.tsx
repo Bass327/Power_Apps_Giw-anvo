@@ -95,12 +95,8 @@ export default function RHAbsencesPage() {
     role === "RAF" || role === "Directrice" ? "global" :
     role === "Chef Dept."                   ? "department" : "own"
 
-  /* Pour scope "own" : filtre côté serveur par email — chaque employé ne voit que ses propres demandes.
-     On passe l'email tel quel (même vide) ; le hook désactive la requête si email = "". */
-  const filterEmailParam: string | undefined = scope === "own" ? email : undefined
-
   /* ── Hooks données ── */
-  const { data: demandes  = [], isLoading: loadingAuto,   isError: errorAuto   } = useDemandesAbsences(filterEmailParam)
+  const { data: demandes  = [], isLoading: loadingAuto,   isError: errorAuto   } = useDemandesAbsences()
   const { data: absences  = [], isLoading: loadingSignal, isError: errorSignal } = useAbsences()
   const { mutate: majStatutAuto,    isPending: enCoursAuto }    = useUpdateStatutDemandeAbsence()
   const { mutate: signalerAbsence,  isPending: creationSignal } = useCreateAbsence()
@@ -120,11 +116,19 @@ export default function RHAbsencesPage() {
   /* Directrice a le dernier mot : approuve/refuse SOUMIS ou VALIDE_CHEF */
   const peutApprouverDG   = role === "Directrice"
 
-  /* ── Portée des données selon le rôle (insensible à la casse) ── */
+  /* ── Portée des données selon le rôle ──
+     Pour scope "own" : on compare d'abord par email, puis par NomDemandeur en fallback.
+     Le fallback par nom couvre les demandes créées avant que le champ Demandeur soit
+     correctement renseigné dans SharePoint. */
   const demandesScope = useMemo(() => {
-    const emailLower = email.toLowerCase()
+    const emailLower  = email.toLowerCase()
+    const nomComplet  = (user?.nomComplet || user?.displayName || "").toLowerCase()
     return demandes.filter((d) => {
-      if (scope === "own" && d.demandeur.toLowerCase() !== emailLower) return false
+      if (scope === "own") {
+        const parEmail = emailLower && d.demandeur?.toLowerCase() === emailLower
+        const parNom   = nomComplet && d.nomDemandeur?.toLowerCase() === nomComplet
+        if (!parEmail && !parNom) return false
+      }
       if (scope === "department" && d.departement !== user?.departement) return false
       return true
     })

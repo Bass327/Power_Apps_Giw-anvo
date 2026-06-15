@@ -11,24 +11,19 @@ import type { DemandeAbsence, StatutDemandeAbsence } from "@/types/rh"
 
 const QUERY_KEY = ["demandes-absences"]
 
-/* ── Liste les demandes d'autorisation d'absence ──
-   filterEmail : email de l'utilisateur pour le scope "own".
-   Undefined → récupère toutes les demandes (DG, RAF, Chef Dept.).
-   La queryKey inclut l'email pour avoir un cache séparé par utilisateur. */
-export function useDemandesAbsences(filterEmail?: string) {
+/* ── Liste toutes les demandes d'autorisation d'absence ──
+   Le filtrage par scope est géré côté client (absences/index.tsx → demandesScope).
+   L'API Graph SharePoint ne supporte pas $filter sur les champs expandés. */
+export function useDemandesAbsences() {
   const { isAuthenticated, getToken } = useAuth()
 
   return useQuery({
-    queryKey:  filterEmail ? [...QUERY_KEY, filterEmail] : QUERY_KEY,
-    /* Règle d'activation :
-       - filterEmail = undefined → scope global, toujours actif
-       - filterEmail = "x@y"    → scope "own" avec email, actif
-       - filterEmail = ""       → scope "own" SANS email (user pas encore chargé) → on attend */
-    enabled:   isAuthenticated && filterEmail !== "",
+    queryKey:  QUERY_KEY,
+    enabled:   isAuthenticated,
     staleTime: 2 * 60 * 1000,
     queryFn:   async () => {
       const token = await getToken()
-      return getDemandesAbsences(token, filterEmail || undefined)
+      return getDemandesAbsences(token)
     },
   })
 }

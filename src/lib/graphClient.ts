@@ -126,7 +126,30 @@ async function resolveListId(token: string, siteId: string, listName: string): P
   return found.id
 }
 
-/** Récupère tous les éléments d'une liste SharePoint */
+/**
+ * Récupère toutes les pages d'une requête Graph API paginée.
+ * L'API Graph limite chaque réponse (~200 éléments) et fournit "@odata.nextLink"
+ * pour la suite — sans cette boucle, seuls les premiers éléments créés étaient
+ * remontés et les demandes les plus récentes disparaissaient de l'app.
+ */
+async function graphFetchAllPages<T>(token: string, firstEndpoint: string): Promise<T[]> {
+  const items: T[] = []
+  let endpoint: string | undefined = firstEndpoint
+
+  while (endpoint) {
+    const data: { value: T[]; "@odata.nextLink"?: string } = await graphFetch<{
+      value: T[]
+      "@odata.nextLink"?: string
+    }>(token, endpoint)
+    items.push(...data.value)
+    // Le nextLink est une URL absolue complète : on retire le préfixe GRAPH_BASE
+    endpoint = data["@odata.nextLink"]?.replace(GRAPH_BASE, "")
+  }
+
+  return items
+}
+
+/** Récupère tous les éléments d'une liste SharePoint (toutes pages confondues) */
 export async function getListItems<T>(
   token:       string,
   listName:    string,
@@ -134,11 +157,10 @@ export async function getListItems<T>(
 ): Promise<T[]> {
   const siteId = await getSiteId(token)
   const listId = await resolveListId(token, siteId, listName)
-  const data = await graphFetch<{ value: T[] }>(
+  return graphFetchAllPages<T>(
     token,
     `/sites/${siteId}/lists/${listId}/items?$expand=fields${queryParams}`,
   )
-  return data.value
 }
 
 /**
@@ -155,11 +177,10 @@ export async function getListItemsFromSite<T>(
 ): Promise<T[]> {
   const siteId = await getSiteIdByPath(token, sitePath)
   const listId = await resolveListId(token, siteId, listName)
-  const data   = await graphFetch<{ value: T[] }>(
+  return graphFetchAllPages<T>(
     token,
     `/sites/${siteId}/lists/${listId}/items?$expand=fields${queryParams}`,
   )
-  return data.value
 }
 
 /**

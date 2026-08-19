@@ -3,12 +3,7 @@ import { useMsal } from "@azure/msal-react"
 import { InteractionStatus } from "@azure/msal-browser"
 import { Navigate } from "react-router-dom"
 import { useAuth } from "@/hooks/useAuth"
-import {
-  detectTeams,
-  teamsLogin,
-  notifyTeamsReady,
-  getStoredTeamsToken,
-} from "@/lib/teamsAuth"
+import { detectTeams } from "@/lib/teamsAuth"
 import { isPowerAppsEnv } from "@/lib/powerAppsBridge"
 
 interface ProtectedRouteProps {
@@ -22,15 +17,14 @@ const MSAL_TIMEOUT_MS = 6000
  *
  * Scénarios gérés :
  * - PowerApps : accès direct (pas d'auth côté client)
- * - Teams     : re-auth silencieuse si le token est absent ou expiré.
- *               Azure AD complète automatiquement le flux PKCE via SSO Teams
- *               sans que l'utilisateur n'ait besoin d'intervenir.
+ * - Teams     : re-auth silencieuse si le token est absent ou expiré, via login()
+ *               (SSO natif Teams en priorité, repli sur le flux popup PKCE si besoin).
  * - Navigateur : MSAL localStorage → token renouvelé silencieusement.
  *               Si aucun compte → redirige vers /login.
  */
 export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
   const { inProgress } = useMsal()
-  const { isAuthenticated } = useAuth()
+  const { isAuthenticated, login } = useAuth()
   const [timedOut,      setTimedOut]      = useState(false)
   // null = pas encore déterminé, true = prêt, false = re-auth échouée
   const [teamsReady,    setTeamsReady]    = useState<boolean | null>(
@@ -62,27 +56,22 @@ export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
         return
       }
 
-      // Dans Teams : si aucun token valide → re-auth silencieuse via Azure AD SSO
-      if (!getStoredTeamsToken()) {
-        try {
-          const clientId = import.meta.env.VITE_CLIENT_ID as string
-          const tenantId = import.meta.env.VITE_TENANT_ID as string
-          // Le popup se ferme tout seul grâce au SSO Azure AD — l'utilisateur
-          // ne voit généralement pas la fenêtre s'afficher
-          await teamsLogin(clientId, tenantId)
-          notifyTeamsReady()
-        } catch {
-          // Re-auth silencieuse échouée → on affiche /login
-          if (!cancelled) setTeamsReady(false)
-          return
-        }
+      // Dans Teams sans session active → login() tente le SSO natif Teams en silence,
+      // puis se rabat sur le flux popup PKCE si le SSO échoue
+      try {
+        await login()
+        if (!cancelled) setTeamsReady(true)
+      } catch {
+        // Re-auth silencieuse échouée → on affiche /login
+        if (!cancelled) setTeamsReady(false)
       }
-
-      if (!cancelled) setTeamsReady(true)
     }
 
     void tryTeamsSilentAuth()
     return () => { cancelled = true }
+    // login() est recréée à chaque rendu de useAuth() — l'ajouter en dépendance
+    // redéclencherait cet effet en boucle. On ne veut réagir qu'aux changements d'auth.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated])
 
   // Timeout de sécurité si MSAL reste bloqué (Teams iframe)

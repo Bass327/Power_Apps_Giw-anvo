@@ -1,7 +1,7 @@
 import { useMsal } from "@azure/msal-react"
 import { loginRequest } from "@/lib/msalConfig"
 import { isPowerAppsEnv, tryGetTokenFromBridge } from "@/lib/powerAppsBridge"
-import { detectTeams, teamsLogin, getStoredTeamsToken, clearTeamsToken, notifyTeamsReady, hasTeamsRefreshToken, refreshTeamsToken } from "@/lib/teamsAuth"
+import { detectTeams, teamsLogin, getStoredTeamsToken, clearTeamsToken, notifyTeamsReady, hasTeamsRefreshToken, refreshTeamsToken, getTeamsSsoLoginHint } from "@/lib/teamsAuth"
 
 const MSAL_STUB = { instance: null as never, accounts: [] as never[] }
 
@@ -21,9 +21,21 @@ export const useAuth = () => {
   const login = async (): Promise<void> => {
     if (isPowerAppsEnv()) return
 
-    // Détection Teams : si oui → flux Teams SDK (PKCE sans popup bloqué)
+    // Détection Teams : si oui → SSO natif Teams en priorité, sans popup ni mot de passe
     const inTeams = await detectTeams()
     if (inTeams) {
+      const loginHint = await getTeamsSsoLoginHint()
+      if (loginHint) {
+        try {
+          await msal.instance.ssoSilent({ ...loginRequest, loginHint })
+          notifyTeamsReady()
+          return
+        } catch {
+          // SSO silencieux indisponible (ex: premier consentement requis) → repli ci-dessous
+        }
+      }
+
+      // Repli : flux Teams SDK (PKCE via popup)
       const clientId = import.meta.env.VITE_CLIENT_ID as string
       const tenantId = import.meta.env.VITE_TENANT_ID as string
       await teamsLogin(clientId, tenantId)

@@ -45,6 +45,41 @@ export function notifyTeamsReady(): void {
   try { microsoftTeams.app.notifySuccess() } catch (_) { /* hors Teams : no-op */ }
 }
 
+/** Décode le payload d'un JWT sans vérifier la signature (usage : extraire le login hint uniquement). */
+function decodeJwtPayload(token: string): Record<string, unknown> | null {
+  try {
+    const payload = token.split(".")[1]
+    const json    = decodeURIComponent(
+      atob(payload.replace(/-/g, "+").replace(/_/g, "/"))
+        .split("")
+        .map((c) => "%" + c.charCodeAt(0).toString(16).padStart(2, "0"))
+        .join(""),
+    )
+    return JSON.parse(json)
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Récupère l'UPN de l'utilisateur via le SSO natif Teams (`getAuthToken`) — sans popup,
+ * sans mot de passe : Teams fournit directement un jeton d'identité pour l'utilisateur déjà
+ * connecté à l'application Teams. Nécessite webApplicationInfo dans le manifeste + l'app
+ * registration Azure AD correctement exposée (Expose an API + Authorized client applications).
+ * Retourne null si le SSO Teams échoue (hors Teams, config manquante, etc.) — l'appelant doit
+ * alors se rabattre sur le flux popup classique.
+ */
+export async function getTeamsSsoLoginHint(): Promise<string | null> {
+  try {
+    const ssoToken = await microsoftTeams.authentication.getAuthToken()
+    const payload  = decodeJwtPayload(ssoToken)
+    const hint     = (payload?.preferred_username as string) ?? (payload?.upn as string) ?? null
+    return hint
+  } catch {
+    return null
+  }
+}
+
 const LS_RESULT = "giwanvo_pkce_result"
 const LS_ERROR  = "giwanvo_pkce_error"
 
